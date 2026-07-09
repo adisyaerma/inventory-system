@@ -167,6 +167,7 @@
                                                                 <option>Opening Balance</option>
                                                                 <option>Delivery Order</option>
                                                                 <option>Receive Item</option>
+                                                                <option>Item Transfer</option>
 
                                                             </select>
 

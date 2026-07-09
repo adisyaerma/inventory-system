@@ -481,7 +481,7 @@
 
                     <div class="d-flex flex-wrap justify-content-lg-start justify-content-center gap-2">
 
-                        <div style="min-width:220px;">
+                        <div style="min-width:140px;">
                             <select id="filterLocation" class="form-select form-select-sm">
 
                                 <option value="">Semua Lokasi</option>
