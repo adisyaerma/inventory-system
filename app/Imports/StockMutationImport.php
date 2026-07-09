@@ -19,10 +19,26 @@ class StockMutationImport implements ToCollection
             return null;
         }
 
+        // Jika Excel mengirim serial number
         if (is_numeric($value)) {
-            return Date::excelToDateTimeObject($value);
+            return Carbon::instance(
+                Date::excelToDateTimeObject($value)
+            );
         }
 
+        $value = trim($value);
+
+        // Format d/m/Y (22/04/2026)
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $value)) {
+            return Carbon::createFromFormat('d/m/Y', $value);
+        }
+
+        // Format Y-m-d (2026-04-22)
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return Carbon::createFromFormat('Y-m-d', $value);
+        }
+
+        // Format lain
         return Carbon::parse($value);
     }
 
@@ -131,7 +147,7 @@ class StockMutationImport implements ToCollection
                         'location_id' => $unknownLocation->id,
                     ],
                     [
-                        'quantity' => 0,                                                             
+                        'quantity' => 0,
                     ]
                 );
             }

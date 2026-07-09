@@ -2148,7 +2148,7 @@
                 valueField: "id",
                 labelField: "text",
                 searchField: ["text"],
-                preload: true,
+                preload: "focus",
                 create: false,
                 maxOptions: 20,
 
@@ -2168,6 +2168,10 @@
                     });
 
                 }
+            });
+
+            editStockSelect.on("dropdown_open", function() {
+                this.load("");
             });
 
             editLocationSelect = new TomSelect("#editLocation", {
@@ -2193,16 +2197,16 @@
                         $('#edit_id').val(res.id);
                         $('#editTransactionDate').val(res.transaction_date);
 
-                        // STOCK
                         editStockSelect.clear(true);
-                        editStockSelect.clearOptions();
+
+                        // Jangan clearOptions()
 
                         editStockSelect.addOption({
                             id: res.stock_id,
                             text: res.stock_name
                         });
 
-                        editStockSelect.setValue(res.stock_id);
+                        editStockSelect.setValue(res.stock_id, true);
 
                         // LOCATION
                         if (!editLocationSelect.options[res.location]) {
