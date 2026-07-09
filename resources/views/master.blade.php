@@ -110,7 +110,7 @@
                                 </svg>
                             </span>
                         </span>
-                        <span class="app-brand-text demo menu-text fw-bold ms-2">StockScan</span>
+                        <span class="app-brand-text demo menu-text fw-bold ms-2">Stock</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">

@@ -45,6 +45,9 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             'stock:id,item_code_internal,name',
             'location:id,location_name',
         ]);
+        if ($this->request->filled('stock')) {
+            $query->where('stock_id', $this->request->stock);
+        }
         if ($this->request->filled('start_date')) {
             $query->whereDate(
                 'transaction_date',
@@ -119,7 +122,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
 
             $endRow = $excelRow - 1;
 
-            if ($endRow> $startRow) {
+            if ($endRow > $startRow) {
                 $this->mergeRanges[] = [$startRow, $endRow];
             }
         }
@@ -176,7 +179,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                // Lebar kolom manual (lebih cepat daripada ShouldAutoSize)
                 $sheet->getColumnDimension('A')->setWidth(18);
                 $sheet->getColumnDimension('B')->setWidth(35);
                 $sheet->getColumnDimension('C')->setWidth(15);

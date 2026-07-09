@@ -1217,8 +1217,11 @@
                 let transaction = $('#filterTransaction').val();
                 let location = $('#filterLocation').val();
 
+                let stock = new URLSearchParams(window.location.search).get('stock');
+
                 let url = new URL("{{ route('mutation.export') }}");
 
+                if (stock) url.searchParams.append('stock', stock);
                 if (start) url.searchParams.append('start_date', start);
                 if (end) url.searchParams.append('end_date', end);
                 if (transaction) url.searchParams.append('transaction_type', transaction);
