@@ -35,7 +35,7 @@ Route::get('/check-location-code', function (Request $request) {
     ]);
 });
 
-// ===stocks===
+// ==stocks==
 
 Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
 
