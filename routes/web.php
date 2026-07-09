@@ -26,7 +26,6 @@ Route::get('/check-location-code', function (Request $request) {
 
     $query = Location::where('location_code', $request->code);
 
-    // untuk modal edit
     if ($request->filled('ignore_id')) {
         $query->where('id', '!=', $request->ignore_id);
     }
