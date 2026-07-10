@@ -26,6 +26,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
         return [
             'Item Code',
             'Item Name',
+            'Location',
             'Date',
             'Transaction Type',
             'Transaction Number',
@@ -82,6 +83,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             ->select([
                 'id',
                 'stock_id',
+                'location_id',
                 'transaction_date',
                 'transaction_type',
                 'transaction_number',
@@ -107,6 +109,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                 $rows[] = [
                     $first ? $mutation->stock->item_code_internal : '',
                     $first ? $mutation->stock->name : '',
+                    $first ? optional($mutation->location)->location_name : '',
                     optional($mutation->transaction_date)->format('d/m/Y'),
                     $mutation->transaction_type,
                     $mutation->transaction_number,
@@ -140,7 +143,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
 
                 foreach ($this->mergeRanges as [$start, $end]) {
 
-                    foreach (['A', 'B'] as $column) {
+                    foreach (['A', 'B', 'C'] as $column) {
 
                         $sheet->mergeCells("{$column}{$start}:{$column}{$end}");
 
@@ -155,7 +158,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
 
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:I{$lastRow}")
+                $sheet->getStyle("A1:J{$lastRow}")
                     ->applyFromArray([
                         'borders' => [
                             'allBorders' => [
@@ -165,29 +168,30 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                     ]);
 
                 // Alignment seluruh data
-                $sheet->getStyle("A1:I{$lastRow}")
+                $sheet->getStyle("A1:J{$lastRow}")
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Format angka
-                $sheet->getStyle("G2:I{$lastRow}")
+                $sheet->getStyle("H2:J{$lastRow}")
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
 
                 // Header
-                $sheet->getStyle('A1:I1')
+                $sheet->getStyle('A1:J1')
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $sheet->getColumnDimension('A')->setWidth(18);
                 $sheet->getColumnDimension('B')->setWidth(35);
-                $sheet->getColumnDimension('C')->setWidth(15);
-                $sheet->getColumnDimension('D')->setWidth(20);
-                $sheet->getColumnDimension('E')->setWidth(25);
-                $sheet->getColumnDimension('F')->setWidth(40);
-                $sheet->getColumnDimension('G')->setWidth(12);
+                $sheet->getColumnDimension('C')->setWidth(25);
+                $sheet->getColumnDimension('D')->setWidth(15);
+                $sheet->getColumnDimension('E')->setWidth(20);
+                $sheet->getColumnDimension('F')->setWidth(25);
+                $sheet->getColumnDimension('G')->setWidth(40);
                 $sheet->getColumnDimension('H')->setWidth(12);
                 $sheet->getColumnDimension('I')->setWidth(12);
+                $sheet->getColumnDimension('J')->setWidth(12);
             },
 
         ];
