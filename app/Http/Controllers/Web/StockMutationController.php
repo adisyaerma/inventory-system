@@ -98,6 +98,7 @@ class StockMutationController extends Controller
         $locations = Location::orderBy('location_name')->get();
 
         $mutations = $query
+            ->with(['stock', 'location'])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
             ->get();
