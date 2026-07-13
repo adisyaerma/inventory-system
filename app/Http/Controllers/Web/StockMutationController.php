@@ -14,9 +14,116 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 
 class StockMutationController extends Controller
 {
+    public function data(Request $request)
+    {
+        $query = StockMutation::with(['stock', 'location'])
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id');
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('transaction_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('transaction_date', '<=', $request->end_date);
+        }
+
+        if ($request->filled('transaction_type')) {
+            $query->where('transaction_type', $request->transaction_type);
+        }
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+
+        return DataTables::eloquent($query)
+
+            ->addIndexColumn()
+
+            ->editColumn('transaction_date', function ($row) {
+                return optional($row->transaction_date)->format('d-m-Y');
+            })
+
+            ->addColumn('item_code', function ($row) {
+                return $row->stock->item_code_internal;
+            })
+
+            ->addColumn('stock_name', function ($row) {
+                return $row->stock->name;
+            })
+
+            ->addColumn('location_name', function ($row) {
+                return $row->location->location_name;
+            })
+
+            ->editColumn('qty_in', function ($row) {
+                return rtrim(rtrim(number_format($row->qty_in, 2, '.', ''), '0'), '.');
+            })
+
+            ->editColumn('qty_out', function ($row) {
+                return rtrim(rtrim(number_format($row->qty_out, 2, '.', ''), '0'), '.');
+            })
+
+            ->editColumn('qty_balance', function ($row) {
+                return rtrim(rtrim(number_format($row->qty_balance, 2, '.', ''), '0'), '.');
+            })
+            ->addColumn('action', function ($row) {
+
+                return '
+    <div class="d-flex align-items-center gap-1">
+
+        <button
+            class="btn btn-sm btn-outline-warning btnEdit"
+            type="button"
+            data-id="'.$row->id.'"
+            data-bs-toggle="modal"
+            data-bs-target="#editMutationModal">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                class="fs-5" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path fill="currentColor"
+                    d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+            </svg>
+
+        </button>
+
+        <form action="'.route('stock-mutation.destroy', $row->id).'"
+              method="POST"
+              class="form-hapus m-0">
+
+            '.csrf_field().'
+            '.method_field('DELETE').'
+
+            <button type="submit"
+                class="btn btn-sm btn-outline-danger">
+
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    width="1em" height="1em"
+                    class="fs-5"
+                    viewBox="0 0 24 24">
+
+                    <path d="M0 0h24v24H0z" fill="none"/>
+                    <path fill="currentColor"
+                        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
+
+                </svg>
+
+            </button>
+
+        </form>
+
+    </div>';
+            })
+            ->rawColumns(['action'])
+
+            ->make(true);
+    }
+
     private function recalculateLocationStock($stockId, $locationId, $startMutationId = null)
     {
         if ($startMutationId) {
@@ -89,21 +196,14 @@ class StockMutationController extends Controller
 
     public function index(Request $request)
     {
-        $query = StockMutation::query();
-
-        if ($request->filled('stock')) {
-            $query->where('stock_id', $request->stock);
-        }
+        $transactionTypes = StockMutation::select('transaction_type')
+            ->distinct()
+            ->orderBy('transaction_type')
+            ->pluck('transaction_type');
 
         $locations = Location::orderBy('location_name')->get();
 
-        $mutations = $query
-            ->with(['stock', 'location'])
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id')
-            ->get();
-
-        return view('stock_mutation', compact('mutations', 'locations'));
+        return view('stock_mutation', compact('locations', 'transactionTypes'));
     }
 
     public function import(Request $request)
@@ -183,9 +283,10 @@ class StockMutationController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->back()
-                ->with('deleted', 'Data mutasi berhasil dihapus.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Mutasi berhasil dihapus.',
+            ]);
 
         } catch (\Exception $e) {
 
@@ -285,7 +386,7 @@ class StockMutationController extends Controller
             'qty_out' => 'required|numeric|min:0',
             'warehouse' => 'nullable',
             'reference' => 'nullable',
-            'value' => 'nullable'
+            'value' => 'nullable',
         ]);
 
         DB::beginTransaction();
@@ -329,7 +430,7 @@ class StockMutationController extends Controller
                 'qty_balance' => 0,
                 'warehouse' => $request->warehouse,
                 'reference' => $request->reference,
-                'value' => $request->value
+                'value' => $request->value ?? 0,
             ]);
 
             $this->recalculateLocationStock(
@@ -340,17 +441,20 @@ class StockMutationController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->back()
-                ->with('success', 'Mutasi berhasil ditambahkan.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Mutasi berhasil ditambahkan.',
+            ]);
 
         } catch (\Exception $e) {
 
             DB::rollBack();
 
-            return redirect()
-                ->back()
-                ->with('error', $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+
         }
     }
 

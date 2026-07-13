@@ -13,9 +13,109 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
+use Yajra\DataTables\Facades\DataTables;
 
 class StockController extends Controller
 {
+    public function data(Request $request)
+    {
+        $query = Stock::with('locations')->orderByDesc('id');
+
+        if ($request->filled('location_id')) {
+
+            $query->whereHas('locations', function ($q) use ($request) {
+
+                $q->where('locations.id', $request->location_id);
+
+            });
+
+        }
+
+        return DataTables::eloquent($query)
+
+            ->addIndexColumn()
+
+            ->addColumn('locations_qty', function ($row) {
+
+                if ($row->locations->isEmpty()) {
+                    return '-';
+                }
+
+                $html = '';
+
+                foreach ($row->locations as $location) {
+
+                    $html .=
+                        '<div>'
+                        .$location->location_name.
+                        ' <span class="text-muted fw-bold">('.
+                        number_format($location->pivot->quantity, 0, ',', '.').
+                        ')</span></div>';
+
+                }
+
+                return $html;
+
+            })
+
+            ->addColumn('action', function ($row) {
+
+                return '
+            <div class="d-flex gap-1">
+
+                <button
+                    class="btn btn-sm btn-outline-warning btnEditStock"
+                    data-id="'.$row->id.'">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                class="fs-5" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path fill="currentColor"
+                    d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+            </svg>
+
+                </button>
+
+                <form
+                    action="'.route('stocks.destroy', $row->id).'"
+                    method="POST"
+                    class="form-hapus">
+
+                    '.csrf_field().'
+
+                    '.method_field('DELETE').'
+
+                    <button
+                        class="btn btn-sm btn-outline-danger">
+
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                    width="1em" height="1em"
+                    class="fs-5"
+                    viewBox="0 0 24 24">
+
+                    <path d="M0 0h24v24H0z" fill="none"/>
+                    <path fill="currentColor"
+                        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
+
+                </svg>
+
+                    </button>
+
+                </form>
+
+            </div>';
+
+            })
+
+            ->rawColumns([
+                'locations_qty',
+                'action',
+            ])
+
+            ->make(true);
+
+    }
+
     public function mutations(Stock $stock)
     {
         $mutations = $stock->mutations()
@@ -27,10 +127,9 @@ class StockController extends Controller
 
     public function index()
     {
-        $stocks = Stock::with('locations')->latest()->get();
         $locations = Location::orderBy('location_name')->get();
 
-        return view('stock', compact('stocks', 'locations'));
+        return view('stock', compact('locations'));
     }
 
     public function import(Request $request)
@@ -139,10 +238,10 @@ class StockController extends Controller
             }
         });
 
-        return back()->with(
-            'success',
-            'Data stok berhasil ditambahkan.'
-        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang berhasil ditambahkan.',
+        ]);
     }
 
     public function edit(Stock $stock)
@@ -222,15 +321,20 @@ class StockController extends Controller
 
         });
 
-        return back()->with('success', 'Data berhasil diperbarui.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang berhasil diperbarui.',
+        ]);
     }
 
     public function destroy(Stock $stock)
     {
         $stock->delete();
 
-        return redirect()->back()
-            ->with('deleted', 'Data berhasil dihapus');
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang berhasil dihapus.',
+        ]);
     }
 
     public function export(Request $request)

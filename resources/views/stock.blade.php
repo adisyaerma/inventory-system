@@ -23,7 +23,7 @@
 
                         <div class="modal-content">
 
-                            <form action="{{ route('stock.store') }}" method="POST">
+                            <form id="formStock" action="{{ route('stock.store') }}" method="POST">
 
                                 @csrf
 
@@ -538,67 +538,7 @@
                     </tr>
                 </thead>
 
-                <tbody class="table-border-bottom-0">
-                    @foreach ($stocks as $stock)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $stock->item_code_internal }}</td>
-                            <td>{{ $stock->item_code_supplier ?? '-' }}</td>
-                            <td>{{ $stock->item_code_customer ?? '-' }}</td>
-                            <td class="col-name">{{ $stock->name }}</td>
-                            <td class="col-name">{{ $stock->description ?? '-' }}</td>
-                            <td data-location-id="{{ $stock->locations->pluck('id')->implode(',') }}">
-                                @if ($stock->locations->isEmpty())
-                                    -
-                                @else
-                                    @foreach ($stock->locations as $location)
-                                        <div>
-                                            {{ $location->location_name }}
-                                            <span class="text-muted fw-bold">
-                                                ({{ number_format($location->pivot->quantity, 0, ',', '.') }})
-                                            </span>
-                                        </div>
-                                    @endforeach
-                                @endif
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-1">
-                                    <button type="button" class="btn btn-sm btn-outline-warning btnEditStock"
-                                        data-id="{{ $stock->id }}" data-bs-toggle="modal"
-                                        data-bs-target="#editStockModal">
-
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
-                                            height="1em" viewBox="0 0 24 24">
-
-                                            <path d="M0 0h24v24H0z" fill="none" />
-
-                                            <path fill="currentColor"
-                                                d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z" />
-
-                                        </svg>
-
-                                    </button>
-
-                                    <form action="{{ route('stocks.destroy', $stock->id) }}" method="POST"
-                                        class="form-hapus m-0">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
-                                                height="1em" viewBox="0 0 24 24">
-                                                <path d="M0 0h24v24H0z" fill="none" />
-                                                <path fill="currentColor"
-                                                    d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -856,6 +796,7 @@
 
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
         <script>
+            let table;
             $(document).ready(function() {
 
                 // Select2
@@ -864,31 +805,52 @@
                 });
 
                 // DataTable
-                let table = $('#stock').DataTable({
-                    dom: '<"dt-top d-flex justify-content-between align-items-center flex-wrap mb-2"lf>rtip',
+                table = $('#stock').DataTable({
+                    processing: true,
+                    serverSide: true,
                     scrollX: true,
-                    autoWidth: false
-                });
+                    autoWidth: false,
 
-                // Filter lokasi DataTable
-                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    ajax: {
+                        url: "{{ route('stock.data') }}",
 
-                    let selectedLocation = $('#filterLocation').val();
+                        data: function(d) {
+                            d.location_id = $('#filterLocation').val();
+                        }
+                    },
 
-                    if (!selectedLocation)
-                        return true;
-
-                    let row = table.row(dataIndex).node();
-
-                    let locationIds = $(row)
-                        .find('td[data-location-id]')
-                        .data('location-id')
-                        .toString()
-                        .split(',');
-
-                    return locationIds.includes(selectedLocation);
-
-                });
+                    columns: [{
+                            data: 'DT_RowIndex',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
+                            data: 'item_code_internal'
+                        },
+                        {
+                            data: 'item_code_supplier'
+                        },
+                        {
+                            data: 'item_code_customer'
+                        },
+                        {
+                            data: 'name'
+                        },
+                        {
+                            data: 'description'
+                        },
+                        {
+                            data: 'locations_qty',
+                            orderable: false,
+                            searchable: false
+                        },
+                        {
+                            data: 'action',
+                            orderable: false,
+                            searchable: false
+                        }
+                    ]
+                })
 
                 // Update URL export
                 function updateExportUrl() {
@@ -904,28 +866,70 @@
                     $('#exportBtn').attr('href', url.toString());
                 }
 
-                // Saat filter berubah
-                $('#filterLocation').on('change', function() {
+                $('#filterLocation').change(function() {
 
-                    table.draw();
+                    table.ajax.reload();
 
                     updateExportUrl();
 
                 });
-
                 // Reset filter
-                $('#btnResetFilter').on('click', function() {
+                $('#btnResetFilter').click(function() {
 
                     $('#filterLocation').val(null).trigger('change');
-
-                    $('div.dataTables_filter input').val('');
 
                     table.search('').draw();
 
                 });
-
                 // Inisialisasi pertama
                 updateExportUrl();
+
+                $('#formStock').submit(function(e) {
+                    e.preventDefault();
+                    $.ajax({
+                        url: "{{ route('stock.store') }}",
+                        method: "POST",
+                        data: $(this).serialize(),
+                        success: function(response) {
+                            $('#addStockModal').modal('hide');
+                            $('#formStock')[0].reset();
+                            table.ajax.reload(null, false);
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999'
+                                }
+                            });
+                        },
+                        error: function(xhr) {
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                message = Object.values(xhr.responseJSON.errors)[0][0];
+                            } else if (xhr.responseJSON?.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: message,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+                    })
+                })
 
             });
         </script>
@@ -1226,30 +1230,58 @@
         @endif
 
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
+            $(document).on('submit', '.form-hapus', function(e) {
 
-                document.querySelectorAll('.form-hapus').forEach(form => {
+                e.preventDefault();
 
-                    form.addEventListener('submit', function(e) {
+                let form = this;
 
-                        e.preventDefault();
+                Swal.fire({
+                    title: 'Hapus Data?',
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Hapus',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
 
-                        Swal.fire({
-                            title: 'Hapus Data?',
-                            text: 'Data yang dihapus tidak dapat dikembalikan.',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonText: 'Ya, Hapus',
-                            confirmButtonColor: 'red',
-                            cancelButtonText: 'Batal',
-                            reverseButtons: true
-                        }).then((result) => {
+                    if (!result.isConfirmed) return;
 
-                            if (result.isConfirmed) {
-                                form.submit();
-                            }
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        type: 'POST',
+                        data: $(form).serialize(),
 
-                        });
+                        success: function(res) {
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex =
+                                        '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
 
                     });
 
@@ -1466,7 +1498,7 @@ class="btn btn-outline-danger btn-sm btnEditRemove">
 
             }
 
-            $('.btnEditStock').click(function() {
+            $(document).on('click', '.btnEditStock', function() {
 
                 let id = $(this).data('id');
 
@@ -1482,32 +1514,23 @@ class="btn btn-outline-danger btn-sm btnEditRemove">
 
                     success: function(res) {
 
-                        $('#editStockForm').attr(
-                            'action',
-                            '/stock/' + id
-                        );
+                        $('#editStockForm').attr('action', '/stock/' + id);
 
                         $('#edit_item_code_internal').val(res.stock.item_code_internal);
-
                         $('#edit_item_code_supplier').val(res.stock.item_code_supplier);
-
                         $('#edit_item_code_customer').val(res.stock.item_code_customer);
-
                         $('#edit_name').val(res.stock.name);
-
                         $('#edit_description').val(res.stock.description);
 
                         res.stock.locations.forEach(function(item) {
-
                             addEditLocationRow(
-
                                 item.location_name,
-
                                 item.pivot.quantity
-
                             );
-
                         });
+
+                        // Tampilkan modal
+                        $('#editStockModal').modal('show');
 
                     }
 
@@ -1543,6 +1566,63 @@ class="btn btn-outline-danger btn-sm btnEditRemove">
 
                 row.remove();
 
+            });
+        </script>
+
+        <script>
+            $('#editStockForm').submit(function(e) {
+                e.preventDefault();
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+
+                    beforeSend: function() {
+                        $('#editStockForm button[type="submit"]').prop('disabled', true);
+                    },
+
+                    success: function(res) {
+
+                        $('#editStockModal').modal('hide');
+
+                        $('#editStockForm button[type="submit"]').prop('disabled', false);
+
+                        table.ajax.reload(null, false);
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: res.message,
+                            showConfirmButton: false,
+                            timer: 2000,
+                            didOpen: () => {
+                                document.querySelector('.swal2-container').style.zIndex =
+                                    '9999999';
+                            }
+                        });
+
+                    },
+
+                    error: function(xhr) {
+
+                        $('#editStockForm button[type="submit"]').prop('disabled', false);
+
+                        let message = 'Terjadi kesalahan.';
+
+                        if (xhr.responseJSON?.message) {
+                            message = xhr.responseJSON.message;
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: message
+                        });
+
+                    }
+                });
             });
         </script>
     @endpush

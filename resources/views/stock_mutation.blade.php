@@ -618,7 +618,7 @@
                             <select class="form-select form-select-sm" id="filterTransaction">
                                 <option value="">Semua</option>
 
-                                @foreach ($mutations->pluck('transaction_type')->unique()->sort() as $type)
+                                @foreach ($transactionTypes as $type)
                                     <option value="{{ $type }}">
                                         {{ $type }}
                                     </option>
@@ -696,98 +696,7 @@
 
                 </thead>
 
-                <tbody class="table-border-bottom-0">
-                    @foreach ($mutations as $mutation)
-                        <tr>
-
-                            <td>{{ $loop->iteration }}</td>
-
-                            <td>
-                                {{ optional($mutation->transaction_date)->format('d-m-Y') }}
-                            </td>
-
-                            <td>
-                                {{ $mutation->stock->item_code_internal }}
-                            </td>
-
-                            <td class="col-name">
-                                {{ $mutation->stock->name }}
-                            </td>
-
-                            <td>
-                                {{ $mutation->location->location_name }}
-                            </td>
-
-                            <td>
-                                {{ $mutation->transaction_type }}
-                            </td>
-
-                            <td>
-                                {{ $mutation->transaction_number }}
-                            </td>
-
-                            <td>
-                                {{ rtrim(rtrim(number_format($mutation->qty_in, 2, '.', ''), '0'), '.') }}
-                            </td>
-
-                            <td>
-                                {{ rtrim(rtrim(number_format($mutation->qty_out, 2, '.', ''), '0'), '.') }}
-                            </td>
-
-                            <td>
-                                {{ rtrim(rtrim(number_format($mutation->qty_balance, 2, '.', ''), '0'), '.') }}
-                            </td>
-
-                            <td>
-
-                                <div class="d-flex align-items-center gap-1">
-
-                                    <button class="btn btn-sm btn-outline-warning btnEdit" type="button"
-                                        data-id="{{ $mutation->id }}" data-bs-toggle="modal"
-                                        data-bs-target="#editMutationModal">
-
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                                            class="fs-5" viewBox="0 0 24 24">
-
-                                            <path d="M0 0h24v24H0z" fill="none" />
-
-                                            <path fill="currentColor"
-                                                d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z" />
-
-                                        </svg>
-
-                                    </button>
-
-                                    <form action="{{ route('stock-mutation.destroy', $mutation->id) }}" method="POST"
-                                        class="form-hapus m-0">
-
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-
-                                            <svg xmlns="http://www.w$locations3.org/2000/svg" width="1em"
-                                                height="1em" class="fs-5" viewBox="0 0 24 24">
-
-                                                <path d="M0 0h24v24H0z" fill="none" />
-
-                                                <path fill="currentColor"
-                                                    d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z" />
-
-                                            </svg>
-
-                                        </button>
-
-                                    </form>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    @endforeach
-
-                </tbody>
+                <tbody></tbody>
 
             </table>
         </div>
@@ -1428,22 +1337,27 @@
                     },
 
                     success: function(res) {
+
                         $('#editMutationModal').modal('hide');
 
                         $('.btnSaveEdit').prop('disabled', false);
 
+                        table.ajax.reload(null, false);
+
                         Swal.fire({
+                            toast: true,
+                            position: 'top-end',
                             icon: 'success',
-                            title: 'Berhasil',
-                            text: res.message,
+                            title: res.message,
                             timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            location.reload();
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                document.querySelector('.swal2-container').style.zIndex =
+                                    '9999999';
+                            }
                         });
 
                     },
-
                     error: function(xhr) {
 
                         $('.btnSaveEdit').prop('disabled', false);
@@ -1499,74 +1413,99 @@
             });
         </script>
         <script>
+            let table;
             $(document).ready(function() {
 
-                let table = $('#stockMutation').DataTable({
+                table = $('#stockMutation').DataTable({
+
+                    processing: true,
+                    serverSide: true,
+
+                    ajax: {
+                        url: "{{ route('stock-mutation.data') }}",
+                        data: function(d) {
+                            d.start_date = $('#filterStartDate').val();
+                            d.end_date = $('#filterEndDate').val();
+                            d.transaction_type = $('#filterTransaction').val();
+                            d.location_id = $('#filterLocation').val();
+                        }
+                    },
+
+                    columns: [
+
+                        {
+                            data: 'DT_RowIndex',
+                            orderable: false,
+                            searchable: false
+                        },
+
+                        {
+                            data: 'transaction_date',
+                            name: 'transaction_date'
+                        },
+
+                        {
+                            data: 'item_code',
+                            name: 'stock.item_code_internal'
+                        },
+
+                        {
+                            data: 'stock_name',
+                            name: 'stock.name'
+                        },
+
+                        {
+                            data: 'location_name',
+                            name: 'location.location_name'
+                        },
+
+                        {
+                            data: 'transaction_type',
+                            name: 'transaction_type'
+                        },
+
+                        {
+                            data: 'transaction_number',
+                            name: 'transaction_number'
+                        },
+
+                        {
+                            data: 'qty_in',
+                            name: 'qty_in'
+                        },
+
+                        {
+                            data: 'qty_out',
+                            name: 'qty_out'
+                        },
+
+                        {
+                            data: 'qty_balance',
+                            name: 'qty_balance'
+                        },
+
+                        {
+                            data: 'action',
+                            name: 'action',
+                            orderable: false,
+                            searchable: false
+                        }
+
+                    ],
+
                     scrollX: true,
                     autoWidth: false,
                     columnDefs: [{
                         targets: 3,
-                        width: "220px"
-                    }],
-                });
+                        width: "250px",
+                        className: "text-wrap"
+                    }]
 
-                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-
-                    let start = $('#filterStartDate').val();
-                    let end = $('#filterEndDate').val();
-                    let type = $('#filterTransaction').val();
-                    let locationId = $('#filterLocation').val();
-                    let locationName = $('#filterLocation option:selected').text().trim();
-
-
-                    let date = data[1];
-                    let transaction = data[5];
-                    let rowLocation = data[4];
-                    let selectedLocation = $('#filterLocation option:selected').text().trim();
-
-                    if (selectedLocation) {
-                        console.log(
-                            "Dipilih:", selectedLocation,
-                            "| Baris:", rowLocation,
-                            "| Cocok:", rowLocation === selectedLocation
-                        );
-                    }
-
-                    if (locationId && rowLocation.trim() !== locationName) {
-                        return false;
-                    }
-
-                    let parts = date.split('-');
-
-                    let rowDate = new Date(parts[2], parts[1] - 1, parts[0]);
-
-                    if (start) {
-                        let s = start.split('-');
-                        let startDate = new Date(s[0], s[1] - 1, s[2]);
-
-                        if (rowDate < startDate) {
-                            return false;
-                        }
-                    }
-
-                    if (end) {
-                        let e = end.split('-');
-                        let endDate = new Date(e[0], e[1] - 1, e[2]);
-
-                        if (rowDate > endDate) {
-                            return false;
-                        }
-                    }
-
-                    if (type && transaction !== type)
-                        return false;
-
-                    return true;
                 });
 
                 $('#filterStartDate,#filterEndDate,#filterTransaction,#filterLocation')
                     .on('change', function() {
-                        table.draw();
+                        table.ajax.reload();
                     });
 
                 $('#resetFilter').click(function() {
@@ -1574,16 +1513,75 @@
                     $('#filterStartDate').val('');
                     $('#filterEndDate').val('');
                     $('#filterTransaction').val('');
-
                     $('#filterLocation').val('').trigger('change');
 
-                    table.draw();
+                    table.ajax.reload();
+
+                });
+
+            });
+
+            $('#formMutation').submit(function(e) {
+
+                e.preventDefault();
+
+                $.ajax({
+
+                    url: "{{ route('stock-mutation.store') }}",
+
+                    method: "POST",
+
+                    data: $(this).serialize(),
+
+                    success: function(response) {
+
+                        $('#addMutationModal').modal('hide');
+
+                        $('#formMutation')[0].reset();
+
+                        table.ajax.reload(null, false);
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: response.message,
+                            timer: 2000,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                document.querySelector('.swal2-container').style.zIndex =
+                                    '9999999';
+                            }
+                        });
+
+                    },
+
+                    error: function(xhr) {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: xhr.responseJSON.message
+                        });
+
+                    }
+
                 });
 
             });
         </script>
 
         <style>
+            #stockMutation {
+                width: 100% !important;
+            }
+
+            #stockMutation td.text-wrap,
+            #stockMutation th.text-wrap {
+                white-space: normal !important;
+                word-break: break-word;
+            }
+
             /* Beri jarak seluruh area DataTable */
             #stock_wrapper {
                 padding: 1rem;
@@ -1632,13 +1630,6 @@
                 #customSearch {
                     width: 100%;
                 }
-            }
-        </style>
-
-        <style>
-            .col-name {
-                white-space: normal !important;
-                word-break: break-word;
             }
         </style>
 
@@ -1744,49 +1735,61 @@
             });
         </script>
 
-        @if (session('deleted'))
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: @json(session('deleted')),
-                        showConfirmButton: false,
-                        timer: 2000,
-                        didOpen: () => {
-                            document.querySelector('.swal2-container').style.zIndex = '9999999';
-                        }
-                    });
-                });
-            </script>
-        @endif
-
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
+            $(document).on('submit', '.form-hapus', function(e) {
 
-                document.querySelectorAll('.form-hapus').forEach(form => {
+                e.preventDefault();
 
-                    form.addEventListener('submit', function(e) {
+                let form = this;
 
-                        e.preventDefault();
+                Swal.fire({
+                    title: 'Hapus Data?',
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
 
-                        Swal.fire({
-                            title: 'Hapus Data?',
-                            text: 'Data yang dihapus tidak dapat dikembalikan.',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonText: 'Ya, Hapus',
-                            confirmButtonColor: 'red',
-                            cancelButtonText: 'Batal',
-                            reverseButtons: true
-                        }).then((result) => {
+                    if (!result.isConfirmed) return;
 
-                            if (result.isConfirmed) {
-                                form.submit();
-                            }
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        type: 'POST',
+                        data: $(form).serialize(),
 
-                        });
+                        success: function(res) {
+                            console.log(res);
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex =
+                                        '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
 
                     });
 
@@ -1794,16 +1797,6 @@
 
             });
         </script>
-
-        @if (session('error'))
-            <script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Gagal',
-                    text: '{{ session('error') }}'
-                });
-            </script>
-        @endif
 
         <script>
             let stockSelect;

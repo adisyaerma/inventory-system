@@ -59,6 +59,9 @@ Route::put('/stock/{stock}', [StockController::class, 'update'])
 Route::get('/stock/export', [StockController::class, 'export'])
     ->name('stock.export');
 
+Route::get('stock/data', [StockController::class, 'data'])
+    ->name('stock.data');
+
 // ===scan===
 Route::get('/scan-location', [ScanBarcodeController::class, 'index'])
     ->name('scan_location');
@@ -83,6 +86,9 @@ Route::post('/stock-mutation/import', [StockMutationController::class, 'import']
 Route::delete('/stock-mutation/{stockMutation}', [StockMutationController::class, 'destroy'])
     ->name('stock-mutation.destroy');
 
+Route::get('/stock-mutation/data', [StockMutationController::class, 'data'])
+    ->name('stock-mutation.data');
+
 Route::prefix('stock-mutation')->group(function () {
 
     Route::get('/search-stock', [StockMutationController::class, 'searchStock'])
@@ -99,10 +105,10 @@ Route::prefix('stock-mutation')->group(function () {
 
     Route::put('/{mutation}', [StockMutationController::class, 'update'])
         ->name('stock-mutation.update');
-    
+
     Route::get('/export', [StockMutationController::class, 'export'])
-    ->name('mutation.export');
+        ->name('mutation.export');
 
     Route::get('/default-location', [StockMutationController::class, 'defaultLocation'])
-    ->name('stock-mutation.default-location');
+        ->name('stock-mutation.default-location');
 });
