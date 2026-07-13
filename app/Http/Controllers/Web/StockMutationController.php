@@ -283,6 +283,9 @@ class StockMutationController extends Controller
             'description' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
             'qty_out' => 'required|numeric|min:0',
+            'warehouse' => 'nullable',
+            'reference' => 'nullable',
+            'value' => 'nullable'
         ]);
 
         DB::beginTransaction();
@@ -324,6 +327,9 @@ class StockMutationController extends Controller
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
                 'qty_balance' => 0,
+                'warehouse' => $request->warehouse,
+                'reference' => $request->reference,
+                'value' => $request->value
             ]);
 
             $this->recalculateLocationStock(
@@ -374,6 +380,12 @@ class StockMutationController extends Controller
 
             'description' => $mutation->description,
 
+            'warehouse' => $mutation->warehouse,
+
+            'reference' => $mutation->reference,
+
+            'value' => $mutation->value,
+
             'qty_type' => $mutation->qty_in > 0 ? 'in' : 'out',
 
             'qty' => $mutation->qty_in > 0
@@ -396,6 +408,9 @@ class StockMutationController extends Controller
             'transaction_type' => 'required',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
+            'warehosue' => 'nullable',
+            'reference' => 'nullable',
+            'value' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
             'qty_out' => 'required|numeric|min:0',
         ]);
@@ -456,6 +471,9 @@ class StockMutationController extends Controller
                 'transaction_type' => $request->transaction_type,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
+                'warehouse' => $request->warehouse,
+                'reference' => $request->reference,
+                'value' => $request->value,
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
             ]);

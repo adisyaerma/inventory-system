@@ -1125,20 +1125,14 @@
                                             </label>
 
                                             <div class="input-group">
-
                                                 <span class="input-group-text">
-
                                                     <i class="bi bi-cash-stack"></i>
-
                                                 </span>
 
-                                                <input type="text" id=""
+                                                <input type="text" id="editValueDisplay"
                                                     class="form-control form-control-sm">
-                                                {{-- <input type="text" id="editValueDisplay"
-                                                    class="form-control form-control-sm"> --}}
-                                                <input type="hidden" id="editValue" name="value"
-                                                    placeholder="Contoh: Rp 100.000">
 
+                                                <input type="hidden" id="editValue" name="value">
                                             </div>
 
                                         </div>
