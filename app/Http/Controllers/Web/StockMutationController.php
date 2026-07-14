@@ -266,8 +266,6 @@ class StockMutationController extends Controller
 
             } else {
 
-                // Jika sudah tidak ada mutasi setelahnya,
-                // cukup update quantity berdasarkan mutasi terakhir
                 $lastBalance = StockMutation::where('stock_id', $stockId)
                     ->where('location_id', $locationId)
                     ->orderByDesc('transaction_date')
@@ -544,12 +542,6 @@ class StockMutationController extends Controller
                 ]
             );
 
-            /*
-            |--------------------------------------------------------------
-            | Validasi stok keluar
-            |--------------------------------------------------------------
-            */
-
             $availableQty = $locationStock->quantity;
 
             // kalau edit lokasi & barang yang sama, kembalikan qty mutasi lama
@@ -585,12 +577,6 @@ class StockMutationController extends Controller
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
             ]);
-
-            /*
-            |--------------------------------------------------------------
-            | Hitung ulang saldo
-            |--------------------------------------------------------------
-            */
 
             $this->recalculateLocationStock(
                 $oldStockId,

@@ -277,12 +277,6 @@ class StockController extends Controller
 
         DB::transaction(function () use ($request, $stock) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | Update data stock
-            |--------------------------------------------------------------------------
-            */
-
             $stock->update([
 
                 'item_code_internal' => $request->item_code_internal,
@@ -296,12 +290,6 @@ class StockController extends Controller
                 'description' => $request->description,
 
             ]);
-
-            /*
-            |--------------------------------------------------------------------------
-            | Sync Location
-            |--------------------------------------------------------------------------
-            */
 
             $syncData = [];
 

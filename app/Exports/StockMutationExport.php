@@ -167,17 +167,14 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                         ],
                     ]);
 
-                // Alignment seluruh data
                 $sheet->getStyle("A1:J{$lastRow}")
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                // Format angka
                 $sheet->getStyle("H2:J{$lastRow}")
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
 
-                // Header
                 $sheet->getStyle('A1:J1')
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);

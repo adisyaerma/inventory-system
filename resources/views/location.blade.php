@@ -8,7 +8,6 @@
                 <small class="text-muted">Kelola data lokasi rak penyimpanan barang</small>
             </div>
             <div class="float-end mt-3">
-                <!-- Button -->
                 <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button" class="btn btn-primary btn-sm">
                     <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                         viewBox="0 0 24 24">
@@ -17,8 +16,6 @@
                     </svg>
                     Tambah
                 </button>
-
-                <!-- Modal -->
                 <div class="modal fade" id="addLocationModal" tabindex="-1">
 
                     <div class="modal-dialog modal-md modal-dialog-centered">
@@ -290,7 +287,6 @@
     </div>
 
     @foreach ($locations as $location)
-        <!-- Edit Modal -->
         <div class="modal fade" id="editLocationModal{{ $location->id }}" tabindex="-1">
 
             <div class="modal-dialog modal-md modal-dialog-centered">
@@ -311,14 +307,12 @@
 
                         <div class="modal-body">
 
-                            {{-- Nama Rak --}}
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Nama Rak</label>
                                 <input type="text" name="location_name" class="form-control"
                                     value="{{ $location->location_name }}" placeholder="Contoh: Rak A1" required>
                             </div>
 
-                            {{-- Barcode --}}
                             <div class="mb-3">
 
                                 <label class="form-label fw-bold">Barcode Rak</label>
@@ -359,7 +353,6 @@
                                 <div id="reader_{{ $location->id }}"></div>
                             </div>
 
-                            {{-- Status --}}
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Status</label>
 
@@ -380,7 +373,6 @@
                                 </div>
                             </div>
 
-                            {{-- Description --}}
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Deskripsi</label>
 
@@ -571,7 +563,6 @@
                         },
                         async (decodedText) => {
 
-                            // 🚨 STOP MULTIPLE TRIGGER
                             if (isProcessing) return;
                             isProcessing = true;
 
@@ -587,7 +578,6 @@
                                 const res = await fetch(`/check-location-code?code=${decodedText}`);
                                 const data = await res.json();
 
-                                // langsung stop scanner begitu dapat hasil pertama
                                 await html5QrCode.stop();
                                 html5QrCode = null;
                                 container.style.display = "none";

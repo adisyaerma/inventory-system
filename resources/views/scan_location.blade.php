@@ -11,7 +11,6 @@
                     <div class="text-center">
                         <div class="d-flex align-items-center justify-content-center mb-3">
 
-                            <!-- ICON -->
                             <div class="avatar d-flex align-items-center justify-content-center me-3"
                                 style="width:40px; height:40px; background-color:#e3f2fd; border-radius:50%;">
 
@@ -26,7 +25,6 @@
 
                             </div>
 
-                            <!-- TEXT -->
                             <h4 class="fw-bold mb-0">
                                 Scan Lokasi
                             </h4>
@@ -38,7 +36,6 @@
                         </small>
 
                     </div>
-                    <!-- CAMERA WRAPPER -->
                     <div class="d-flex justify-content-center mb-3 mt-5">
 
                         <div class="scanner-box">
@@ -84,7 +81,6 @@
 
                         <div class="card-body d-flex align-items-start py-2 px-2">
 
-                            <!-- ICON -->
                             <div class="me-2">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center"
                                     style="width:34px; height:34px; background-color:#e3f2fd;">
@@ -94,7 +90,6 @@
                                 </div>
                             </div>
 
-                            <!-- TEXT -->
                             <div>
                                 <div class="fw-bold text-primary mb-0 small">
                                     Tips
@@ -161,9 +156,6 @@
 
             const beep = new Audio('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg');
 
-            // =========================
-            // EMPTY / NOT FOUND UI
-            // =========================
             function renderNotFound(message = "Data tidak ditemukan") {
                 $('#hasil').html(`
             <div class="card">
@@ -176,9 +168,6 @@
         `);
             }
 
-            // =========================
-            // RENDER HASIL
-            // =========================
             function renderHasil(response) {
 
                 let stocksHtml = '';
@@ -299,10 +288,6 @@
                 </div>
 
             </div>
-
-            <!-- ========================= -->
-            <!-- CARD STATISTIK -->
-            <!-- ========================= -->
             <div class="col-lg-6 col-md-12">
 
                 <div class="row g-3">
@@ -393,7 +378,6 @@
 
         <div class="card">
 
-            <!-- SEARCH FULL WIDTH -->
             <div class="p-2 border-bottom">
                 <input type="text"
                     id="searchStock"
@@ -401,7 +385,6 @@
                     placeholder="Cari barang...">
             </div>
 
-            <!-- HEADER -->
             <div class="card-header py-2 d-flex justify-content-between align-items-center">
 
                 <div class="mb-0 fw-bold mt-2">Daftar Barang di Lokasi Ini</div>
@@ -412,8 +395,6 @@
 
             </div>
 
-         
-            <!-- BODY -->
             <div class="card-body p-2">
 
                 <div id="stocksContainer" class="stock-scroll">
@@ -428,9 +409,6 @@
                 $('#hasil').html(html);
             }
 
-            // =========================
-            // AJAX
-            // =========================
             function cariLokasi(location_code) {
 
                 if (!location_code) {
@@ -467,7 +445,6 @@
 
                     success: function(response) {
 
-                        // 🔥 HANDLE DATA TIDAK DITEMUKAN
                         if (!response.success) {
                             renderNotFound(response.message || "Lokasi tidak ditemukan");
                             return;
@@ -501,9 +478,6 @@
                 });
             }
 
-            // =========================
-            // BUTTON ONLY
-            // =========================
             $('#btnCari').on('click', function() {
                 cariLokasi($('#location_code').val());
             });
@@ -515,9 +489,6 @@
                 }
             });
 
-            // =========================
-            // SCANNER (ONLY FILL INPUT)
-            // =========================
             const html5QrCode = new Html5Qrcode("reader");
 
             Html5Qrcode.getCameras()
@@ -572,9 +543,7 @@
         .scanner-box {
             width: 100%;
             max-width: 280px;
-            /* ukuran maksimal */
             aspect-ratio: 1 / 1;
-            /* 🔥 ini bikin kotak 1:1 */
             position: relative;
         }
 
@@ -585,7 +554,6 @@
             border-radius: 12px;
         }
 
-        /* supaya canvas video ikut full */
         #reader video,
         #reader canvas {
             width: 100% !important;
@@ -688,9 +656,6 @@
 
             let panel = $("#mutation-" + stockId);
 
-            // ===============================
-            // TUTUP
-            // ===============================
             if (panel.is(":visible")) {
 
                 panel.slideUp(200);
@@ -705,9 +670,6 @@
 
             }
 
-            // ===============================
-            // LOADING
-            // ===============================
             panel.html(`
 
         <div class="loading-mutation">

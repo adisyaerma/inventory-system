@@ -19,7 +19,6 @@ class StockMutationImport implements ToCollection
             return null;
         }
 
-        // Jika Excel mengirim serial number
         if (is_numeric($value)) {
             return Carbon::instance(
                 Date::excelToDateTimeObject($value)
@@ -28,26 +27,21 @@ class StockMutationImport implements ToCollection
 
         $value = trim($value);
 
-        // Format d/m/Y (22/04/2026)
         if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $value)) {
             return Carbon::createFromFormat('d/m/Y', $value);
         }
 
-        // Format Y-m-d (2026-04-22)
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
             return Carbon::createFromFormat('Y-m-d', $value);
         }
 
-        // Format lain
         return Carbon::parse($value);
     }
 
     public function collection(Collection $rows)
     {
-        // Buang header
         $rows = $rows->skip(1);
 
-        // Simpan nilai terakhir dari kolom yang di-merge
         $lastItemCode = null;
         $lastItemName = null;
         $lastDate = null;
@@ -62,35 +56,30 @@ class StockMutationImport implements ToCollection
             &$lastTransactionNumber
         ) {
 
-            // Item Code
             if (! empty(trim($row[0] ?? ''))) {
                 $lastItemCode = trim($row[0]);
             } else {
                 $row[0] = $lastItemCode;
             }
 
-            // Item Name
             if (! empty(trim($row[1] ?? ''))) {
                 $lastItemName = trim($row[1]);
             } else {
                 $row[1] = $lastItemName;
             }
 
-            // Date
             if (! empty($row[2])) {
                 $lastDate = $row[2];
             } else {
                 $row[2] = $lastDate;
             }
 
-            // Transaction Type
             if (! empty(trim($row[3] ?? ''))) {
                 $lastTransactionType = trim($row[3]);
             } else {
                 $row[3] = $lastTransactionType;
             }
 
-            // Transaction Number
             if (! empty(trim($row[4] ?? ''))) {
                 $lastTransactionNumber = trim($row[4]);
             } else {
@@ -100,7 +89,6 @@ class StockMutationImport implements ToCollection
             return $row;
         });
 
-        // Hapus baris Item Balance
         $rows = $rows->filter(function ($row) {
             return ! str_contains(
                 strtolower($row[5] ?? ''),
@@ -108,7 +96,6 @@ class StockMutationImport implements ToCollection
             );
         });
 
-        // Urutkan berdasarkan tanggal
         $rows = $rows->sortBy(function ($row) {
             return $this->parseDate($row[2])?->timestamp ?? 0;
         });
@@ -130,7 +117,6 @@ class StockMutationImport implements ToCollection
                 ]
             );
 
-            // Cari lokasi milik stock dengan quantity terbesar
             $locationStock = LocationStock::where('stock_id', $stock->id)
                 ->orderByDesc('quantity')
                 ->first();
