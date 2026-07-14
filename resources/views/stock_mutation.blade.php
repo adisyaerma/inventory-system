@@ -1428,6 +1428,8 @@
                             d.end_date = $('#filterEndDate').val();
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
+
+                             d.stock = new URLSearchParams(window.location.search).get('stock');
                         }
                     },
 

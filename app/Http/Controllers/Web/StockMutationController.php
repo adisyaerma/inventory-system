@@ -24,6 +24,10 @@ class StockMutationController extends Controller
             ->orderByDesc('transaction_date')
             ->orderByDesc('id');
 
+        if ($request->filled('stock')) {
+            $query->where('stock_id', $request->stock);
+        }
+
         if ($request->filled('start_date')) {
             $query->whereDate('transaction_date', '>=', $request->start_date);
         }
