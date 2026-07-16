@@ -140,7 +140,7 @@ class StockMutationImport implements ToCollection
 
             $qtyIn = (float) ($row[6] ?? 0);
             $qtyOut = (float) ($row[7] ?? 0);
-            $qtyBalance = (float) ($row[8] ?? 0); // kolom Qty Balance dari Excel
+            $qtyBalance = (float) ($row[8] ?? 0); 
 
             StockMutation::create([
                 'stock_id' => $stock->id,

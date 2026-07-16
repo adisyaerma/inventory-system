@@ -544,7 +544,6 @@ class StockMutationController extends Controller
 
             $availableQty = $locationStock->quantity;
 
-            // kalau edit lokasi & barang yang sama, kembalikan qty mutasi lama
             if (
                 $oldStockId == $request->stock_id &&
                 $oldLocationId == $location->id
