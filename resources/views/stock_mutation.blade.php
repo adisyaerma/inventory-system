@@ -705,7 +705,7 @@
             <div class="container-fluid px-5">
 
                 <style>
-                    <style>.filter-toolbar {
+                    .filter-toolbar {
                         --gap: 0.5rem;
                     }
 
@@ -728,7 +728,7 @@
 
                     @media (max-width: 575.98px) {
                         .filter-toolbar>* {
-                            flex: 1 1 100%;
+                            flex: 1 1 calc(50% - var(--gap));
                             max-width: 100%;
                         }
 
