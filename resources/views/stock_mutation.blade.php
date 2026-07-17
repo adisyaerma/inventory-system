@@ -495,37 +495,39 @@
                     </div>
 
                 </div>
-                <button type="button" class="btn border-secondary bg-white btn-sm me-2" data-bs-toggle="modal"
-                    data-bs-target="#importMutationModal">
-                    <svg class="text-secondary me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor"
-                            d="M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1m-9.71 1.71a1 1 0 0 0 .33.21a.94.94 0 0 0 .76 0a1 1 0 0 0 .33-.21l4-4a1 1 0 0 0-1.42-1.42L13 12.59V3a1 1 0 0 0-2 0v9.59l-2.29-2.3a1 1 0 1 0-1.42 1.42Z" />
-                    </svg>
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
 
-                    Import
-                </button>
-                <a href="{{ route('mutation.export') }}" class="me-2 btn btn-sm border-secondary bg-white"
-                    id="exportBtn">
-                    <svg class="me-1 text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor"
-                            d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
-                    </svg>
+                    <button type="button" class="btn border-secondary bg-white btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#importMutationModal">
+                        <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                            viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor"
+                                d="M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1m-9.71 1.71a1 1 0 0 0 .33.21a.94.94 0 0 0 .76 0a1 1 0 0 0 .33-.21l4-4a1 1 0 0 0-1.42-1.42L13 12.59V3a1 1 0 0 0-2 0v9.59l-2.29-2.3a1 1 0 1 0-1.42 1.42Z" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Import</span>
+                    </button>
 
-                    Export
-                </a>
-                <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
-                    class="btn btn-primary btn-sm">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
-                    </svg>
-                    Tambah
-                </button>
+                    <a href="{{ route('mutation.export') }}" class="btn btn-sm border-secondary bg-white" id="exportBtn">
+                        <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                            viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor"
+                                d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Export</span>
+                    </a>
+
+                    <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
+                        class="btn btn-primary btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Tambah</span>
+                    </button>
+
+                </div>
             </div>
 
         </div>
@@ -1771,7 +1773,7 @@
                     $('#customSearch').val('');
 
                     table.search('').draw();
-                    updateExportUrl(); 
+                    updateExportUrl();
 
                     table.ajax.reload();
 
