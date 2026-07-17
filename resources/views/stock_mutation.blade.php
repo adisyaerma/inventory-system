@@ -1321,7 +1321,7 @@
                     $('#summaryDateRange').text('Mulai ' + formatTanggal(start));
                 } else {
                     $dateInput.val('');
-                    $('#summaryDateRange').text('Semua Waktu');
+                    $('#summaryDateRange').text('Semua Tanggal');
                 }
 
                 $panel.removeClass('show');
@@ -1341,7 +1341,7 @@
                 $startInput.val('');
                 $endInput.val('');
                 $dateInput.val('');
-                $('#summaryDateRange').text('Semua Waktu');
+                $('#summaryDateRange').text('Semua Tanggal');
                 $panel.removeClass('show');
 
                 // table.ajax.reload();
@@ -1794,7 +1794,7 @@
                     $('#filterStartDate').val('');
                     $('#filterEndDate').val('');
                     $('#filterDateRange').val('');
-                    $('#summaryDateRange').text('Semua Waktu');
+                    $('#summaryDateRange').text('Semua Tanggal');
                     $('#filterTransaction').val('').trigger('change');
                     $('#filterLocation').val('').trigger('change');
                     $('#customSearch').val('');
