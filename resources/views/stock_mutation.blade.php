@@ -497,7 +497,7 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2 justify-content-end">
 
-                    <button type="button" class="btn border-secondary bg-white btn-sm" data-bs-toggle="modal"
+                    <button type="button" class="btn border-secondary bg-white border" data-bs-toggle="modal"
                         data-bs-target="#importMutationModal">
                         <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                             viewBox="0 0 24 24">
@@ -508,7 +508,7 @@
                         <span class="d-none d-md-inline ms-1">Import</span>
                     </button>
 
-                    <a href="{{ route('mutation.export') }}" class="btn btn-sm border-secondary bg-white" id="exportBtn">
+                    <a href="{{ route('mutation.export') }}" class="btn border border-secondary bg-white" id="exportBtn">
                         <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                             viewBox="0 0 24 24">
                             <path d="M0 0h24v24H0z" fill="none" />
@@ -518,8 +518,20 @@
                         <span class="d-none d-md-inline ms-1">Export</span>
                     </a>
 
+                    <button class="btn border-secondary bg-white border" id="resetFilter" title="Reset Filter">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+                            <path d="M0 0h21v21H0z" fill="none" />
+                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                <path d="M7.5 6.5h-4v-4" />
+                            </g>
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Reset</span>
+                    </button>
+
                     <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
-                        class="btn btn-primary btn-sm">
+                        class="btn btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                             <path d="M0 0h24v24H0z" fill="none" />
                             <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
@@ -693,11 +705,42 @@
         <div class="table-responsive text-nowrap">
             <div class="container-fluid px-5">
 
+                <style>
+                    .filter-toolbar {
+                        --gap: 0.5rem;
+                    }
+
+                    .filter-toolbar>* {
+                        flex: 1 1 calc(25% - var(--gap));
+                        min-width: 150px;
+                    }
+
+                    .filter-toolbar .btn-reset-wrapper {
+                        flex: 0 0 auto;
+                    }
+
+                    @media (max-width: 991.98px) {
+                        .filter-toolbar>* {
+                            flex: 1 1 calc(50% - var(--gap));
+                        }
+                    }
+
+                    @media (max-width: 575.98px) {
+                        .filter-toolbar>* {
+                            flex: 1 1 100%;
+                        }
+
+                        .filter-toolbar #resetFilter {
+                            width: 100%;
+                            justify-content: center;
+                        }
+                    }
+                </style>
+
                 <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
                     <!-- Search -->
-                    <div class="input-group input-group-sm shadow-sm flex-grow-1"
-                        style="min-width: 220px; max-width: 240px;">
+                    <div class="input-group input-group-sm shadow-sm flex-nowrap">
                         <span class="input-group-text bg-white border-end-0">
                             <i class="bi bi-search text-muted"></i>
                         </span>
@@ -706,8 +749,8 @@
                     </div>
 
                     <!-- Rentang Tanggal -->
-                    <div class="date-range-wrapper" style="position: relative; width: 220px;">
-                        <input type="text" class="form-control form-control-sm shadow-sm" id="filterDateRange"
+                    <div class="date-range-wrapper" style="position: relative;">
+                        <input type="text" class="form-control form-control-sm shadow-sm w-100" id="filterDateRange"
                             placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly autocomplete="off">
 
                         <div class="date-range-panel shadow" id="dateRangePanel">
@@ -729,8 +772,7 @@
                     </div>
 
                     <!-- Jenis Transaksi -->
-                    <select class="form-select form-select-sm shadow-sm" id="filterTransaction" style="width: 170px;"
-                        title="Jenis Transaksi">
+                    <select class="form-select form-select-sm shadow-sm" id="filterTransaction" title="Jenis Transaksi">
                         <option value="">Semua Transaksi</option>
                         @foreach ($transactionTypes as $type)
                             <option value="{{ $type }}">{{ $type }}</option>
@@ -738,8 +780,8 @@
                     </select>
 
                     <!-- Lokasi (Select2) -->
-                    <div class="shadow-sm" style="width: 190px;" title="Lokasi">
-                        <select class="form-select form-select-sm" id="filterLocation">
+                    <div class="shadow-sm" title="Lokasi">
+                        <select class="form-select form-select-sm w-100" id="filterLocation">
                             <option value="">Semua Lokasi</option>
                             @foreach ($locations as $location)
                                 <option value="{{ $location->id }}" data-name="{{ $location->location_name }}">
@@ -748,20 +790,6 @@
                             @endforeach
                         </select>
                     </div>
-
-                    <!-- Reset -->
-                    <button class="btn btn-sm border border-secondary-subtle d-flex align-items-center gap-1 shadow-sm"
-                        id="resetFilter" title="Reset Filter">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 21 21">
-                            <path d="M0 0h21v21H0z" fill="none" />
-                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                <path d="M7.5 6.5h-4v-4" />
-                            </g>
-                        </svg>
-                        <span>Reset</span>
-                    </button>
 
                 </div>
 
