@@ -79,6 +79,27 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                 $q->where('location_id', $locationId);
             });
         }
+
+        if ($this->request->filled('search')) {
+            $search = $this->request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('CAST(transaction_date AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhere('transaction_type', 'ilike', "%{$search}%")
+                    ->orWhere('transaction_number', 'ilike', "%{$search}%")
+                    ->orWhereRaw('CAST(qty_in AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhereRaw('CAST(qty_out AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhereRaw('CAST(qty_balance AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhereHas('stock', function ($sq) use ($search) {
+                        $sq->where('item_code_internal', 'ilike', "%{$search}%")
+                            ->orWhere('name', 'ilike', "%{$search}%");
+                    })
+                    ->orWhereHas('location', function ($lq) use ($search) {
+                        $lq->where('location_name', 'ilike', "%{$search}%");
+                    });
+            });
+        }
+
         $mutations = $query
             ->select([
                 'id',
@@ -96,6 +117,8 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get();
+
+        // ... sisanya tetap sama
 
         $groups = $mutations->groupBy('stock_id');
 

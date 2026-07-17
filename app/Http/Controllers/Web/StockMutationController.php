@@ -78,50 +78,46 @@ class StockMutationController extends Controller
             ->addColumn('action', function ($row) {
 
                 return '
-    <div class="d-flex align-items-center gap-1">
+<div class="d-flex align-items-center gap-2">
 
-        <button
-            class="btn btn-sm btn-outline-warning btnEdit"
-            type="button"
-            data-id="'.$row->id.'"
-            data-bs-toggle="modal"
-            data-bs-target="#editMutationModal">
+    <button
+        class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
+        type="button"
+        data-id="'.$row->id.'"
+        data-bs-toggle="modal"
+        data-bs-target="#editMutationModal">
 
-            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                class="fs-5" viewBox="0 0 24 24">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path fill="currentColor"
+                d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+        </svg>
+
+    </button>
+
+    <form action="'.route('stock-mutation.destroy', $row->id).'"
+          method="POST"
+          class="form-hapus m-0">
+
+        '.csrf_field().'
+        '.method_field('DELETE').'
+
+        <button type="submit"
+            class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+
                 <path d="M0 0h24v24H0z" fill="none"/>
                 <path fill="currentColor"
-                    d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+                    d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
+
             </svg>
 
         </button>
 
-        <form action="'.route('stock-mutation.destroy', $row->id).'"
-              method="POST"
-              class="form-hapus m-0">
+    </form>
 
-            '.csrf_field().'
-            '.method_field('DELETE').'
-
-            <button type="submit"
-                class="btn btn-sm btn-outline-danger">
-
-                <svg xmlns="http://www.w3.org/2000/svg"
-                    width="1em" height="1em"
-                    class="fs-5"
-                    viewBox="0 0 24 24">
-
-                    <path d="M0 0h24v24H0z" fill="none"/>
-                    <path fill="currentColor"
-                        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
-
-                </svg>
-
-            </button>
-
-        </form>
-
-    </div>';
+</div>';
             })
             ->rawColumns(['action'])
 
@@ -207,7 +203,30 @@ class StockMutationController extends Controller
 
         $locations = Location::orderBy('location_name')->get();
 
-        return view('stock_mutation', compact('locations', 'transactionTypes'));
+        // Total semua transaksi
+        $totalMutasi = StockMutation::count();
+
+        // Total barang masuk BULAN INI
+        $barangMasuk = StockMutation::whereMonth('transaction_date', now()->month)
+            ->whereYear('transaction_date', now()->year)
+            ->sum('qty_in');
+
+        // Total barang keluar BULAN INI
+        $barangKeluar = StockMutation::whereMonth('transaction_date', now()->month)
+            ->whereYear('transaction_date', now()->year)
+            ->sum('qty_out');
+
+        // Total stok saat ini (saldo seluruh lokasi)
+        $totalStok = DB::table('location_stock')->sum('quantity');
+
+        return view('stock_mutation', compact(
+            'locations',
+            'transactionTypes',
+            'totalMutasi',
+            'barangMasuk',
+            'barangKeluar',
+            'totalStok'
+        ));
     }
 
     public function import(Request $request)
@@ -386,7 +405,6 @@ class StockMutationController extends Controller
             'description' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
             'qty_out' => 'required|numeric|min:0',
-            'warehouse' => 'nullable',
             'reference' => 'nullable',
             'value' => 'nullable',
         ]);
@@ -430,7 +448,6 @@ class StockMutationController extends Controller
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
                 'qty_balance' => 0,
-                'warehouse' => $request->warehouse,
                 'reference' => $request->reference,
                 'value' => $request->value ?? 0,
             ]);
@@ -514,7 +531,6 @@ class StockMutationController extends Controller
             'transaction_type' => 'required',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
-            'warehosue' => 'nullable',
             'reference' => 'nullable',
             'value' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
@@ -570,7 +586,6 @@ class StockMutationController extends Controller
                 'transaction_type' => $request->transaction_type,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
-                'warehouse' => $request->warehouse,
                 'reference' => $request->reference,
                 'value' => $request->value,
                 'qty_in' => $request->qty_in,

@@ -29,7 +29,6 @@ return new class extends Migration
             $table->decimal('qty_in', 15, 2)->default(0);
             $table->decimal('qty_out', 15, 2)->default(0);
             $table->decimal('qty_balance', 15, 2)->default(0);
-            $table->string('warehouse')->nullable();
             $table->string('reference')->nullable();
             $table->decimal('value', 18, 2)->default(0);
             $table->timestamps();

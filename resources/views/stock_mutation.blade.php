@@ -1,6 +1,117 @@
 @extends('master')
 @section('title', 'Stok Mutation')
 @section('content')
+
+    <div class="row g-5 mb-5">
+
+
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+
+                    <div class="icon-box bg-warning-subtle text-warning me-4">
+                        <i class="bi bi-box-arrow-in-down fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Barang Masuk</small>
+                        <h5 class="fw-bold mb-1">{{ number_format($barangMasuk, 0, ',', '.') }}</h5>
+                        <small class="text-warning">
+                            Bulan Ini
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+
+                    <div class="icon-box bg-danger-subtle text-danger me-4">
+                        <i class="bi bi-box-arrow-up fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Barang Keluar</small>
+                        <h5 class="fw-bold mb-1">{{ number_format($barangKeluar, 0, ',', '.') }}</h5>
+                        <small class="text-danger">
+                            Bulan Ini
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+
+                    <div class="icon-box bg-primary-subtle text-primary me-4">
+                        <svg class="fs-4" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                            viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <g fill="none">
+                                <path
+                                    d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+                                <path fill="currentColor"
+                                    d="M20 14a1 1 0 0 1 .117 1.993L20 16H6.414l2.293 2.293a1 1 0 0 1-1.32 1.497l-.094-.083l-3.83-3.83c-.665-.664-.239-1.783.663-1.871L4.241 14zm-4.707-9.707a1 1 0 0 1 1.32-.083l.094.083l3.83 3.83c.665.664.239 1.783-.663 1.871l-.115.006H4a1 1 0 0 1-.117-1.993L4 8h13.586l-2.293-2.293a1 1 0 0 1 0-1.414" />
+                            </g>
+                        </svg>
+
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Total Mutasi</small>
+                        <h5 class="fw-bold mb-1">{{ number_format($totalMutasi, '0', ',', '.') }}</h5>
+                        <small class="text-primary">
+                            Update Hari Ini
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+
+                    <div class="icon-box bg-info-subtle text-info me-4">
+                        <i class="bi bi-bar-chart fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Total Stok</small>
+                        <h5 class="fw-bold mb-1">{{ number_format($totalStok, 0, ',', '.') }}</h5>
+                        <small class="text-info">
+                            Update Hari Ini
+                        </small>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+
+                    <div class="icon-box bg-success-subtle text-success me-4">
+                        <i class="bi bi-calendar-check fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Rentang Tanggal</small>
+                        <h6 class="fw-bold mb-1" id="summaryDateRange">Semua Tanggal</h6>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
     <div class="card rounded">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -8,13 +119,6 @@
                 <small class="text-muted">Kelola mutasi stok data barang di gudang</small>
             </div>
             <div class="float-end">
-                <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button" class="btn btn-primary btn-sm">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
-                    </svg>
-                    Tambah
-                </button>
                 <div class="modal fade" id="addMutationModal" tabindex="-1" aria-hidden="true">
 
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -291,30 +395,7 @@
 
                                                         <label class="form-label fw-semibold">
 
-                                                            Warehouse
-
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-
-                                                                <i class="bi bi-building"></i>
-
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="warehouse" placeholder="WH3 ARISTIDES">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mt-3">
-
-                                                        <label class="form-label fw-semibold">
-
-                                                            Reference
+                                                            Referensi
 
                                                         </label>
 
@@ -414,19 +495,20 @@
                     </div>
 
                 </div>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                <button type="button" class="btn border-secondary bg-white btn-sm me-2" data-bs-toggle="modal"
                     data-bs-target="#importMutationModal">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="1em" height="1em"
+                    <svg class="text-secondary me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                         viewBox="0 0 24 24">
                         <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
+                        <path fill="currentColor"
+                            d="M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1m-9.71 1.71a1 1 0 0 0 .33.21a.94.94 0 0 0 .76 0a1 1 0 0 0 .33-.21l4-4a1 1 0 0 0-1.42-1.42L13 12.59V3a1 1 0 0 0-2 0v9.59l-2.29-2.3a1 1 0 1 0-1.42 1.42Z" />
                     </svg>
+
                     Import
                 </button>
-                <a href="{{ route('mutation.export') }}" class="btn btn-sm btn-success" id="exportBtn">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                <a href="{{ route('mutation.export') }}" class="me-2 btn btn-sm border-secondary bg-white"
+                    id="exportBtn">
+                    <svg class="me-1 text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                         viewBox="0 0 24 24">
                         <path d="M0 0h24v24H0z" fill="none" />
                         <path fill="currentColor"
@@ -435,6 +517,15 @@
 
                     Export
                 </a>
+                <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
+                    class="btn btn-primary btn-sm">
+                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                        viewBox="0 0 24 24">
+                        <path d="M0 0h24v24H0z" fill="none" />
+                        <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
+                    </svg>
+                    Tambah
+                </button>
             </div>
 
         </div>
@@ -597,108 +688,114 @@
             </div>
         </div>
 
-        <div class="table-responsive text-nowrap ">
+        <div class="table-responsive text-nowrap">
             <div class="container-fluid px-5">
-                <div class="top-row d-flex justify-content-lg-start justify-content-center mb-3">
 
-                    <div class="row g-2 w-100 w-lg-auto">
+                <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
-                        <div class="col-12 col-sm-6 col-lg-auto">
-                            <label class="form-label">Dari Tanggal</label>
-                            <input type="date" class="form-control form-control-sm" id="filterStartDate">
-                        </div>
-
-                        <div class="col-12 col-sm-6 col-lg-auto">
-                            <label class="form-label">Sampai Tanggal</label>
-                            <input type="date" class="form-control form-control-sm" id="filterEndDate">
-                        </div>
-
-                        <div class="col-12 col-md-6 col-lg-auto">
-                            <label class="form-label">Jenis Transaksi</label>
-                            <select class="form-select form-select-sm" id="filterTransaction">
-                                <option value="">Semua</option>
-
-                                @foreach ($transactionTypes as $type)
-                                    <option value="{{ $type }}">
-                                        {{ $type }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6 col-lg-auto">
-                            <label class="form-label">Lokasi</label> <br>
-                            <select class="form-select form-select-sm" id="filterLocation">
-                                <option value="">Semua</option>
-
-                                @foreach ($locations as $location)
-                                    <option value="{{ $location->id }}" data-name="{{ $location->location_name }}">
-                                        {{ $location->location_name }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-                        </div>
-
-                        <div class="col-12 col-md-6 col-lg-auto d-flex align-items-end">
-                            <button
-                                class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
-                                id="resetFilter">
-
-                                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                                    viewBox="0 0 21 21">
-                                    <path d="M0 0h21v21H0z" fill="none" />
-                                    <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                        <path d="M7.5 6.5h-4v-4" />
-                                    </g>
-                                </svg>
-
-                                <span>Reset Filter</span>
-
-                            </button>
-                        </div>
-
+                    <!-- Search -->
+                    <div class="input-group input-group-sm shadow-sm flex-grow-1"
+                        style="min-width: 220px; max-width: 240px;">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input type="text" id="customSearch" class="form-control border-start-0"
+                            placeholder="Cari...">
                     </div>
 
+                    <!-- Rentang Tanggal -->
+                    <div class="date-range-wrapper" style="position: relative; width: 220px;">
+                        <input type="text" class="form-control form-control-sm shadow-sm" id="filterDateRange"
+                            placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly autocomplete="off">
+
+                        <div class="date-range-panel shadow" id="dateRangePanel">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Dari</label>
+                                <input type="date" class="form-control form-control-sm" id="filterStartDate">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Sampai</label>
+                                <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    id="dateRangeClear">Clear</button>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                    id="dateRangeApply">Terapkan</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jenis Transaksi -->
+                    <select class="form-select form-select-sm shadow-sm" id="filterTransaction" style="width: 170px;"
+                        title="Jenis Transaksi">
+                        <option value="">Semua Transaksi</option>
+                        @foreach ($transactionTypes as $type)
+                            <option value="{{ $type }}">{{ $type }}</option>
+                        @endforeach
+                    </select>
+
+                    <!-- Lokasi (Select2) -->
+                    <div class="shadow-sm" style="width: 190px;" title="Lokasi">
+                        <select class="form-select form-select-sm" id="filterLocation">
+                            <option value="">Semua Lokasi</option>
+                            @foreach ($locations as $location)
+                                <option value="{{ $location->id }}" data-name="{{ $location->location_name }}">
+                                    {{ $location->location_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Reset -->
+                    <button class="btn btn-sm border border-secondary-subtle d-flex align-items-center gap-1 shadow-sm"
+                        id="resetFilter" title="Reset Filter">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 21 21">
+                            <path d="M0 0h21v21H0z" fill="none" />
+                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                <path d="M7.5 6.5h-4v-4" />
+                            </g>
+                        </svg>
+                        <span>Reset</span>
+                    </button>
+
+                </div>
+
+                <table class="table table-bordered" id="stockMutation">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tanggal</th>
+                            <th>Kode Barang</th>
+                            <th>Nama Barang</th>
+                            <th>Lokasi</th>
+                            <th>Tipe Transaksi</th>
+                            <th>No. Transaksi</th>
+                            <th>Qty Masuk</th>
+                            <th>Qty Keluar</th>
+                            <th>Qty Akhir</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <div class="mb-3 d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2" id="tableFooter">
+                    <div class="d-flex align-items-center gap-2" id="lengthWrapper">
+                        <span>Tampilkan</span>
+                        <select id="customLength" class="form-select form-select-sm" style="width:80px">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>data</span>
+                    </div>
+                    <!-- .dataTables_paginate bawaan akan otomatis muncul di sini oleh DataTables -->
                 </div>
             </div>
-            <table class="table table-bordered" id="stockMutation">
-
-                <thead>
-
-                    <tr>
-
-                        <th>No</th>
-
-                        <th>Tanggal</th>
-
-                        <th>Kode Barang</th>
-
-                        <th>Nama Barang</th>
-
-                        <th>Lokasi</th>
-
-                        <th>Tipe Transaksi</th>
-
-                        <th>No. Transaksi</th>
-
-                        <th>Qty Masuk</th>
-
-                        <th>Qty Keluar</th>
-
-                        <th>Qty Akhir</th>
-
-                        <th>Aksi</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody></tbody>
-
-            </table>
         </div>
     </div>
 
@@ -977,35 +1074,12 @@
                                         <input type="hidden" id="editQtyIn" name="qty_in" value="0">
                                         <input type="hidden" id="editQtyOut" name="qty_out" value="0">
 
-                                        <div class="mt-3">
-
-                                            <label class="form-label fw-semibold">
-
-                                                Warehouse
-
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-
-                                                    <i class="bi bi-building"></i>
-
-                                                </span>
-
-                                                <input type="text" id="editWarehouse"
-                                                    class="form-control form-control-sm" name="warehouse"
-                                                    placeholder="WH3 ARISTIDES">
-
-                                            </div>
-
-                                        </div>
 
                                         <div class="mt-3">
 
                                             <label class="form-label fw-semibold">
 
-                                                Reference
+                                                Referensi
 
                                             </label>
 
@@ -1105,6 +1179,145 @@
 
 
     @push('script')
+
+        <style>
+            .date-range-panel {
+                display: none;
+                position: absolute;
+                top: calc(100% + 4px);
+                left: 0;
+                z-index: 1050;
+                background: #fff;
+                border: 1px solid #dee2e6;
+                border-radius: 0.375rem;
+                padding: 12px;
+                width: 220px;
+            }
+
+            .date-range-panel.show {
+                display: block;
+            }
+
+            .card {
+                border-radius: 8px !important;
+            }
+
+            .icon-box {
+                border-radius: 18px;
+                width: 64px;
+                height: 64px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-shrink: 0;
+            }
+
+            .icon-box i {
+                font-size: 30px;
+            }
+
+            .card small {
+                font-size: .85rem;
+            }
+
+            .card h4 {
+                font-size: 1.6rem;
+                margin: 4px 0;
+            }
+
+            /* Samakan tinggi select2 dengan form-select-sm lainnya */
+            .select2-container .select2-selection--single {
+                height: 31px !important;
+                display: flex;
+                align-items: center;
+                border-radius: 0.25rem;
+                border: 1px solid #dee2e6;
+                font-size: 0.875rem;
+            }
+
+            .select2-container .select2-selection__rendered {
+                line-height: 29px !important;
+            }
+
+            .select2-container .select2-selection__arrow {
+                height: 29px !important;
+            }
+
+            /* Responsive: full width di layar kecil */
+            @media (max-width: 768px) {
+                .filter-toolbar>* {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+            }
+        </style>
+        <script>
+            const $dateInput = $('#filterDateRange');
+            const $panel = $('#dateRangePanel');
+            const $startInput = $('#filterStartDate');
+            const $endInput = $('#filterEndDate');
+
+            // buka/tutup panel saat input diklik
+            $dateInput.on('click', function(e) {
+                e.stopPropagation();
+                $panel.toggleClass('show');
+            });
+
+            // jangan tutup saat klik di dalam panel
+            $panel.on('click', function(e) {
+                e.stopPropagation();
+            });
+
+            // tutup panel kalau klik di luar
+            $(document).on('click', function() {
+                s / d
+                $panel.removeClass('show');
+            });
+
+            // terapkan rentang tanggal
+            $('#dateRangeApply').on('click', function() {
+                const start = $startInput.val();
+                const end = $endInput.val();
+
+                if (start && end && start > end) {
+                    alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir');
+                    return;
+                }
+
+                if (start && end) {
+                    $dateInput.val(start + ' s/d ' + end);
+                    $('#summaryDateRange').text(formatTanggal(start) + ' - ' + formatTanggal(end));
+                } else if (start) {
+                    $dateInput.val(start + ' s/d ...');
+                    $('#summaryDateRange').text('Mulai ' + formatTanggal(start));
+                } else {
+                    $dateInput.val('');
+                    $('#summaryDateRange').text('Semua Waktu');
+                }
+
+                $panel.removeClass('show');
+
+                // table.ajax.reload();
+            });
+
+            // helper untuk format tanggal jadi lebih enak dibaca, misal "16 Jul 2026"
+            function formatTanggal(dateStr) {
+                const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const d = new Date(dateStr);
+                return d.getDate() + ' ' + bulan[d.getMonth()] + ' ' + d.getFullYear();
+            }
+
+            // clear rentang tanggal
+            $('#dateRangeClear').on('click', function() {
+                $startInput.val('');
+                $endInput.val('');
+                $dateInput.val('');
+                $('#summaryDateRange').text('Semua Waktu');
+                $panel.removeClass('show');
+
+                // table.ajax.reload();
+            });
+        </script>
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -1114,11 +1327,11 @@
             });
 
             function updateExportUrl() {
-
                 let start = $('#filterStartDate').val();
                 let end = $('#filterEndDate').val();
                 let transaction = $('#filterTransaction').val();
                 let location = $('#filterLocation').val();
+                let search = $('#customSearch').val().trim(); // trim di sini
 
                 let stock = new URLSearchParams(window.location.search).get('stock');
 
@@ -1129,13 +1342,16 @@
                 if (end) url.searchParams.append('end_date', end);
                 if (transaction) url.searchParams.append('transaction_type', transaction);
                 if (location) url.searchParams.append('location_id', location);
+                if (search) url.searchParams.append('search', search);
 
                 $('#exportBtn').attr('href', url.toString());
             }
+
             $('#filterStartDate').on('change', updateExportUrl);
             $('#filterEndDate').on('change', updateExportUrl);
             $('#filterTransaction').on('change', updateExportUrl);
             $('#filterLocation').on('change', updateExportUrl);
+            $('#customSearch').on('keyup input', updateExportUrl); // trigger tiap ketik
 
             updateExportUrl();
         </script>
@@ -1418,6 +1634,8 @@
 
                 table = $('#stockMutation').DataTable({
 
+                    dom: 'rtip',
+
                     processing: true,
                     serverSide: true,
 
@@ -1429,7 +1647,7 @@
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
 
-                             d.stock = new URLSearchParams(window.location.search).get('stock');
+                            d.stock = new URLSearchParams(window.location.search).get('stock');
                         }
                     },
 
@@ -1501,9 +1719,41 @@
                         targets: 3,
                         width: "250px",
                         className: "text-wrap"
-                    }]
+                    }],
+
+                    initComplete: function() {
+                        moveDataTablesElements();
+                    },
+                    drawCallback: function() {
+                        moveDataTablesElements();
+                    }
 
                 });
+
+                function moveDataTablesElements() {
+                    // pindahkan teks "Showing X to Y of Z entries" ke sebelah kanan dropdown Tampilkan
+                    const $info = $('#stockMutation_info');
+                    if ($info.length && !$('#lengthWrapper').find('.dataTables_info').length) {
+                        $info.addClass('text-muted small ms-2').appendTo('#lengthWrapper');
+                    }
+
+                    // pastikan pagination tetap di kanan dalam footer yang sama
+                    const $paginate = $('#stockMutation_paginate');
+                    if ($paginate.length && !$('#tableFooter').find('.dataTables_paginate').length) {
+                        $paginate.appendTo('#tableFooter');
+                    }
+                }
+                $('#customSearch').on('input', function() {
+                    table.search(this.value).draw();
+                    updateExportUrl();
+                });
+
+                $('#customLength').change(function() {
+
+                    table.page.len($(this).val()).draw();
+
+                })
+
 
                 $('#filterStartDate,#filterEndDate,#filterTransaction,#filterLocation')
                     .on('change', function() {
@@ -1514,14 +1764,21 @@
 
                     $('#filterStartDate').val('');
                     $('#filterEndDate').val('');
-                    $('#filterTransaction').val('');
+                    $('#filterDateRange').val('');
+                    $('#summaryDateRange').text('Semua Waktu');
+                    $('#filterTransaction').val('').trigger('change');
                     $('#filterLocation').val('').trigger('change');
+                    $('#customSearch').val('');
+
+                    table.search('').draw();
+                    updateExportUrl(); 
 
                     table.ajax.reload();
 
                 });
 
             });
+
 
             $('#formMutation').submit(function(e) {
 
@@ -1574,6 +1831,15 @@
         </script>
 
         <style>
+            .dataTables_filter,
+            .dataTables_length {
+                display: none;
+            }
+
+            .dataTables_paginate {
+                display: none;
+            }
+
             #stockMutation {
                 width: 100% !important;
             }
