@@ -63,60 +63,53 @@ class StockController extends Controller
                 return $html;
 
             })
-
             ->addColumn('action', function ($row) {
 
                 return '
-            <div class="d-flex gap-1">
+<div class="d-flex align-items-center gap-2">
 
-                <button
-                    class="btn btn-sm btn-outline-warning btnEditStock"
-                    data-id="'.$row->id.'">
+    <button
+        class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEditStock"
+        type="button"
+        data-id="'.$row->id.'">
 
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                class="fs-5" viewBox="0 0 24 24">
+        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path fill="currentColor"
+                d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+        </svg>
+
+    </button>
+
+    <form action="'.route('stocks.destroy', $row->id).'"
+          method="POST"
+          class="form-hapus m-0">
+
+        '.csrf_field().'
+        '.method_field('DELETE').'
+
+        <button type="submit"
+            class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+
                 <path d="M0 0h24v24H0z" fill="none"/>
                 <path fill="currentColor"
-                    d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+                    d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
+
             </svg>
 
-                </button>
+        </button>
 
-                <form
-                    action="'.route('stocks.destroy', $row->id).'"
-                    method="POST"
-                    class="form-hapus">
+    </form>
 
-                    '.csrf_field().'
-
-                    '.method_field('DELETE').'
-
-                    <button
-                        class="btn btn-sm btn-outline-danger">
-
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                    width="1em" height="1em"
-                    class="fs-5"
-                    viewBox="0 0 24 24">
-
-                    <path d="M0 0h24v24H0z" fill="none"/>
-                    <path fill="currentColor"
-                        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
-
-                </svg>
-
-                    </button>
-
-                </form>
-
-            </div>';
-
+</div>';
             })
 
             ->rawColumns([
-                'locations_qty',
-                'action',
-            ])
+                            'locations_qty',
+                            'action',
+                        ])
 
             ->make(true);
 

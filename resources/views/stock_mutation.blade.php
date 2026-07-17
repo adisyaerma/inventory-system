@@ -1300,7 +1300,6 @@
 
             // tutup panel kalau klik di luar
             $(document).on('click', function() {
-                s / d
                 $panel.removeClass('show');
             });
 
