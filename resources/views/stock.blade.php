@@ -906,12 +906,10 @@
                 $('#btnResetFilter').click(function() {
 
                     $('#filterLocation').val(null).trigger('change');
-                    $('#customSearhch').val('');
+                    $('#customSearch').val(''); // fix typo: customSearhch -> customSearch
 
                     table.search('').draw();
                     updateExportUrl();
-
-                    table.search('').draw();
 
                 });
                 // Inisialisasi pertama
