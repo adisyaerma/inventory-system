@@ -497,7 +497,7 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2 justify-content-end">
 
-                    <button type="button" class="btn border-secondary bg-white border" data-bs-toggle="modal"
+                    <button type="button" class="btn border-secondary bg-white border btn-sm" data-bs-toggle="modal"
                         data-bs-target="#importMutationModal">
                         <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                             viewBox="0 0 24 24">
@@ -508,7 +508,7 @@
                         <span class="d-none d-md-inline ms-1">Import</span>
                     </button>
 
-                    <a href="{{ route('mutation.export') }}" class="btn border border-secondary bg-white" id="exportBtn">
+                    <a href="{{ route('mutation.export') }}" class="btn btn-sm border border-secondary bg-white" id="exportBtn">
                         <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                             viewBox="0 0 24 24">
                             <path d="M0 0h24v24H0z" fill="none" />
@@ -518,7 +518,7 @@
                         <span class="d-none d-md-inline ms-1">Export</span>
                     </a>
 
-                    <button class="btn border-secondary bg-white border" id="resetFilter" title="Reset Filter">
+                    <button class="btn btn-sm border-secondary bg-white border" id="resetFilter" title="Reset Filter">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
                             <path d="M0 0h21v21H0z" fill="none" />
                             <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
@@ -531,7 +531,7 @@
                     </button>
 
                     <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
-                        class="btn btn-primary">
+                        class="btn btn-sm btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                             <path d="M0 0h24v24H0z" fill="none" />
                             <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />

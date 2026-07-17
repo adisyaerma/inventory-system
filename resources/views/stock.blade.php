@@ -8,14 +8,52 @@
                 <small class="text-muted">Kelola stok data barang di gudang</small>
             </div>
             <div class="float-end">
-                <!-- Button -->
-                <button data-bs-toggle="modal" data-bs-target="#addStockModal" type="button" class="btn btn-primary btn-sm">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
-                    </svg>
-                    Tambah
-                </button>
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button" class="btn-sm btn border-secondary bg-white border" data-bs-toggle="modal"
+                        data-bs-target="#importModal">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Import</span>
+                    </button>
+
+                    <a href="{{ route('stock.export') }}" class="btn-sm btn border border-secondary bg-white"
+                        id="exportBtn">
+                        <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                            viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor"
+                                d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Export</span>
+                    </a>
+
+                    <button id="btnResetFilter" class="btn-sm btn border-secondary bg-white border">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+                            <path d="M0 0h21v21H0z" fill="none" />
+                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                <path d="M7.5 6.5h-4v-4" />
+                            </g>
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Reset Filter</span>
+                    </button>
+
+                    <!-- Button -->
+                    <button data-bs-toggle="modal" data-bs-target="#addStockModal" type="button"
+                        class="btn btn-sm btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Tambah</span>
+                    </button>
+
+                </div>
 
                 <div class="modal fade" id="addStockModal" tabindex="-1">
 
@@ -141,7 +179,8 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="name" placeholder="Masukkan Nama Barang" required>
+                                                                name="name" placeholder="Masukkan Nama Barang"
+                                                                required>
 
                                                         </div>
 
@@ -299,27 +338,6 @@
                     </div>
 
                 </div>
-
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                    data-bs-target="#importModal">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="me-1" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
-                    </svg>
-                    Import
-                </button>
-                <a href="{{ route('stock.export') }}" class="btn btn-sm btn-success" id="exportBtn">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor"
-                            d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
-                    </svg>
-                    Export
-                </a>
             </div>
 
         </div>
@@ -477,47 +495,46 @@
 
         <div class="table-responsive text-nowrap">
             <div class="container-fluid px-4">
+
+                <style>
+                    .filter-toolbar-stock {
+                        --gap: 0.5rem;
+                    }
+
+                    .filter-toolbar-stock>* {
+                        flex: 1 1 calc(50% - var(--gap));
+                        min-width: 150px;
+                    }
+
+                    @media (max-width: 575.98px) {
+                        .filter-toolbar-stock>* {
+                            flex: 1 1 100%;
+                        }
+                    }
+                </style>
+
                 <div class="top-row d-flex justify-content-lg-start justify-content-center mb-3">
 
-                    <div class="d-flex flex-wrap justify-content-lg-start justify-content-center gap-2">
+                    <div class="filter-toolbar-stock d-flex flex-wrap gap-2">
 
-                        <div style="min-width:140px;">
-                            <select id="filterLocation" class="form-select form-select-sm">
-
-                                <option value="">Semua Lokasi</option>
-
-                                @foreach ($locations as $location)
-                                    <option value="{{ $location->id }}">
-                                        {{ $location->location_name }}
-                                    </option>
-                                @endforeach
-
-                            </select>
+                        <!-- Search -->
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="customSearch" class="form-control border-start-0"
+                                placeholder="Cari...">
                         </div>
 
-                        <div>
-                            <button id="btnResetFilter"
-                                class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-
-                                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                                    viewBox="0 0 21 21">
-
-                                    <path d="M0 0h21v21H0z" fill="none" />
-
-                                    <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                        stroke-linejoin="round">
-
-                                        <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                        <path d="M7.5 6.5h-4v-4" />
-
-                                    </g>
-
-                                </svg>
-
-                                Reset Filter
-
-                            </button>
-                        </div>
+                        <!-- Lokasi -->
+                        <select id="filterLocation" class="form-select form-select-sm shadow-sm">
+                            <option value="">Semua Lokasi</option>
+                            @foreach ($locations as $location)
+                                <option value="{{ $location->id }}">
+                                    {{ $location->location_name }}
+                                </option>
+                            @endforeach
+                        </select>
 
                     </div>
 
@@ -806,6 +823,9 @@
 
                 // DataTable
                 table = $('#stock').DataTable({
+
+                    dom: 'rtip',
+
                     processing: true,
                     serverSide: true,
                     scrollX: true,
@@ -852,16 +872,22 @@
                     ]
                 })
 
+
+                $('#customSearch').on('input', function() {
+                    table.search(this.value).draw();
+                });
                 // Update URL export
                 function updateExportUrl() {
 
                     let locationId = $('#filterLocation').val();
+                    let search = $('#customSearch').val().trim();
 
                     let url = new URL("{{ route('stock.export') }}");
 
                     if (locationId) {
                         url.searchParams.set('location_id', locationId);
                     }
+                    if (search) url.searchParams.append('search', search);
 
                     $('#exportBtn').attr('href', url.toString());
                 }
@@ -873,10 +899,17 @@
                     updateExportUrl();
 
                 });
+
+                $('#customSearch').on('keyup input', updateExportUrl);
+
                 // Reset filter
                 $('#btnResetFilter').click(function() {
 
                     $('#filterLocation').val(null).trigger('change');
+                    $('#customSearhch').val('');
+
+                    table.search('').draw();
+                    updateExportUrl();
 
                     table.search('').draw();
 

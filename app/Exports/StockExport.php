@@ -12,11 +12,11 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class StockExport implements FromCollection, WithEvents, WithHeadings
 {
-    protected $locationId;
+    protected $request;
 
-    public function __construct($locationId = null)
+    public function __construct($request)
     {
-        $this->locationId = $locationId;
+        $this->request = $request;
     }
 
     public function collection()
@@ -34,9 +34,26 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                 'locationStocks.location:id,location_name',
             ]);
 
-        if ($this->locationId) {
-            $query->whereHas('locationStocks', function ($q) {
-                $q->where('location_id', $this->locationId);
+        if ($this->request->filled('location_id')) {
+            $locationId = $this->request->location_id;
+
+            $query->whereHas('locationStocks', function ($q) use ($locationId) {
+                $q->where('location_id', $locationId);
+            });
+        }
+
+        if ($this->request->filled('search')) {
+            $search = $this->request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->where('item_code_supplier', 'ilike', "%{$search}%")
+                    ->orWhere('item_code_internal', 'ilike', "%{$search}%")
+                    ->orWhere('item_code_customer', 'ilike', "%{$search}%")
+                    ->orWhere('name', 'ilike', "%{$search}%")
+                    ->orWhere('description', 'ilike', "%{$search}%")
+                    ->orWhereHas('locationStocks.location', function ($lq) use ($search) {
+                        $lq->where('location_name', 'ilike', "%{$search}%");
+                    });
             });
         }
 
@@ -44,10 +61,10 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
 
             $locationStocks = $stock->locationStocks;
 
-            if ($this->locationId) {
+            if ($this->request->filled('location_id')) {
                 $locationStocks = $locationStocks->where(
                     'location_id',
-                    $this->locationId
+                    $this->request->location_id
                 );
             }
 

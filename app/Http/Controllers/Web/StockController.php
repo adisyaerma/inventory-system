@@ -334,9 +334,6 @@ class StockController extends Controller
     public function export(Request $request)
     {
 
-        return Excel::download(
-            new StockExport($request->location_id),
-            'stock.xlsx'
-        );
+        return Excel::download(new StockExport($request), 'stock.xlsx');
     }
 }
