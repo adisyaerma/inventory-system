@@ -3,8 +3,6 @@
 @section('content')
 
     <div class="row g-5 mb-5">
-
-
         <div class="col">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body d-flex align-items-center">
@@ -508,7 +506,8 @@
                         <span class="d-none d-md-inline ms-1">Import</span>
                     </button>
 
-                    <a href="{{ route('mutation.export') }}" class="btn btn-sm border border-secondary bg-white" id="exportBtn">
+                    <a href="{{ route('mutation.export') }}" class="btn btn-sm border border-secondary bg-white"
+                        id="exportBtn">
                         <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                             viewBox="0 0 24 24">
                             <path d="M0 0h24v24H0z" fill="none" />
@@ -706,12 +705,13 @@
             <div class="container-fluid px-5">
 
                 <style>
-                    .filter-toolbar {
+                    <style>.filter-toolbar {
                         --gap: 0.5rem;
                     }
 
                     .filter-toolbar>* {
                         flex: 1 1 calc(25% - var(--gap));
+                        max-width: 260px;
                         min-width: 150px;
                     }
 
@@ -722,12 +722,14 @@
                     @media (max-width: 991.98px) {
                         .filter-toolbar>* {
                             flex: 1 1 calc(50% - var(--gap));
+                            max-width: 320px;
                         }
                     }
 
                     @media (max-width: 575.98px) {
                         .filter-toolbar>* {
                             flex: 1 1 100%;
+                            max-width: 100%;
                         }
 
                         .filter-toolbar #resetFilter {
@@ -1622,7 +1624,6 @@
                             title: message,
                             showConfirmButton: false,
                             timer: 2500,
-                            timerProgressBar: true,
                             didOpen: () => {
                                 document.querySelector('.swal2-container').style.zIndex =
                                     '9999999';
@@ -1842,16 +1843,6 @@
                         });
 
                     },
-
-                    error: function(xhr) {
-
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal',
-                            text: xhr.responseJSON.message
-                        });
-
-                    }
 
                 });
 

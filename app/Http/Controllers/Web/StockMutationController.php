@@ -431,11 +431,10 @@ class StockMutationController extends Controller
 
                 DB::rollBack();
 
-                return back()
-                    ->withErrors([
-                        'qty' => 'Qty keluar melebihi stok.',
-                    ])
-                    ->withInput();
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Qty keluar melebihi stok.',
+                ], 422);
             }
 
             $mutation = StockMutation::create([

@@ -502,6 +502,7 @@
 
                 .filter-toolbar>* {
                     flex: 1 1 calc(25% - var(--gap));
+                    max-width: 260px;
                     min-width: 150px;
                 }
 
@@ -512,12 +513,14 @@
                 @media (max-width: 991.98px) {
                     .filter-toolbar>* {
                         flex: 1 1 calc(50% - var(--gap));
+                        max-width: 320px;
                     }
                 }
 
                 @media (max-width: 575.98px) {
                     .filter-toolbar>* {
                         flex: 1 1 100%;
+                        max-width: 100%;
                     }
 
                     .filter-toolbar #resetFilter {
@@ -1039,7 +1042,6 @@
         @endif
 
         <style>
-
             .dt-layout-row {
                 padding-left: 1rem;
                 padding-right: 1rem;
