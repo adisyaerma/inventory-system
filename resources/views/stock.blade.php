@@ -493,52 +493,60 @@
             </div>
         </div>
 
-        <div class="table-responsive text-nowrap">
-            <div class="container-fluid px-4">
+        <div class="container-fluid px-4">
 
-                <style>
-                    .filter-toolbar-stock {
-                        --gap: 0.5rem;
-                    }
+            <style>
+                .filter-toolbar {
+                    --gap: 0.5rem;
+                }
 
-                    .filter-toolbar-stock>* {
+                .filter-toolbar>* {
+                    flex: 1 1 calc(25% - var(--gap));
+                    min-width: 150px;
+                }
+
+                .filter-toolbar .btn-reset-wrapper {
+                    flex: 0 0 auto;
+                }
+
+                @media (max-width: 991.98px) {
+                    .filter-toolbar>* {
                         flex: 1 1 calc(50% - var(--gap));
-                        min-width: 150px;
+                    }
+                }
+
+                @media (max-width: 575.98px) {
+                    .filter-toolbar>* {
+                        flex: 1 1 100%;
                     }
 
-                    @media (max-width: 575.98px) {
-                        .filter-toolbar-stock>* {
-                            flex: 1 1 100%;
-                        }
+                    .filter-toolbar #resetFilter {
+                        width: 100%;
+                        justify-content: center;
                     }
-                </style>
+                }
+            </style>
 
-                <div class="top-row d-flex justify-content-lg-start justify-content-center mb-3">
+            <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
-                    <div class="filter-toolbar-stock d-flex flex-wrap gap-2">
-
-                        <!-- Search -->
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="customSearch" class="form-control border-start-0"
-                                placeholder="Cari...">
-                        </div>
-
-                        <!-- Lokasi -->
-                        <select id="filterLocation" class="form-select form-select-sm shadow-sm">
-                            <option value="">Semua Lokasi</option>
-                            @foreach ($locations as $location)
-                                <option value="{{ $location->id }}">
-                                    {{ $location->location_name }}
-                                </option>
-                            @endforeach
-                        </select>
-
-                    </div>
-
+                <!-- Search -->
+                <div class="input-group input-group-sm shadow-sm flex-nowrap">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" id="customSearch" class="form-control border-start-0" placeholder="Cari...">
                 </div>
+
+                <!-- Lokasi -->
+                <select id="filterLocation" class="form-select form-select-sm shadow-sm">
+                    <option value="">Semua Lokasi</option>
+                    @foreach ($locations as $location)
+                        <option value="{{ $location->id }}">
+                            {{ $location->location_name }}
+                        </option>
+                    @endforeach
+                </select>
+
             </div>
 
             <table class="table table-bordered" id="stock">
@@ -557,6 +565,21 @@
 
                 <tbody></tbody>
             </table>
+
+
+            <div class="mb-3 d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2" id="tableFooter">
+                <div class="d-flex align-items-center gap-2" id="lengthWrapper">
+                    <span>Tampilkan</span>
+                    <select id="customLength" class="form-select form-select-sm" style="width:80px">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span>data</span>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -872,10 +895,30 @@
                     ]
                 })
 
+                function moveDataTablesElements() {
+                    // pindahkan teks "Showing X to Y of Z entries" ke sebelah kanan dropdown Tampilkan
+                    const $info = $('#stockMutation_info');
+                    if ($info.length && !$('#lengthWrapper').find('.dataTables_info').length) {
+                        $info.addClass('text-muted small ms-2').appendTo('#lengthWrapper');
+                    }
+
+                    // pastikan pagination tetap di kanan dalam footer yang sama
+                    const $paginate = $('#stockMutation_paginate');
+                    if ($paginate.length && !$('#tableFooter').find('.dataTables_paginate').length) {
+                        $paginate.appendTo('#tableFooter');
+                    }
+                }
+
 
                 $('#customSearch').on('input', function() {
                     table.search(this.value).draw();
                 });
+
+                $('#customLength').change(function() {
+
+                    table.page.len($(this).val()).draw();
+
+                })
                 // Update URL export
                 function updateExportUrl() {
 
@@ -996,9 +1039,6 @@
         @endif
 
         <style>
-            #stock_wrapper {
-                padding: 1rem;
-            }
 
             .dt-layout-row {
                 padding-left: 1rem;

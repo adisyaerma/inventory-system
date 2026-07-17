@@ -823,7 +823,6 @@
                         </select>
                         <span>data</span>
                     </div>
-                    <!-- .dataTables_paginate bawaan akan otomatis muncul di sini oleh DataTables -->
                 </div>
             </div>
         </div>
