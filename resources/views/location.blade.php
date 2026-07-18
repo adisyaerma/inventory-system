@@ -163,41 +163,89 @@
             </div>
         </div>
 
+        {{-- <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
+            <option value="">Semua Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Non Aktif">Non Aktif</option>
+        </select>
+
+        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+
+                <path d="M0 0h21v21H0z" fill="none" />
+
+                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                    stroke-linejoin="round">
+
+                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                    <path d="M7.5 6.5h-4v-4" />
+
+                </g>
+
+            </svg>
+
+            Reset Filter
+
+        </button> --}}
+
         <div class="table-responsive text-nowrap">
             <div class="container-fluid px-4">
-                <div class="top-row d-flex justify-content-lg-start justify-content-center mb-3">
+                <style>
+                    .filter-toolbar {
+                        --gap: 0.5rem;
+                    }
 
-                    <div class="d-flex flex-wrap justify-content-lg-start justify-content-center gap-2">
+                    .filter-toolbar #customSearch {
+                        padding-left: 0.5rem !important;
+                    }
 
-                        <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="Aktif">Aktif</option>
-                            <option value="Non Aktif">Non Aktif</option>
-                        </select>
+                    .filter-toolbar>* {
+                        flex: 1 1 calc(25% - var(--gap));
+                        max-width: 260px;
+                        min-width: 150px;
+                    }
 
-                        <button id="btnResetFilter"
-                            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    .filter-toolbar .btn-reset-wrapper {
+                        flex: 0 0 auto;
+                    }
 
-                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+                    @media (max-width: 991.98px) {
+                        .filter-toolbar>* {
+                            flex: 1 1 calc(50% - var(--gap));
+                            max-width: 320px;
+                        }
+                    }
 
-                                <path d="M0 0h21v21H0z" fill="none" />
+                    @media (max-width: 575.98px) {
+                        .filter-toolbar>* {
+                            flex: 1 1 calc(50% - var(--gap));
+                            max-width: 100%;
+                        }
 
-                                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                    stroke-linejoin="round">
+                        .filter-toolbar #resetFilter {
+                            width: 100%;
+                            justify-content: center;
+                        }
+                    }
+                </style>
 
-                                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                    <path d="M7.5 6.5h-4v-4" />
+                <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
-                                </g>
-
-                            </svg>
-
-                            Reset Filter
-
-                        </button>
-
+                    <!-- Search -->
+                    <div class="input-group input-group-sm shadow-sm flex-nowrap">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input type="text" id="customSearch" class="form-control border-start-0"
+                            placeholder="Cari...">
                     </div>
 
+                    <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
+                        <option value="">Semua Status</option>
+                        <option value="Aktif">Aktif</option>
+                        <option value="Non Aktif">Non Aktif</option>
+                    </select>
                 </div>
             </div>
 
@@ -283,6 +331,18 @@
                     @endforeach
                 </tbody>
             </table>
+            <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2" id="tableFooter">
+                    <div class="d-flex align-items-center gap-2" id="lengthWrapper">
+                        <span>Tampilkan</span>
+                        <select id="customLength" class="fonrm-select form-select-sm" style="width:80px">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>data</span>
+                    </div>
+                </div>
         </div>
     </div>
 
@@ -414,6 +474,7 @@
                     dom: '<"dt-top d-flex justify-content-between align-items-center flex-wrap mb-2"lf>rtip',
                     scrollX: true,
 
+                    dom: 'rtip',
                     pageLength: 10,
 
                     lengthMenu: [
@@ -421,6 +482,17 @@
                         [10, 25, 50, 100]
                     ]
                 });
+
+                $('#customSearch').on('input', function() {
+                    table.search(this.value).draw();
+                    updateExportUrl();
+                });
+
+                $('#customLength').change(function() {
+
+                    table.page.len($(this).val()).draw();
+
+                })
 
                 $.fn.dataTable.ext.search.push(function(settings, data) {
 
