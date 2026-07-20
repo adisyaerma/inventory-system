@@ -1470,7 +1470,19 @@
             $(document).on('click', '.btnRemove', function() {
 
                 if ($('#locationContainer .location-item').length == 1) {
-                    alert('Minimal harus ada satu lokasi.');
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'warning',
+                        title: 'Minimal harus ada satu lokasi.',
+                        showConfirmButton: false,
+                        timer: 2500,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    });
+
                     return;
                 }
 

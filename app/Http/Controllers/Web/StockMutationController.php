@@ -427,7 +427,7 @@ class StockMutationController extends Controller
                 ]
             );
 
-            if ($request->qty_out > $locationStock->quantity) {
+            if ($request->qty_out > 0 && $request->qty_out > $locationStock->quantity) {
 
                 DB::rollBack();
 

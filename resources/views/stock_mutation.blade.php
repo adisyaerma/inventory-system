@@ -1844,6 +1844,37 @@
 
                     },
 
+                    error: function(xhr) {
+
+                        let message = 'Terjadi kesalahan.';
+
+                        if (xhr.status === 422) {
+
+                            if (xhr.responseJSON.errors) {
+                                message = Object.values(xhr.responseJSON.errors)[0][0];
+                            } else if (xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            message = xhr.responseJSON.message;
+                        }
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: message,
+                            timer: 3000,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                document.querySelector('.swal2-container').style.zIndex =
+                                    '9999999';
+                            }
+                        });
+
+                    },
+
                 });
 
             });
