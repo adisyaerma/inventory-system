@@ -301,7 +301,7 @@
                             <td>{{ $location->description ?? '-' }}</td>
                             <td>
                                 <div class="d-flex align-items-center gap-1">
-                                    <button class="btn btn-sm btn-outline-warning btnScanEdit" data-bs-toggle="modal"
+                                    <button class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnScanEdit" data-bs-toggle="modal"
                                         data-bs-target="#editLocationModal{{ $location->id }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
                                             height="1em" viewBox="0 0 24 24">
@@ -316,7 +316,7 @@
                                         @csrf
                                         @method('DELETE')
 
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <button type="submit" class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
                                                 height="1em" viewBox="0 0 24 24">
                                                 <path d="M0 0h24v24H0z" fill="none" />

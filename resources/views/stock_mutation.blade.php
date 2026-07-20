@@ -728,7 +728,7 @@
 
                     @media (max-width: 575.98px) {
                         .filter-toolbar>* {
-                            flex: 1 1 calc(50% - var(--gap));
+                            flex: 1 1 100%;
                             max-width: 100%;
                         }
 

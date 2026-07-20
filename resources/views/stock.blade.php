@@ -40,7 +40,7 @@
                                 <path d="M7.5 6.5h-4v-4" />
                             </g>
                         </svg>
-                        <span class="d-none d-md-inline ms-1">Reset Filter</span>
+                        <span class="d-none d-md-inline ms-1">Reset</span>
                     </button>
 
                     <!-- Button -->
@@ -1364,6 +1364,33 @@
         </script>
 
         <script>
+            // ================= SHARED STATE — HANYA SATU KALI UNTUK SELURUH HALAMAN =================
+            let allLocations = [
+                @foreach ($locations as $location)
+                    "{{ $location->location_name }}",
+                @endforeach
+            ];
+
+            function addGlobalLocation(name) {
+                if (!name) return;
+                if (!allLocations.includes(name)) {
+                    allLocations.push(name);
+                }
+
+                // sync ke SEMUA select lokasi yang sedang aktif (form tambah & edit)
+                $('.edit-location-select, .location-select').each(function() {
+                    if (this.tomselect && !this.tomselect.options[name]) {
+                        this.tomselect.addOption({
+                            value: name,
+                            text: name
+                        });
+                    }
+                });
+            }
+            // ==========================================================================================
+
+
+            // ================================= FORM TAMBAH BARANG =================================
             let index = 1;
 
             function initTomSelect(element) {
@@ -1376,69 +1403,60 @@
                     createOnBlur: true,
                     allowEmptyOption: true,
                     placeholder: "Pilih atau ketik lokasi...",
-                    dropdownDirection: "up"
+                    dropdownDirection: "up",
+
+                    onOptionAdd: function(value, data) {
+                        addGlobalLocation(value);
+                    }
                 });
 
+                allLocations.forEach(function(loc) {
+                    if (!element.tomselect.options[loc]) {
+                        element.tomselect.addOption({
+                            value: loc,
+                            text: loc
+                        });
+                    }
+                });
             }
-
 
             document.querySelectorAll('.location-select').forEach(function(el) {
                 initTomSelect(el);
             });
 
-
             $('#btnAddLocation').click(function() {
 
                 let html = `
-
-<div class="row g-2 align-items-center location-item mt-2">
-
-    <div class="col-7">
-
-        <select
-            name="locations[${index}][location]"
-            class="form-select form-select-sm location-select"
-            required>
-
-            <option value="">Pilih / Ketik Lokasi</option>
-
-            @foreach ($locations as $location)
-                <option value="{{ $location->location_name }}">
-                    {{ $location->location_name }}
-                </option>
-            @endforeach
-
-        </select>
-
+    <div class="row g-2 align-items-center location-item mt-2">
+        <div class="col-7">
+            <select
+                name="locations[${index}][location]"
+                class="form-select form-select-sm location-select"
+                required>
+                <option value="">Pilih / Ketik Lokasi</option>
+                @foreach ($locations as $location)
+                    <option value="{{ $location->location_name }}">
+                        {{ $location->location_name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-3">
+            <input
+                type="number"
+                class="form-control form-control-sm"
+                name="locations[${index}][quantity]"
+                min="0"
+                placeholder="0"
+                required>
+        </div>
+        <div class="col-2 d-grid">
+            <button type="button" class="btn btn-outline-danger btn-sm btnRemove">
+                <i class="bx bx-trash"></i>
+            </button>
+        </div>
     </div>
-
-    <div class="col-3">
-
-        <input
-            type="number"
-            class="form-control form-control-sm"
-            name="locations[${index}][quantity]"
-            min="0"
-            placeholder="0"
-            required>
-
-    </div>
-
-    <div class="col-2 d-grid">
-
-        <button
-            type="button"
-            class="btn btn-outline-danger btn-sm btnRemove">
-
-            <i class="bx bx-trash"></i>
-
-        </button>
-
-    </div>
-
-</div>
-
-`;
+    `;
 
                 $('#locationContainer').append(html);
 
@@ -1447,21 +1465,16 @@
                 initTomSelect(select);
 
                 index++;
-
             });
 
             $(document).on('click', '.btnRemove', function() {
 
                 if ($('#locationContainer .location-item').length == 1) {
-
                     alert('Minimal harus ada satu lokasi.');
-
                     return;
-
                 }
 
                 let item = $(this).closest('.location-item');
-
                 let select = item.find('.location-select')[0];
 
                 if (select.tomselect) {
@@ -1469,11 +1482,31 @@
                 }
 
                 item.remove();
-
             });
-        </script>
 
-        <script>
+            // Reset form Tambah setiap kali modalnya ditutup (submit sukses / batal / klik luar)
+            // Ganti '#addStockModal' & '#addStockForm' sesuai id modal & form Tambah kamu yang sebenarnya.
+            $('#addStockModal').on('hidden.bs.modal', function() {
+
+                $('#locationContainer .location-item').each(function() {
+                    let select = $(this).find('.location-select')[0];
+                    if (select && select.tomselect) {
+                        select.tomselect.destroy();
+                    }
+                    $(this).remove();
+                });
+
+                index = 1;
+
+                $('#addStockForm')[0].reset();
+
+                // tambahkan kembali 1 baris lokasi kosong sebagai default
+                $('#btnAddLocation').click();
+            });
+            // ==========================================================================================
+
+
+            // ================================= FORM EDIT BARANG =================================
             let editIndex = 0;
 
             function initEditTomSelect(element) {
@@ -1481,79 +1514,61 @@
                 if (element.tomselect) return;
 
                 new TomSelect(element, {
-
                     create: true,
-
                     persist: false,
-
                     createOnBlur: true,
-
                     allowEmptyOption: true,
-
                     placeholder: "Pilih atau ketik lokasi...",
+                    dropdownDirection: "up",
 
-                    dropdownDirection: "up"
-
+                    onOptionAdd: function(value, data) {
+                        addGlobalLocation(value);
+                    }
                 });
 
+                allLocations.forEach(function(loc) {
+                    if (!element.tomselect.options[loc]) {
+                        element.tomselect.addOption({
+                            value: loc,
+                            text: loc
+                        });
+                    }
+                });
             }
 
             function addEditLocationRow(location = "", qty = "") {
 
                 let html = `
-
-<div class="row g-2 align-items-center location-item mt-2">
-
-<div class="col-7">
-
-<select
-name="locations[${editIndex}][location]"
-class="form-select form-select-sm edit-location-select"
-required>
-
-<option value="">Pilih / Ketik Lokasi</option>
-
-@foreach ($locations as $location)
-
-<option value="{{ $location->location_name }}">
-
-{{ $location->location_name }}
-
-</option>
-
-@endforeach
-
-</select>
-
-</div>
-
-<div class="col-3">
-
-<input
-type="number"
-class="form-control form-control-sm"
-name="locations[${editIndex}][quantity]"
-value="${qty !== '' && qty !== null ? parseFloat(qty) : ''}"
-min="0"
-required>
-
-</div>
-
-<div class="col-2 d-grid">
-
-<button
-type="button"
-class="btn btn-outline-danger btn-sm btnEditRemove">
-
-<i class="bx bx-trash"></i>
-
-</button>
-
-</div>
-
-</div>
-
-`;
+    <div class="row g-2 align-items-center location-item mt-2">
+        <div class="col-7">
+            <select
+                name="locations[${editIndex}][location]"
+                class="form-select form-select-sm edit-location-select"
+                required>
+                <option value="">Pilih / Ketik Lokasi</option>
+                @foreach ($locations as $location)
+                    <option value="{{ $location->location_name }}">
+                        {{ $location->location_name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-3">
+            <input
+                type="number"
+                class="form-control form-control-sm"
+                name="locations[${editIndex}][quantity]"
+                value="${qty !== '' && qty !== null ? parseFloat(qty) : ''}"
+                min="0"
+                required>
+        </div>
+        <div class="col-2 d-grid">
+            <button type="button" class="btn btn-outline-danger btn-sm btnEditRemove">
+                <i class="bx bx-trash"></i>
+            </button>
+        </div>
+    </div>
+    `;
 
                 $('#editLocationContainer').append(html);
 
@@ -1562,29 +1577,35 @@ class="btn btn-outline-danger btn-sm btnEditRemove">
                 initEditTomSelect(select);
 
                 if (location != "") {
-
+                    if (!select.tomselect.options[location]) {
+                        select.tomselect.addOption({
+                            value: location,
+                            text: location
+                        });
+                    }
                     select.tomselect.setValue(location);
-
                 }
 
                 editIndex++;
-
             }
 
             $(document).on('click', '.btnEditStock', function() {
 
                 let id = $(this).data('id');
 
-                $('#editLocationContainer .location-item').remove();
+                $('#editLocationContainer .location-item').each(function() {
+                    let select = $(this).find('.edit-location-select')[0];
+                    if (select && select.tomselect) {
+                        select.tomselect.destroy();
+                    }
+                    $(this).remove();
+                });
 
                 editIndex = 0;
 
                 $.ajax({
-
                     url: '/stock/' + id + '/edit',
-
                     type: 'GET',
-
                     success: function(res) {
 
                         $('#editStockForm').attr('action', '/stock/' + id);
@@ -1602,44 +1623,32 @@ class="btn btn-outline-danger btn-sm btnEditRemove">
                             );
                         });
 
-                        // Tampilkan modal
                         $('#editStockModal').modal('show');
-
                     }
-
                 });
-
             });
 
             $('#btnEditLocation').click(function() {
-
                 addEditLocationRow();
-
             });
 
             $(document).on('click', '.btnEditRemove', function() {
 
                 if ($('#editLocationContainer .location-item').length == 1) {
-
                     alert('Minimal satu lokasi.');
-
                     return;
-
                 }
 
                 let row = $(this).closest('.location-item');
-
                 let select = row.find('.edit-location-select')[0];
 
                 if (select.tomselect) {
-
                     select.tomselect.destroy();
-
                 }
 
                 row.remove();
-
             });
+            // ==========================================================================================
         </script>
 
         <script>
