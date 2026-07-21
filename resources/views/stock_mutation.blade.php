@@ -119,7 +119,7 @@
             <div class="float-end">
                 <div class="modal fade" id="addMutationModal" tabindex="-1" aria-hidden="true">
 
-                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
 
                         <form action="{{ route('stock-mutation.store') }}" method="POST" id="formMutation">
 
@@ -152,7 +152,7 @@
 
                                         {{-- ================= LEFT =================== --}}
 
-                                        <div class="col-lg-6">
+                                        <div class="col">
 
                                             <div class="card border-0 shadow-sm h-100">
                                                 <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
@@ -244,7 +244,7 @@
                                                     </div>
 
                                                     {{-- Tipe --}}
-                                                    <div class="mb-3">
+                                                    {{-- <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
 
@@ -260,7 +260,7 @@
 
                                                             </span>
 
-                                                            <select class="form-select" name="transaction_type" required>
+                                                            <select class="form-select" name="transaction_type">
 
                                                                 <option value="">
                                                                     Pilih
@@ -275,7 +275,7 @@
 
                                                         </div>
 
-                                                    </div>
+                                                    </div> --}}
 
                                                     {{-- Nomor --}}
                                                     <div>
@@ -296,11 +296,51 @@
 
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="transaction_number"
-                                                                placeholder="Contoh: 202606-DO-0777">
+                                                                placeholder="Contoh: 202606-DO-0777" required>
 
                                                         </div>
 
                                                     </div>
+
+                                                    <div
+                                                        class="d-flex flex-nowrap gap-3 align-items-start jenis-qty-row mt-3">
+
+                                                        <div class="jenis-col">
+                                                            <label class="form-label fw-semibold">
+                                                                Jenis
+                                                            </label>
+                                                            <div class="input-group flex-nowrap">
+                                                                <span class="input-group-text">
+                                                                    <i class="bi bi-arrow-down-up"></i>
+                                                                </span>
+                                                                <select class="form-select" id="qtyType">
+                                                                    <option value="in">Masuk</option>
+                                                                    <option value="out">Keluar</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="qty-col">
+                                                            <label class="form-label fw-semibold">
+                                                                Qty
+                                                            </label>
+                                                            <div class="input-group flex-nowrap">
+                                                                <span class="input-group-text">
+                                                                    <i class="bi bi-123"></i>
+                                                                </span>
+                                                                <input type="number" class="form-control form-control-sm"
+                                                                    min="1" step="1" id="qtyInput">
+                                                            </div>
+
+                                                            <div class="invalid-feedback">
+                                                                Qty melebihi stock.
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <input type="hidden" id="qtyIn" name="qty_in" value="0">
+                                                    <input type="hidden" id="qtyOut" name="qty_out" value="0">
 
                                                 </div>
                                             </div>
@@ -309,7 +349,7 @@
 
                                         {{-- ================= RIGHT =================== --}}
 
-                                        <div class="col-lg-6">
+                                        {{-- <div class="col-lg-6">
 
                                             <div class="card border-0 shadow-sm h-100">
                                                 <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
@@ -323,65 +363,38 @@
 
                                                 <div class="card-body">
 
-                                                    <div class="row">
+                                                    <div class="d-flex flex-nowrap gap-3 align-items-start jenis-qty-row">
 
-                                                        <div class="col-md-4">
-
+                                                        <div class="jenis-col">
                                                             <label class="form-label fw-semibold">
-
                                                                 Jenis
-
                                                             </label>
-
-                                                            <div class="input-group">
-
+                                                            <div class="input-group flex-nowrap">
                                                                 <span class="input-group-text">
-
                                                                     <i class="bi bi-arrow-down-up"></i>
-
                                                                 </span>
-
                                                                 <select class="form-select" id="qtyType">
-
-                                                                    <option value="in">
-                                                                        Masuk
-                                                                    </option>
-
-                                                                    <option value="out">
-                                                                        Keluar
-                                                                    </option>
-
+                                                                    <option value="in">Masuk</option>
+                                                                    <option value="out">Keluar</option>
                                                                 </select>
-
                                                             </div>
-
                                                         </div>
 
-                                                        <div class="col-md-8">
-
+                                                        <div class="qty-col">
                                                             <label class="form-label fw-semibold">
-
                                                                 Qty
-
                                                             </label>
-
-                                                            <div class="input-group">
-
+                                                            <div class="input-group flex-nowrap">
                                                                 <span class="input-group-text">
-
                                                                     <i class="bi bi-123"></i>
-
                                                                 </span>
-
                                                                 <input type="number" class="form-control form-control-sm"
                                                                     min="1" step="1" id="qtyInput">
-
                                                             </div>
 
                                                             <div class="invalid-feedback">
                                                                 Qty melebihi stock.
                                                             </div>
-
                                                         </div>
 
                                                     </div>
@@ -463,7 +476,7 @@
 
                                             </div>
 
-                                        </div>
+                                        </div> --}}
 
                                     </div>
 
@@ -774,15 +787,15 @@
                     </div>
 
                     <!-- Jenis Transaksi -->
-                    <select class="form-select form-select-sm shadow-sm" id="filterTransaction" title="Jenis Transaksi">
+                    {{-- <select class="form-select form-select-sm shadow-sm" id="filterTransaction" title="Jenis Transaksi">
                         <option value="">Semua Transaksi</option>
                         @foreach ($transactionTypes as $type)
                             <option value="{{ $type }}">{{ $type }}</option>
                         @endforeach
-                    </select>
+                    </select> --}}
 
                     <!-- Lokasi (Select2) -->
-                    <div class="shadow-sm" title="Lokasi">
+                    {{-- <div class="shadow-sm" title="Lokasi">
                         <select class="form-select form-select-sm w-100" id="filterLocation">
                             <option value="">Semua Lokasi</option>
                             @foreach ($locations as $location)
@@ -791,7 +804,7 @@
                                 </option>
                             @endforeach
                         </select>
-                    </div>
+                    </div> --}}
 
                 </div>
 
@@ -803,7 +816,6 @@
                             <th>Kode Barang</th>
                             <th>Nama Barang</th>
                             <th>Lokasi</th>
-                            <th>Tipe Transaksi</th>
                             <th>No. Transaksi</th>
                             <th>Qty Masuk</th>
                             <th>Qty Keluar</th>
@@ -959,7 +971,7 @@
                                         </div>
 
                                         {{-- Tipe --}}
-                                        <div class="mb-3">
+                                        {{-- <div class="mb-3">
 
                                             <label class="form-label fw-semibold">
 
@@ -976,7 +988,7 @@
                                                 </span>
 
                                                 <select class="form-select" id="editTransactionType"
-                                                    name="transaction_type" required>
+                                                    name="transaction_type">
 
                                                     <option value="">
                                                         Pilih
@@ -991,7 +1003,7 @@
 
                                             </div>
 
-                                        </div>
+                                        </div> --}}
 
                                         {{-- Nomor --}}
                                         <div>
@@ -1012,11 +1024,53 @@
 
                                                 <input type="text" id="editTransactionNumber"
                                                     class="form-control form-control-sm" name="transaction_number"
-                                                    placeholder="202606-DO-0777">
+                                                    placeholder="202606-DO-0777" required>
 
                                             </div>
 
                                         </div>
+
+                                        <div class="mt-3 d-flex flex-nowrap gap-3 align-items-start jenis-qty-row">
+
+                                            <div class="jenis-col">
+                                                <label class="form-label fw-semibold">
+                                                    Jenis
+                                                </label>
+                                                <div class="input-group flex-nowrap">
+                                                    <span class="input-group-text">
+                                                        <i class="bi bi-arrow-down-up"></i>
+                                                    </span>
+                                                    <select class="form-select" id="editQtyType">
+                                                        <option value="in">
+                                                            Masuk
+                                                        </option>
+                                                        <option value="out">
+                                                            Keluar
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div class="qty-col">
+                                                <label class="form-label fw-semibold">
+                                                    Qty
+                                                </label>
+                                                <div class="input-group flex-nowrap">
+                                                    <span class="input-group-text">
+                                                        <i class="bi bi-123"></i>
+                                                    </span>
+                                                    <input type="number" class="form-control form-control-sm"
+                                                        min="1" step="1" id="editQty">
+                                                </div>
+
+                                                <div class="invalid-feedback">
+                                                    Qty melebihi stock.
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                        <input type="hidden" id="editQtyIn" name="qty_in" value="0">
+                                        <input type="hidden" id="editQtyOut" name="qty_out" value="0">
 
                                     </div>
                                 </div>
@@ -1025,7 +1079,7 @@
 
                             {{-- ================= RIGHT =================== --}}
 
-                            <div class="col-lg-6">
+                            {{-- <div class="col-lg-6">
 
                                 <div class="card border-0 shadow-sm h-100">
                                     <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
@@ -1039,68 +1093,47 @@
 
                                     <div class="card-body">
 
-                                        <div class="row">
+                                        <div class="d-flex flex-nowrap gap-3 align-items-start jenis-qty-row">
 
-                                            <div class="col-md-4">
-
+                                            <div class="jenis-col">
                                                 <label class="form-label fw-semibold">
-
                                                     Jenis
-
                                                 </label>
-
-                                                <div class="input-group">
-
+                                                <div class="input-group flex-nowrap">
                                                     <span class="input-group-text">
-
                                                         <i class="bi bi-arrow-down-up"></i>
-
                                                     </span>
-
                                                     <select class="form-select" id="editQtyType">
-
                                                         <option value="in">
                                                             Masuk
                                                         </option>
-
                                                         <option value="out">
                                                             Keluar
                                                         </option>
-
                                                     </select>
-
                                                 </div>
-
                                             </div>
 
-                                            <div class="col-md-8">
-
+                                            <div class="qty-col">
                                                 <label class="form-label fw-semibold">
-
                                                     Qty
-
                                                 </label>
-
-                                                <div class="input-group">
-
+                                                <div class="input-group flex-nowrap">
                                                     <span class="input-group-text">
-
                                                         <i class="bi bi-123"></i>
-
                                                     </span>
-
                                                     <input type="number" class="form-control form-control-sm"
                                                         min="1" step="1" id="editQty">
-
                                                 </div>
 
                                                 <div class="invalid-feedback">
                                                     Qty melebihi stock.
                                                 </div>
-
                                             </div>
 
                                         </div>
+
+
 
                                         <input type="hidden" id="editQtyIn" name="qty_in" value="0">
                                         <input type="hidden" id="editQtyOut" name="qty_out" value="0">
@@ -1178,7 +1211,7 @@
 
                                 </div>
 
-                            </div>
+                            </div> --}}
 
                         </div>
 
@@ -1212,6 +1245,34 @@
     @push('script')
 
         <style>
+            /* Container utama: jangan pernah wrap ke baris baru */
+            .jenis-qty-row {
+                flex-wrap: nowrap !important;
+            }
+
+            /* Jenis: lebar tetap mengikuti konten, tidak pernah menyusut */
+            .jenis-col {
+                flex: 0 0 auto !important;
+                width: auto !important;
+            }
+
+            .jenis-col .form-select {
+                flex: 0 0 auto !important;
+                width: auto !important;
+            }
+
+            /* Qty: ambil sisa ruang, dan inilah yang menyusut duluan */
+            .qty-col {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+            }
+
+            .qty-col .form-control {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                width: 1% !important;
+            }
+
             .date-range-panel {
                 display: none;
                 position: absolute;
@@ -1659,12 +1720,12 @@
         </script>
         <script>
             let table;
+
             $(document).ready(function() {
 
                 table = $('#stockMutation').DataTable({
 
                     dom: 'rtip',
-
                     processing: true,
                     serverSide: true,
 
@@ -1675,71 +1736,53 @@
                             d.end_date = $('#filterEndDate').val();
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
-
                             d.stock = new URLSearchParams(window.location.search).get('stock');
                         }
                     },
 
-                    columns: [
-
-                        {
+                    columns: [{
                             data: 'DT_RowIndex',
                             orderable: false,
                             searchable: false
                         },
-
                         {
                             data: 'transaction_date',
                             name: 'transaction_date'
                         },
-
                         {
                             data: 'item_code',
                             name: 'stock.item_code_internal'
                         },
-
                         {
                             data: 'stock_name',
                             name: 'stock.name'
                         },
-
                         {
                             data: 'location_name',
                             name: 'location.location_name'
                         },
-
-                        {
-                            data: 'transaction_type',
-                            name: 'transaction_type'
-                        },
-
                         {
                             data: 'transaction_number',
                             name: 'transaction_number'
                         },
-
                         {
                             data: 'qty_in',
                             name: 'qty_in'
                         },
-
                         {
                             data: 'qty_out',
                             name: 'qty_out'
                         },
-
                         {
                             data: 'qty_balance',
                             name: 'qty_balance'
                         },
-
                         {
                             data: 'action',
                             name: 'action',
                             orderable: false,
                             searchable: false
                         }
-
                     ],
 
                     scrollX: true,
@@ -1760,29 +1803,25 @@
                 });
 
                 function moveDataTablesElements() {
-                    // pindahkan teks "Showing X to Y of Z entries" ke sebelah kanan dropdown Tampilkan
                     const $info = $('#stockMutation_info');
                     if ($info.length && !$('#lengthWrapper').find('.dataTables_info').length) {
                         $info.addClass('text-muted small ms-2').appendTo('#lengthWrapper');
                     }
 
-                    // pastikan pagination tetap di kanan dalam footer yang sama
                     const $paginate = $('#stockMutation_paginate');
                     if ($paginate.length && !$('#tableFooter').find('.dataTables_paginate').length) {
                         $paginate.appendTo('#tableFooter');
                     }
                 }
+
                 $('#customSearch').on('input', function() {
                     table.search(this.value).draw();
                     updateExportUrl();
                 });
 
                 $('#customLength').change(function() {
-
                     table.page.len($(this).val()).draw();
-
-                })
-
+                });
 
                 $('#filterStartDate,#filterEndDate,#filterTransaction,#filterLocation')
                     .on('change', function() {
@@ -1790,7 +1829,6 @@
                     });
 
                 $('#resetFilter').click(function() {
-
                     $('#filterStartDate').val('');
                     $('#filterEndDate').val('');
                     $('#filterDateRange').val('');
@@ -1801,80 +1839,91 @@
 
                     table.search('').draw();
                     updateExportUrl();
-
                     table.ajax.reload();
-
                 });
 
-            });
+                // sinkronisasi qty_in / qty_out sebelum submit
+                function syncQty() {
+                    const type = $('#qtyType').val();
+                    const qty = parseFloat($('#qtyInput').val()) || 0;
 
+                    if (type === 'in') {
+                        $('#qtyIn').val(qty);
+                        $('#qtyOut').val(0);
+                    } else {
+                        $('#qtyIn').val(0);
+                        $('#qtyOut').val(qty);
+                    }
+                }
 
-            $('#formMutation').submit(function(e) {
+                $(document).on('change input', '#qtyType, #qtyInput', syncQty);
 
-                e.preventDefault();
+                // ====== PERBAIKAN UTAMA: gunakan event delegation ======
+                $(document).on('submit', '#formMutation', function(e) {
 
-                $.ajax({
+                    e.preventDefault();
+                    e.stopPropagation();
 
-                    url: "{{ route('stock-mutation.store') }}",
+                    syncQty();
 
-                    method: "POST",
+                    $.ajax({
+                        url: "{{ route('stock-mutation.store') }}",
+                        method: "POST",
+                        data: $(this).serialize(),
 
-                    data: $(this).serialize(),
+                        success: function(response) {
 
-                    success: function(response) {
+                            $('#addMutationModal').modal('hide');
+                            $('#formMutation')[0].reset();
 
-                        $('#addMutationModal').modal('hide');
+                            table.ajax.reload(null, false);
 
-                        $('#formMutation')[0].reset();
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
 
-                        table.ajax.reload(null, false);
+                        },
 
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: response.message,
-                            timer: 2000,
-                            showConfirmButton: false,
-                            didOpen: () => {
-                                document.querySelector('.swal2-container').style.zIndex =
-                                    '9999999';
-                            }
-                        });
+                        error: function(xhr) {
 
-                    },
+                            let message = 'Terjadi kesalahan.';
 
-                    error: function(xhr) {
-
-                        let message = 'Terjadi kesalahan.';
-
-                        if (xhr.status === 422) {
-
-                            if (xhr.responseJSON.errors) {
-                                message = Object.values(xhr.responseJSON.errors)[0][0];
-                            } else if (xhr.responseJSON.message) {
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
                                 message = xhr.responseJSON.message;
                             }
 
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            message = xhr.responseJSON.message;
-                        }
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
 
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'error',
-                            title: message,
-                            timer: 3000,
-                            showConfirmButton: false,
-                            didOpen: () => {
-                                document.querySelector('.swal2-container').style.zIndex =
-                                    '9999999';
-                            }
-                        });
+                        },
+                    });
 
-                    },
-
+                    return false; // safety net tambahan, mencegah submit native
                 });
 
             });

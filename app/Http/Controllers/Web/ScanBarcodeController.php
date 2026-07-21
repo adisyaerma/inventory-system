@@ -16,11 +16,16 @@ class ScanBarcodeController extends Controller
     public function search(Request $request)
     {
         $request->validate([
-            'location_code' => 'required',
+            'keyword' => 'required',
         ]);
 
+        $keyword = $request->keyword;
+
         $location = Location::with('stocks')
-            ->where('location_code', $request->location_code)
+            ->where(function ($query) use ($keyword) {
+                $query->where('location_code', $keyword)
+                      ->orWhere('location_name', 'like', '%' . $keyword . '%');
+            })
             ->first();
 
         if (! $location) {

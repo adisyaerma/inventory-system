@@ -66,7 +66,7 @@
                         <div class="row g-2">
                             <div class="col-md-8">
                                 <input type="text" id="location_code" class="form-control form-control-sm"
-                                    placeholder="Masukkan location code">
+                                    placeholder="Masukkan location code / nama lokasi">
                             </div>
                             <div class="col-md-4">
                                 <button id="btnCari" class="btn btn-primary w-100 btn-sm">
@@ -409,10 +409,10 @@
                 $('#hasil').html(html);
             }
 
-            function cariLokasi(location_code) {
+            function cariLokasi(keyword) {
 
-                if (!location_code) {
-                    renderNotFound("Kode lokasi masih kosong");
+                if (!keyword) {
+                    renderNotFound("Kode/nama lokasi masih kosong");
                     return;
                 }
 
@@ -429,18 +429,18 @@
                     method: "POST",
                     data: {
                         _token: "{{ csrf_token() }}",
-                        location_code: location_code
+                        keyword: keyword
                     },
 
                     beforeSend: function() {
                         $('#hasil').html(`
-                    <div class="card">
-                        <div class="card-body text-center p-4">
-                            <div class="spinner-border text-primary"></div>
-                            <div class="mt-2">Mencari lokasi...</div>
-                        </div>
+                <div class="card">
+                    <div class="card-body text-center p-4">
+                        <div class="spinner-border text-primary"></div>
+                        <div class="mt-2">Mencari lokasi...</div>
                     </div>
-                `);
+                </div>
+            `);
                     },
 
                     success: function(response) {
@@ -458,18 +458,12 @@
                     },
 
                     error: function(xhr) {
-
                         console.log(xhr);
-
-                        console.log(xhr.status);
-                        console.log(xhr.responseText);
-
                         Swal.fire({
                             icon: 'error',
                             title: 'Error ' + xhr.status,
                             html: '<pre style="text-align:left">' + xhr.responseText + '</pre>'
                         });
-
                     },
 
                     complete: function() {
