@@ -2,7 +2,7 @@
 @section('title', 'Stok Mutation')
 @section('content')
 
-    <div class="row g-5 mb-5">
+    {{-- <div class="row g-5 mb-5">
         <div class="col">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body d-flex align-items-center">
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-    </div>
+    </div> --}}
     <div class="card rounded">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -548,7 +548,7 @@
                             <path d="M0 0h24v24H0z" fill="none" />
                             <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
                         </svg>
-                        <span class="d-none d-md-inline ms-1">Tambah</span>
+                        <span class=" ms-1">Tambah</span>
                     </button>
 
                 </div>

@@ -196,10 +196,6 @@ class StockMutationController extends Controller
 
     public function index(Request $request)
     {
-        $transactionTypes = StockMutation::select('transaction_type')
-            ->distinct()
-            ->orderBy('transaction_type')
-            ->pluck('transaction_type');
 
         $locations = Location::orderBy('location_name')->get();
 
@@ -221,7 +217,6 @@ class StockMutationController extends Controller
 
         return view('stock_mutation', compact(
             'locations',
-            'transactionTypes',
             'totalMutasi',
             'barangMasuk',
             'barangKeluar',
@@ -400,13 +395,10 @@ class StockMutationController extends Controller
             'transaction_date' => 'required|date',
             'stock_id' => 'required|exists:stocks,id',
             'location' => 'required',
-            'transaction_type' => 'nullable',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
             'qty_out' => 'required|numeric|min:0',
-            'reference' => 'nullable',
-            'value' => 'nullable',
         ]);
 
         DB::beginTransaction();
@@ -441,14 +433,11 @@ class StockMutationController extends Controller
                 'stock_id' => $request->stock_id,
                 'location_id' => $location->id,
                 'transaction_date' => $request->transaction_date,
-                'transaction_type' => $request->transaction_type,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
                 'qty_balance' => 0,
-                'reference' => $request->reference,
-                'value' => $request->value ?? 0,
             ]);
 
             $this->recalculateLocationStock(
@@ -527,11 +516,8 @@ class StockMutationController extends Controller
             'transaction_date' => 'required|date',
             'stock_id' => 'required|exists:stocks,id',
             'location' => 'required',
-            'transaction_type' => 'nullable',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
-            'reference' => 'nullable',
-            'value' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
             'qty_out' => 'required|numeric|min:0',
         ]);
@@ -582,11 +568,8 @@ class StockMutationController extends Controller
                 'stock_id' => $request->stock_id,
                 'location_id' => $location->id,
                 'transaction_date' => $request->transaction_date,
-                'transaction_type' => $request->transaction_type,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
-                'reference' => $request->reference,
-                'value' => $request->value ?? 0,
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
             ]);

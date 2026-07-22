@@ -23,14 +23,11 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->date('transaction_date')->nullable();
-            $table->string('transaction_type')->nullable();
             $table->string('transaction_number')->nullable();
             $table->text('description')->nullable();
             $table->decimal('qty_in', 15, 2)->default(0);
             $table->decimal('qty_out', 15, 2)->default(0);
             $table->decimal('qty_balance', 15, 2)->default(0);
-            $table->string('reference')->nullable();
-            $table->decimal('value', 18, 2)->default(0);
             $table->timestamps();
             $table->index('transaction_date');
             $table->index('transaction_number');
