@@ -337,6 +337,27 @@
                                                     <input type="hidden" id="qtyIn" name="qty_in" value="0">
                                                     <input type="hidden" id="qtyOut" name="qty_out" value="0">
 
+                                                    <div class="mt-3">
+
+                                                        <label class="form-label fw-semibold">
+
+                                                            Deskripsi
+
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text align-items-start pt-2">
+
+                                                                <i class="bi bi-chat-left-text"></i>
+
+                                                            </span>
+
+                                                            <textarea rows="5" class="form-control form-control-sm" name="description" placeholder="Opsional"></textarea>
+
+                                                        </div>
+
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -815,6 +836,7 @@
                             <th>Qty Masuk</th>
                             <th>Qty Keluar</th>
                             <th>Qty Akhir</th>
+                            <th>Deskripsi</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -1067,6 +1089,28 @@
                                         <input type="hidden" id="editQtyIn" name="qty_in" value="0">
                                         <input type="hidden" id="editQtyOut" name="qty_out" value="0">
 
+                                        <div class="mt-3">
+
+                                            <label class="form-label fw-semibold">
+
+                                                Deskripsi
+
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text align-items-start pt-2">
+
+                                                    <i class="bi bi-chat-left-text"></i>
+
+                                                </span>
+
+                                                <textarea rows="5" id="editDescription" placeholder="Opsional" class="form-control form-control-sm"
+                                                    name="description"></textarea>
+
+                                            </div>
+
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1773,6 +1817,10 @@
                             name: 'qty_balance'
                         },
                         {
+                            data: 'description',
+                            name: 'description'
+                        },
+                        {
                             data: 'action',
                             name: 'action',
                             orderable: false,
@@ -1783,7 +1831,7 @@
                     scrollX: true,
                     autoWidth: false,
                     columnDefs: [{
-                        targets: 3,
+                        targets: [3, 9],
                         width: "250px",
                         className: "text-wrap"
                     }],

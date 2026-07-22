@@ -75,6 +75,10 @@ class StockMutationController extends Controller
             ->editColumn('qty_balance', function ($row) {
                 return rtrim(rtrim(number_format($row->qty_balance, 2, '.', ''), '0'), '.');
             })
+
+            ->addColumn('description', function ($row) {
+                return $row->description;
+            })
             ->addColumn('action', function ($row) {
 
                 return '
