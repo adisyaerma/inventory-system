@@ -28,7 +28,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             'Item Name',
             'Location',
             'Date',
-            'Transaction Type',
             'Transaction Number',
             'Description',
             'Qty In',
@@ -65,13 +64,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             );
         }
 
-        if ($this->request->filled('transaction_type')) {
-            $query->where(
-                'transaction_type',
-                $this->request->transaction_type
-            );
-        }
-
         if ($this->request->filled('location_id')) {
             $locationId = $this->request->location_id;
 
@@ -85,7 +77,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
 
             $query->where(function ($q) use ($search) {
                 $q->whereRaw('CAST(transaction_date AS TEXT) ilike ?', ["%{$search}%"])
-                    ->orWhere('transaction_type', 'ilike', "%{$search}%")
                     ->orWhere('transaction_number', 'ilike', "%{$search}%")
                     ->orWhereRaw('CAST(qty_in AS TEXT) ilike ?', ["%{$search}%"])
                     ->orWhereRaw('CAST(qty_out AS TEXT) ilike ?', ["%{$search}%"])
@@ -106,7 +97,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                 'stock_id',
                 'location_id',
                 'transaction_date',
-                'transaction_type',
                 'transaction_number',
                 'description',
                 'qty_in',
@@ -117,8 +107,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get();
-
-        // ... sisanya tetap sama
 
         $groups = $mutations->groupBy('stock_id');
 
@@ -134,7 +122,6 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                     $first ? $mutation->stock->name : '',
                     $first ? optional($mutation->location)->location_name : '',
                     optional($mutation->transaction_date)->format('d/m/Y'),
-                    $mutation->transaction_type,
                     $mutation->transaction_number,
                     $mutation->description,
                     $mutation->qty_in,
@@ -181,7 +168,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
 
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:J{$lastRow}")
+                $sheet->getStyle("A1:I{$lastRow}")
                     ->applyFromArray([
                         'borders' => [
                             'allBorders' => [
@@ -190,15 +177,15 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                         ],
                     ]);
 
-                $sheet->getStyle("A1:J{$lastRow}")
+                $sheet->getStyle("A1:I{$lastRow}")
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                $sheet->getStyle("H2:J{$lastRow}")
+                $sheet->getStyle("G2:I{$lastRow}")
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
 
-                $sheet->getStyle('A1:J1')
+                $sheet->getStyle('A1:I1')
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
@@ -206,12 +193,11 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                 $sheet->getColumnDimension('B')->setWidth(35);
                 $sheet->getColumnDimension('C')->setWidth(25);
                 $sheet->getColumnDimension('D')->setWidth(15);
-                $sheet->getColumnDimension('E')->setWidth(20);
-                $sheet->getColumnDimension('F')->setWidth(25);
-                $sheet->getColumnDimension('G')->setWidth(40);
+                $sheet->getColumnDimension('E')->setWidth(25);
+                $sheet->getColumnDimension('F')->setWidth(40);
+                $sheet->getColumnDimension('G')->setWidth(12);
                 $sheet->getColumnDimension('H')->setWidth(12);
                 $sheet->getColumnDimension('I')->setWidth(12);
-                $sheet->getColumnDimension('J')->setWidth(12);
             },
 
         ];

@@ -45,14 +45,21 @@ class StockMutationImport implements ToCollection
         $lastItemCode = null;
         $lastItemName = null;
         $lastDate = null;
-        $lastTransactionType = null;
         $lastTransactionNumber = null;
 
+        // Urutan kolom sekarang:
+        // 0 = Item Code
+        // 1 = Item Name
+        // 2 = Date
+        // 3 = Transaction Number
+        // 4 = Description
+        // 5 = Qty In
+        // 6 = Qty Out
+        // 7 = Qty Balance
         $rows = $rows->map(function ($row) use (
             &$lastItemCode,
             &$lastItemName,
             &$lastDate,
-            &$lastTransactionType,
             &$lastTransactionNumber
         ) {
 
@@ -75,15 +82,9 @@ class StockMutationImport implements ToCollection
             }
 
             if (! empty(trim($row[3] ?? ''))) {
-                $lastTransactionType = trim($row[3]);
+                $lastTransactionNumber = trim($row[3]);
             } else {
-                $row[3] = $lastTransactionType;
-            }
-
-            if (! empty(trim($row[4] ?? ''))) {
-                $lastTransactionNumber = trim($row[4]);
-            } else {
-                $row[4] = $lastTransactionNumber;
+                $row[3] = $lastTransactionNumber;
             }
 
             return $row;
@@ -91,7 +92,7 @@ class StockMutationImport implements ToCollection
 
         $rows = $rows->filter(function ($row) {
             return ! str_contains(
-                strtolower($row[5] ?? ''),
+                strtolower($row[4] ?? ''),
                 'item balance'
             );
         });
@@ -138,17 +139,16 @@ class StockMutationImport implements ToCollection
                 );
             }
 
-            $qtyIn = (float) ($row[6] ?? 0);
-            $qtyOut = (float) ($row[7] ?? 0);
-            $qtyBalance = (float) ($row[8] ?? 0); 
+            $qtyIn = (float) ($row[5] ?? 0);
+            $qtyOut = (float) ($row[6] ?? 0);
+            $qtyBalance = (float) ($row[7] ?? 0);
 
             StockMutation::create([
                 'stock_id' => $stock->id,
                 'location_id' => $locationStock->location_id,
                 'transaction_date' => $this->parseDate($row[2]),
-                'transaction_type' => $row[3] ?? null,
-                'transaction_number' => $row[4] ?? null,
-                'description' => $row[5] ?? null,
+                'transaction_number' => $row[3] ?? null,
+                'description' => $row[4] ?? null,
                 'qty_in' => $qtyIn,
                 'qty_out' => $qtyOut,
                 'qty_balance' => $qtyBalance,
