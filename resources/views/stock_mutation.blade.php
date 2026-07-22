@@ -302,14 +302,11 @@
 
                                                     </div>
 
-                                                    <div
-                                                        class="d-flex flex-nowrap gap-3 align-items-start jenis-qty-row mt-3">
+                                                    <div class="row g-3 mt-3">
 
-                                                        <div class="jenis-col">
-                                                            <label class="form-label fw-semibold">
-                                                                Jenis
-                                                            </label>
-                                                            <div class="input-group flex-nowrap">
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label fw-semibold">Jenis</label>
+                                                            <div class="input-group">
                                                                 <span class="input-group-text">
                                                                     <i class="bi bi-arrow-down-up"></i>
                                                                 </span>
@@ -320,16 +317,14 @@
                                                             </div>
                                                         </div>
 
-                                                        <div class="qty-col">
-                                                            <label class="form-label fw-semibold">
-                                                                Qty
-                                                            </label>
-                                                            <div class="input-group flex-nowrap">
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label fw-semibold">Qty</label>
+                                                            <div class="input-group">
                                                                 <span class="input-group-text">
                                                                     <i class="bi bi-123"></i>
                                                                 </span>
-                                                                <input type="number" class="form-control form-control-sm"
-                                                                    min="1" step="1" id="qtyInput">
+                                                                <input type="number" class="form-control" id="qtyInput"
+                                                                    min="1" step="1">
                                                             </div>
 
                                                             <div class="invalid-feedback">
