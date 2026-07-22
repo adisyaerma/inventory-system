@@ -743,8 +743,6 @@ Selengkapnya
 
 <th>Tanggal</th>
 
-<th>Jenis</th>
-
 <th>No Transaksi</th>
 
 <th>Deskripsi</th>
@@ -795,18 +793,6 @@ Selengkapnya
 
 <td>
     ${new Date(item.transaction_date).toLocaleDateString('id-ID')}
-</td>
-
-<td>
-
-<span class="${badge} fw-semibold">
-
-<i class="bx ${icon}"></i>
-
-${item.transaction_type}
-
-</span>
-
 </td>
 
 <td>

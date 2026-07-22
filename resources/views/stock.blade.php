@@ -55,7 +55,7 @@
 
                 </div>
 
-                <div class="modal fade" id="addStockModal" tabindex="-1">
+                <div class="modal fade" id="addStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
                     <div class="modal-dialog modal-xl">
 
@@ -586,7 +586,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="editStockModal" tabindex="-1">
+    <div class="modal fade" id="editStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
         <div class="modal-dialog modal-xl">
 
