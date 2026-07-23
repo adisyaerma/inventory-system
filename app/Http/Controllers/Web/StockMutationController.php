@@ -151,8 +151,20 @@ class StockMutationController extends Controller
                 ->orderByDesc('id')
                 ->first();
 
-            $balance = $previousMutation ? $previousMutation->qty_balance : 0;
+            if ($previousMutation) {
 
+                $balance = $previousMutation->qty_balance;
+
+            } else {
+
+                $locationStock = LocationStock::where('stock_id', $stockId)
+                    ->where('location_id', $locationId)
+                    ->first();
+
+                $balance = $locationStock
+                    ? $locationStock->opening_balance
+                    : 0;
+            }
             $mutations = StockMutation::where('stock_id', $stockId)
                 ->where('location_id', $locationId)
                 ->where(function ($q) use ($startMutation) {
@@ -284,11 +296,15 @@ class StockMutationController extends Controller
 
             } else {
 
+                $locationStock = LocationStock::where('stock_id', $stockId)
+                    ->where('location_id', $locationId)
+                    ->first();
+
                 $lastBalance = StockMutation::where('stock_id', $stockId)
                     ->where('location_id', $locationId)
                     ->orderByDesc('transaction_date')
                     ->orderByDesc('id')
-                    ->value('qty_balance') ?? 0;
+                    ->value('qty_balance');
 
                 LocationStock::updateOrCreate(
                     [
@@ -296,7 +312,7 @@ class StockMutationController extends Controller
                         'location_id' => $locationId,
                     ],
                     [
-                        'quantity' => $lastBalance,
+                        'quantity' => $lastBalance ?? ($locationStock->opening_balance ?? 0),
                     ]
                 );
             }

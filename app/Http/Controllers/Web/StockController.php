@@ -241,6 +241,7 @@ class StockController extends Controller
                 ]);
 
                 $stock->locations()->attach($location->id, [
+                    'opening_balance' => $row['quantity'],
                     'quantity' => $row['quantity'],
                 ]);
             }

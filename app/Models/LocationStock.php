@@ -14,6 +14,7 @@ class LocationStock extends Model
     protected $fillable = [
         'stock_id',
         'location_id',
+        'opening_balance',
         'quantity',
     ];
 

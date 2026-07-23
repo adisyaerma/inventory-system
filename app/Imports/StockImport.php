@@ -14,7 +14,7 @@ class StockImport implements ToCollection, WithHeadingRow
     {
         foreach ($rows as $index => $row) {
 
-            $excelRow = $index + 2; 
+            $excelRow = $index + 2;
 
             try {
 
@@ -47,6 +47,7 @@ class StockImport implements ToCollection, WithHeadingRow
                     $qty = isset($quantities[$i]) ? (float) $quantities[$i] : 0;
 
                     $stock->locations()->attach($location->id, [
+                        'opening_balance' => $qty,
                         'quantity' => $qty,
                     ]);
                 }

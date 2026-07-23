@@ -27,6 +27,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['stock_id', 'location_id']);
+            $table->decimal('opening_balance', 15, 2)
+                ->default(0)
+                ->after('location_id');
         });
     }
 
