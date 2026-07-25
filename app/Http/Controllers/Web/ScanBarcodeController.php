@@ -21,7 +21,7 @@ class ScanBarcodeController extends Controller
 
         $keyword = $request->keyword;
 
-        $location = Location::with('stocks')
+        $location = Location::with('stocks.vendor')
             ->where(function ($query) use ($keyword) {
                 $query->where('location_code', $keyword)
                       ->orWhere('location_name', 'like', '%' . $keyword . '%');
@@ -44,6 +44,7 @@ class ScanBarcodeController extends Controller
                 'name' => $stock->name,
                 'description' => $stock->description,
                 'quantity' => $stock->pivot->quantity,
+                'vendor_name' => $stock->vendor->name ?? null,
             ];
         });
 

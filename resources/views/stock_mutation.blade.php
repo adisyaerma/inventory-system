@@ -19,7 +19,7 @@
                         </small>
                     </div>
 
-                </div>
+</div>
             </div>
         </div>
 
@@ -120,7 +120,7 @@
                 <div class="modal fade" id="addMutationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
                     aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-dialog modal-dialog-scrollable">
 
                         <form action="{{ route('stock-mutation.store') }}" method="POST" id="formMutation">
 
@@ -795,8 +795,7 @@
                                 <input type="date" class="form-control form-control-sm" id="filterEndDate">
                             </div>
                             <div class="d-flex justify-content-end gap-2 mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                    id="dateRangeClear">Clear</button>
+                                
                                 <button type="button" class="btn btn-sm btn-primary"
                                     id="dateRangeApply">Terapkan</button>
                             </div>
@@ -863,7 +862,7 @@
     <div class="modal fade" id="editMutationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-scrollable">
 
             <form id="formEditMutation">
 
@@ -1439,16 +1438,6 @@
                 return d.getDate() + ' ' + bulan[d.getMonth()] + ' ' + d.getFullYear();
             }
 
-            // clear rentang tanggal
-            $('#dateRangeClear').on('click', function() {
-                $startInput.val('');
-                $endInput.val('');
-                $dateInput.val('');
-                $('#summaryDateRange').text('Semua Tanggal');
-                $panel.removeClass('show');
-
-                // table.ajax.reload();
-            });
         </script>
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
@@ -1734,28 +1723,6 @@
                     }
 
                 });
-
-            });
-        </script>
-        <script>
-            $('#value').on('input', function() {
-
-                let angka = $(this).val().replace(/[^0-9]/g, '');
-
-                $(this).val(
-                    new Intl.NumberFormat('id-ID', {
-                        style: 'currency',
-                        currency: 'IDR',
-                        minimumFractionDigits: 0
-                    }).format(angka || 0)
-                );
-
-            });
-            $('#formMutation').submit(function() {
-
-                let value = $('#value').val().replace(/[^0-9]/g, '');
-
-                $('#value').val(value);
 
             });
         </script>

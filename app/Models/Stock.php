@@ -16,6 +16,7 @@ class Stock extends Model
         'name',
         'description',
         'location_id',
+        'vendor_id',
         'quantity',
     ];
 
@@ -34,5 +35,10 @@ class Stock extends Model
     public function locationStocks()
     {
         return $this->hasMany(LocationStock::class, 'stock_id');
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class);
     }
 }

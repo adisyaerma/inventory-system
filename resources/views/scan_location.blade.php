@@ -187,8 +187,8 @@
                             <div class="flex-grow-1">
 
                                 <small class="text-muted">
-                                    ${stock.item_code_internal}
-                                </small>
+    ${stock.vendor_name ?? '-'} &bull; ${stock.item_code_internal}
+</small>
 
                                 <div class=" text-dark fw-semibold mb-2">
                                     ${stock.name}
@@ -269,7 +269,7 @@
                         </h3>
 
                         <div class="text-muted">
-                            ${response.location.location_code}
+                            ${response.location.location_code??"-"}
                         </div>
 
                         <span class="badge mt-2 rounded-pill
@@ -698,9 +698,8 @@
 
             <div class="alert alert-light border mb-0">
 
-                Belum ada 
+                Belum ada Mutasi
                 .
-
             </div>
 
             `;

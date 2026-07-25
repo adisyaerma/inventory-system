@@ -28,10 +28,12 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
             'item_code_customer',
             'name',
             'description',
+            'vendor_id',
         ])
             ->with([
                 'locationStocks:id,stock_id,location_id,quantity',
                 'locationStocks.location:id,location_name',
+                'vendor:id,name',
             ]);
 
         if ($this->request->filled('location_id')) {
@@ -40,6 +42,10 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
             $query->whereHas('locationStocks', function ($q) use ($locationId) {
                 $q->where('location_id', $locationId);
             });
+        }
+
+        if ($this->request->filled('vendor_id')) {
+            $query->where('vendor_id', $this->request->vendor_id);
         }
 
         if ($this->request->filled('search')) {
@@ -53,6 +59,9 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                     ->orWhere('description', 'ilike', "%{$search}%")
                     ->orWhereHas('locationStocks.location', function ($lq) use ($search) {
                         $lq->where('location_name', 'ilike', "%{$search}%");
+                    })
+                    ->orWhereHas('vendor', function ($vq) use ($search) {
+                        $vq->where('name', 'ilike', "%{$search}%");
                     });
             });
         }
@@ -89,6 +98,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                 $stock->name,
                 $quantities,
                 $stock->description,
+                $stock->vendor ? $stock->vendor->name : '-',
             ];
         });
     }
@@ -103,6 +113,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
             'Name',
             'Quantity',
             'Description',
+            'Vendor',
         ];
     }
 
@@ -116,7 +127,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
 
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:G{$lastRow}")
+                $sheet->getStyle("A1:H{$lastRow}")
                     ->applyFromArray([
                         'borders' => [
                             'allBorders' => [
@@ -125,15 +136,15 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                         ],
                     ]);
 
-                $sheet->getStyle('A1:G1')
+                $sheet->getStyle('A1:H1')
                     ->getFont()
                     ->setBold(true);
 
-                $sheet->getStyle('A1:G1')
+                $sheet->getStyle('A1:H1')
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $sheet->getStyle("A1:G{$lastRow}")
+                $sheet->getStyle("A1:H{$lastRow}")
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
@@ -144,6 +155,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                 $sheet->getColumnDimension('E')->setWidth(40);
                 $sheet->getColumnDimension('F')->setWidth(20);
                 $sheet->getColumnDimension('G')->setWidth(50);
+                $sheet->getColumnDimension('H')->setWidth(25);
             },
 
         ];

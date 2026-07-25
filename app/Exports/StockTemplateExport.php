@@ -23,13 +23,14 @@ class StockTemplateExport implements withHeadings
             'Name',
             'Quantity',
             'Description',
+            'Vendor',
         ];
     }
 
     public function array():array
     {
         return[
-            ['','','','','','',''],
+            ['','','','','','','',''],
         ];
     }
 
@@ -37,7 +38,7 @@ class StockTemplateExport implements withHeadings
     {
         return[
             AfterSheet::class=>function(AfterSheet $event){
-                foreach(['A','B','C','D','E','G'] as $column){
+                foreach(['A','B','C','D','E','G','H'] as $column){
                     $event->sheet->getDelegate()
                         ->getStyle($column . '2:'.$column.'1048576')
                         ->getNumberFormat()

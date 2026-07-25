@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\Location;
 use App\Models\Stock;
+use App\Models\Vendor;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -18,7 +19,23 @@ class StockImport implements ToCollection, WithHeadingRow
 
             try {
 
+                $vendor = null;
+
+                if (! empty($row['vendor'])) {
+                    $vendorName = trim($row['vendor']);
+
+                    $vendor = Vendor::whereRaw('LOWER(name) = ?', [strtolower($vendorName)])
+                        ->first();
+
+                    if (! $vendor) {
+                        $vendor = Vendor::create([
+                            'name' => $vendorName,
+                        ]);
+                    }
+                }
+
                 $stock = Stock::create([
+                    'vendor_id' => $vendor?->id,
                     'item_code_internal' => $row['item_code_internal'],
                     'item_code_supplier' => $row['item_code_supplier'] ?? null,
                     'item_code_customer' => $row['item_code_customer'] ?? null,
@@ -56,6 +73,7 @@ class StockImport implements ToCollection, WithHeadingRow
 
                 throw new \Exception(
                     "Baris Excel {$excelRow} gagal.\n".
+                    'Vendor    : '.($row['vendor'] ?? '-')."\n".
                     'Item Code : '.$row['item_code_internal']."\n".
                     'Nama      : '.$row['name']."\n".
                     'Location  : '.$row['location']."\n".

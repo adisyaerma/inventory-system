@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\StockMutationController;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\VendorController;
 
 // ===locations===
 
@@ -112,3 +113,16 @@ Route::prefix('stock-mutation')->group(function () {
     Route::get('/default-location', [StockMutationController::class, 'defaultLocation'])
         ->name('stock-mutation.default-location');
 });
+
+
+Route::get('/vendor', [VendorController::class, 'index'])
+    ->name('vendors.index');
+
+Route::post('/vendor', [VendorController::class, 'store'])
+    ->name('vendors.store');
+
+Route::put('/vendor/{vendor}', [VendorController::class, 'update'])
+    ->name('vendors.update');
+
+Route::delete('/vendor/{vendor}', [VendorController::class, 'destroy'])
+    ->name('vendors.destroy');

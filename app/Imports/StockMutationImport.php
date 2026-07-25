@@ -47,15 +47,6 @@ class StockMutationImport implements ToCollection
         $lastDate = null;
         $lastTransactionNumber = null;
 
-        // Urutan kolom sekarang:
-        // 0 = Item Code
-        // 1 = Item Name
-        // 2 = Date
-        // 3 = Transaction Number
-        // 4 = Description
-        // 5 = Qty In
-        // 6 = Qty Out
-        // 7 = Qty Balance
         $rows = $rows->map(function ($row) use (
             &$lastItemCode,
             &$lastItemName,

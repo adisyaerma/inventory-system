@@ -22,6 +22,11 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
 
+            $table->foreignId('vendor_id')
+                ->nullable()
+                ->constrained('vendors')
+                ->nullOnDelete();
+
             $table->timestamps();
         });
     }

@@ -55,7 +55,8 @@
 
                 </div>
 
-                <div class="modal fade" id="addStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                <div class="modal fade" id="addStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+                    aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
                     <div class="modal-dialog modal-xl">
 
@@ -181,6 +182,32 @@
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="name" placeholder="Masukkan Nama Barang"
                                                                 required>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div class="mb-3">
+
+                                                        <label class="form-label fw-semibold">
+                                                            Vendor
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text">
+                                                                <i class="bx bx-store"></i>
+                                                            </span>
+
+                                                            <select name="vendor_id" class="form-select form-select-sm"
+                                                                id="addVendorSelect">
+                                                                <option value="">Pilih Vendor (Opsional)</option>
+                                                                @foreach ($vendors as $vendor)
+                                                                    <option value="{{ $vendor->id }}">
+                                                                        {{ $vendor->name }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
 
                                                         </div>
 
@@ -550,6 +577,16 @@
                     @endforeach
                 </select>
 
+                <!-- Vendor -->
+                <select id="filterVendor" class="form-select form-select-sm shadow-sm">
+                    <option value="">Semua Vendor</option>
+                    @foreach ($vendors as $vendor)
+                        <option value="{{ $vendor->id }}">
+                            {{ $vendor->name }}
+                        </option>
+                    @endforeach
+                </select>
+
             </div>
 
             <table class="table table-bordered" id="stock">
@@ -560,6 +597,7 @@
                         <th>Item Code Supplier</th>
                         <th>Item Code Customer</th>
                         <th>Nama Barang</th>
+                        <th>Vendor</th>
                         <th>Deskripsi</th>
                         <th>Lokasi & Qty</th>
                         <th>Aksi</th>
@@ -586,7 +624,8 @@
         </div>
     </div>
 
-    <div class="modal fade" id="editStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal fade" id="editStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
         <div class="modal-dialog modal-xl">
 
@@ -714,6 +753,32 @@
 
                                                 <input type="text" class="form-control form-control-sm" name="name"
                                                     placeholder="Masukkan Nama Barang" id="edit_name" required>
+
+                                            </div>
+
+                                        </div>
+
+                                        <div class="mb-3">
+
+                                            <label class="form-label fw-semibold">
+                                                Vendor
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-store"></i>
+                                                </span>
+
+                                                <select name="vendor_id" class="form-select form-select-sm"
+                                                    id="edit_vendor_id">
+                                                    <option value="">Pilih Vendor (Opsional)</option>
+                                                    @foreach ($vendors as $vendor)
+                                                        <option value="{{ $vendor->id }}">
+                                                            {{ $vendor->name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
 
                                             </div>
 
@@ -847,6 +912,10 @@
                     width: '100%'
                 });
 
+                $('#filterVendor').select2({
+                    width: '100%'
+                });
+
                 // DataTable
                 table = $('#stock').DataTable({
 
@@ -862,6 +931,7 @@
 
                         data: function(d) {
                             d.location_id = $('#filterLocation').val();
+                            d.vendor_id = $('#filterVendor').val();
                         }
                     },
 
@@ -881,6 +951,9 @@
                         },
                         {
                             data: 'name'
+                        },
+                        {
+                            data: 'vendor'
                         },
                         {
                             data: 'description'
@@ -926,12 +999,16 @@
                 function updateExportUrl() {
 
                     let locationId = $('#filterLocation').val();
+                    let vendorId = $('#filterVendor').val();
                     let search = $('#customSearch').val().trim();
 
                     let url = new URL("{{ route('stock.export') }}");
 
                     if (locationId) {
                         url.searchParams.set('location_id', locationId);
+                    }
+                    if (vendorId) {
+                        url.searchParams.set('vendor_id', vendorId);
                     }
                     if (search) url.searchParams.append('search', search);
 
@@ -946,12 +1023,21 @@
 
                 });
 
+                $('#filterVendor').change(function() {
+
+                    table.ajax.reload();
+
+                    updateExportUrl();
+
+                });
+
                 $('#customSearch').on('keyup input', updateExportUrl);
 
                 // Reset filter
                 $('#btnResetFilter').click(function() {
 
                     $('#filterLocation').val(null).trigger('change');
+                    $('#filterVendor').val(null).trigger('change');
                     $('#customSearch').val(''); // fix typo: customSearhch -> customSearch
 
                     table.search('').draw();
@@ -1121,8 +1207,8 @@
                 word-break: break-word;
             }
 
-            #stock th:nth-child(6),
-            #stock td:nth-child(6) {
+            #stock th:nth-child(7),
+            #stock td:nth-child(7) {
                 min-width: 250px;
                 white-space: normal;
                 word-break: break-word;
@@ -1627,6 +1713,7 @@
                         $('#edit_item_code_customer').val(res.stock.item_code_customer);
                         $('#edit_name').val(res.stock.name);
                         $('#edit_description').val(res.stock.description);
+                        $('#edit_vendor_id').val(res.stock.vendor_id).trigger('change');
 
                         res.stock.locations.forEach(function(item) {
                             addEditLocationRow(

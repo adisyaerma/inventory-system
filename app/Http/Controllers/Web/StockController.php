@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Imports\StockImport;
 use App\Models\Location;
 use App\Models\Stock;
+use App\Models\Vendor;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +20,15 @@ class StockController extends Controller
 {
     public function data(Request $request)
     {
-        $query = Stock::with('locations')
+        $query = Stock::with('locations', 'vendor')
             ->orderByRaw("
-        CASE WHEN EXISTS (
-            SELECT 1 FROM location_stock
-            INNER JOIN locations ON locations.id = location_stock.location_id
-            WHERE location_stock.stock_id = stocks.id
-            AND locations.location_name = '-'
-        ) THEN 1 ELSE 0 END ASC
-    ")
+    CASE WHEN EXISTS (
+        SELECT 1 FROM location_stock
+        INNER JOIN locations ON locations.id = location_stock.location_id
+        WHERE location_stock.stock_id = stocks.id
+        AND locations.location_name = '-'
+    ) THEN 1 ELSE 0 END ASC
+")
             ->orderByDesc('id');
 
         if ($request->filled('location_id')) {
@@ -40,6 +41,12 @@ class StockController extends Controller
 
         }
 
+        if ($request->filled('vendor_id')) {
+
+            $query->where('vendor_id', $request->vendor_id);
+
+        }
+
         return DataTables::eloquent($query)
 
             ->addIndexColumn()
@@ -48,7 +55,23 @@ class StockController extends Controller
             ->editColumn('item_code_supplier', fn ($row) => $row->item_code_supplier ?: '-')
             ->editColumn('item_code_customer', fn ($row) => $row->item_code_customer ?: '-')
             ->editColumn('name', fn ($row) => $row->name ?: '-')
+            ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
             ->editColumn('description', fn ($row) => $row->description ?: '-')
+
+            ->filterColumn('vendor', function ($query, $keyword) {
+                $query->whereHas('vendor', function ($q) use ($keyword) {
+                    $q->where('name', 'LIKE', "%{$keyword}%");
+                });
+            })
+
+            ->orderColumn('vendor', function ($query, $order) {
+                $query->orderBy(
+                    Vendor::select('name')
+                        ->whereColumn('vendors.id', 'stocks.vendor_id')
+                        ->limit(1),
+                    $order
+                );
+            })
 
             ->addColumn('locations_qty', function ($row) {
 
@@ -135,9 +158,10 @@ class StockController extends Controller
 
     public function index()
     {
+        $vendors = Vendor::orderBy('name')->get();
         $locations = Location::orderBy('location_name')->get();
 
-        return view('stock', compact('locations'));
+        return view('stock', compact('locations', 'vendors'));
     }
 
     public function import(Request $request)
@@ -198,6 +222,7 @@ class StockController extends Controller
 
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'vendor_id' => 'nullable|exists:vendors,id',
 
             'locations' => 'required|array|min:1',
 
@@ -210,6 +235,8 @@ class StockController extends Controller
             'item_code_internal.unique' => 'Barang sudah ada.',
 
             'name.required' => 'Nama barang wajib diisi.',
+
+            'vendor_id.exists' => 'Vendor tidak ditemukan.',
 
             'locations.required' => 'Minimal harus ada satu lokasi.',
             'locations.*.location.required' => 'Lokasi wajib diisi.',
@@ -229,6 +256,7 @@ class StockController extends Controller
 
                 'name' => $request->name,
                 'description' => $request->description,
+                'vendor_id' => $request->vendor_id,
 
             ]);
 
@@ -270,6 +298,7 @@ class StockController extends Controller
             'item_code_customer' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'vendor_id' => 'nullable|exists:vendors,id',
 
             'locations' => 'required|array|min:1',
 
@@ -291,6 +320,8 @@ class StockController extends Controller
                 'name' => $request->name,
 
                 'description' => $request->description,
+
+                'vendor_id' => $request->vendor_id,
 
             ]);
 
