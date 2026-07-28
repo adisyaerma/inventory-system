@@ -2,7 +2,7 @@
 @section('title', 'Stok Mutation')
 @section('content')
 
-    {{-- <div class="row g-5 mb-5">
+    <div class="row g-5 mb-5">
         <div class="col">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body d-flex align-items-center">
@@ -19,7 +19,7 @@
                         </small>
                     </div>
 
-</div>
+                </div>
             </div>
         </div>
 
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-    </div> --}}
+    </div>
     <div class="card rounded">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -117,8 +117,8 @@
                 <small class="text-muted">Kelola mutasi stok data barang di gudang</small>
             </div>
             <div class="float-end">
-                <div class="modal fade" id="addMutationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-                    aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                <div class="modal fade" id="addMutationModal" data-bs-backdrop="static" data-bs-keyboard="false"
+                    tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
                     <div class="modal-dialog modal-dialog-scrollable">
 
@@ -795,7 +795,7 @@
                                 <input type="date" class="form-control form-control-sm" id="filterEndDate">
                             </div>
                             <div class="d-flex justify-content-end gap-2 mt-2">
-                                
+
                                 <button type="button" class="btn btn-sm btn-primary"
                                     id="dateRangeApply">Terapkan</button>
                             </div>
@@ -1437,7 +1437,6 @@
                 const d = new Date(dateStr);
                 return d.getDate() + ' ' + bulan[d.getMonth()] + ' ' + d.getFullYear();
             }
-
         </script>
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 

@@ -16,7 +16,6 @@ class StockMutationTemplateExport implements WithHeadings
             'Kode Barang',
             'Nama Barang',
             'Tanggal',
-            'Tipe Transaksi',
             'Nomor',
             'Deskripsi',
             'Qty Masuk',

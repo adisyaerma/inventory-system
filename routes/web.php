@@ -2,12 +2,13 @@
 
 use App\Http\Controllers\Web\LocationController;
 use App\Http\Controllers\Web\ScanBarcodeController;
+use App\Http\Controllers\Web\StagingController;
 use App\Http\Controllers\Web\StockController;
 use App\Http\Controllers\Web\StockMutationController;
+use App\Http\Controllers\Web\VendorController;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Web\VendorController;
 
 // ===locations===
 
@@ -114,6 +115,7 @@ Route::prefix('stock-mutation')->group(function () {
         ->name('stock-mutation.default-location');
 });
 
+// ===vendor===
 
 Route::get('/vendor', [VendorController::class, 'index'])
     ->name('vendors.index');
@@ -126,3 +128,31 @@ Route::put('/vendor/{vendor}', [VendorController::class, 'update'])
 
 Route::delete('/vendor/{vendor}', [VendorController::class, 'destroy'])
     ->name('vendors.destroy');
+
+// ===staging===
+
+Route::get('/stagings/data', [StagingController::class, 'data'])
+    ->name('stagings.data');
+ 
+Route::get('stagings/template', [StagingController::class, 'template'])
+    ->name('stagings.template');
+ 
+Route::post('stagings/import', [StagingController::class, 'import'])
+    ->name('stagings.import');
+ 
+Route::get('/staging', [StagingController::class, 'index'])
+    ->name('stagings.index');
+ 
+Route::post('/staging', [StagingController::class, 'store'])
+    ->name('stagings.store');
+ 
+Route::get('/staging/{staging}/edit', [StagingController::class, 'edit'])
+    ->name('stagings.edit');
+ 
+Route::put('/staging/{staging}', [StagingController::class, 'update'])
+    ->name('stagings.update');
+ 
+Route::delete('/staging/{staging}', [StagingController::class, 'destroy'])
+    ->name('stagings.destroy');
+    
+Route::get('stagings/export', [StagingController::class, 'export'])->name('stagings.export');

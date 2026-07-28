@@ -22,10 +22,17 @@ class VendorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|max:255',
-            'description' => 'nullable',
+            'name' => [
+                'required',
+                'max:255',
+                Rule::unique('vendors')->where(
+                    fn ($query) => $query->whereRaw('LOWER(name) = ?', [strtolower($request->name)])
+                ),
+            ],
+            'description' => ['nullable'],
         ], [
             'name.required' => 'Nama vendor wajib diisi',
+            'name.unique' => 'Vendor sudah ada',
         ]);
 
         Vendor::create($validated);
@@ -46,11 +53,18 @@ class VendorController extends Controller
     public function update(Request $request, Vendor $vendor)
     {
         $validated = $request->validate([
-            'name' => ['required', 'max:255'],
+            'name' => [
+                'required',
+                'max:255',
+                Rule::unique('vendors')->where(
+                    fn ($query) => $query->whereRaw('LOWER(name) = ?', [strtolower($request->name)])
+                )->ignore($vendor->id),
+            ],
             'description' => ['nullable'],
         ], [
-            'name.required' => 'Nama vendor wajib diisi',
-        ]);
+        'name.required' => 'Nama vendor wajib diisi',
+        'name.unique' => 'Vendor sudah ada',
+    ]);
 
         $vendor->update($validated);
 
