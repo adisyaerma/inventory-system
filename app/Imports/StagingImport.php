@@ -164,7 +164,7 @@ class StagingImport implements ToCollection, WithHeadingRow
                 Staging::create([
                     'po_number' => $poNumber,
                     'arrival_date' => $arrivalDate,
-                    'supplier_origin' => $supplierOrigin,,
+                    'supplier_origin' => $supplierOrigin,
                     'item_owner' => $itemOwner,
                     'item_code' => $itemCode,
                     'item_name' => $itemName,
