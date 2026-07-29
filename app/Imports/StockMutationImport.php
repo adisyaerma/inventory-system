@@ -22,8 +22,20 @@ class StockMutationImport implements ToCollection
 
     /**
      * Menyimpan running balance per stock_id selama proses import berjalan.
+     * Hanya di-update setelah sebuah baris BERHASIL disimpan ke database,
+     * supaya baris yang gagal tidak merusak perhitungan baris berikutnya.
      */
     private array $runningBalances = [];
+
+    /**
+     * Human-readable messages for rows that failed to import.
+     */
+    public array $errors = [];
+
+    /**
+     * Count of rows saved successfully.
+     */
+    public int $imported = 0;
 
     private function parseDate($value)
     {
@@ -52,6 +64,9 @@ class StockMutationImport implements ToCollection
 
     public function collection(Collection $rows)
     {
+        $this->errors = [];
+        $this->imported = 0;
+
         $rows = $rows->skip(1);
 
         $lastItemCode = null;
@@ -99,10 +114,11 @@ class StockMutationImport implements ToCollection
             );
         });
 
-        // Simpan urutan baris asli sebagai tie-breaker (kalau ada tanggal yang sama persis).
+        // Simpan urutan baris asli & nomor baris Excel sebagai tie-breaker
+        // dan untuk pelaporan error.
         $rows = $rows->values()->map(function ($row, $index) {
             $row['__original_index'] = $index;
-
+            $row['__excel_row'] = $index + 3; // +1 header sheet, +1 baris di-skip, +1 basis 1
             return $row;
         });
 
@@ -110,109 +126,142 @@ class StockMutationImport implements ToCollection
         // masing-masing grup. Ini menjamin running balance per item selalu dihitung
         // dalam urutan kronologis yang benar, terlepas dari urutan baris item lain
         // yang tercampur di file Excel.
-        //
-        // (Sebelumnya kode ini melakukan sort tanggal secara global memakai
-        // ->sortBy([$closure]) — bentuk array itu memicu jalur multi-column sort
-        // Laravel yang ternyata TIDAK menghasilkan urutan kronologis yang benar,
-        // sehingga qty_balance per baris ikut salah walau quantity akhir tetap
-        // benar secara kebetulan karena penjumlahan bersifat komutatif.)
         $groupedByItem = $rows->groupBy(fn ($row) => trim($row[0] ?? ''));
 
-        DB::transaction(function () use ($groupedByItem) {
-            foreach ($groupedByItem as $itemCode => $itemRows) {
-                if (empty($itemCode)) {
-                    continue;
-                }
-
-                // Sort manual pakai usort-style comparator: tanggal dulu (ascending),
-                // kalau tanggal sama persis baru fallback ke urutan asli di Excel.
-                // Ini cara paling eksplisit dan aman untuk multi-key sort di Laravel Collection.
-                $sortedRows = $itemRows->sort(function ($a, $b) {
-                    $tsA = $this->parseDate($a[2])?->timestamp ?? 0;
-                    $tsB = $this->parseDate($b[2])?->timestamp ?? 0;
-
-                    return $tsA <=> $tsB ?: $a['__original_index'] <=> $b['__original_index'];
-                })->values();
-
-                foreach ($sortedRows as $row) {
-                    $this->processRow($row);
-                }
+        foreach ($groupedByItem as $itemCode => $itemRows) {
+            if (empty($itemCode)) {
+                continue;
             }
-        });
+
+            // Sort manual: tanggal dulu (ascending), kalau tanggal sama persis
+            // baru fallback ke urutan asli di Excel.
+            $sortedRows = $itemRows->sort(function ($a, $b) {
+                $tsA = $this->parseDate($a[2])?->timestamp ?? 0;
+                $tsB = $this->parseDate($b[2])?->timestamp ?? 0;
+
+                return $tsA <=> $tsB ?: $a['__original_index'] <=> $b['__original_index'];
+            })->values();
+
+            foreach ($sortedRows as $row) {
+                $this->processRow($row);
+            }
+        }
+
+        // Baris yang valid tetap tersimpan meski ada baris lain yang gagal.
+        if (! empty($this->errors)) {
+            throw new \Exception(
+                "Import selesai: {$this->imported} baris berhasil disimpan, ".count($this->errors).' baris gagal.'.
+                "\n\n".implode("\n\n", $this->errors)
+            );
+        }
     }
 
+    /**
+     * Proses satu baris mutasi. Dibungkus transaksi per-baris supaya jika
+     * baris ini gagal, hanya baris ini yang di-rollback — baris lain yang
+     * sudah berhasil sebelumnya tetap tersimpan.
+     */
     private function processRow($row): void
     {
         if (empty($row[0])) {
             return;
         }
 
-        $stock = Stock::firstOrCreate(
-            ['item_code_internal' => trim($row[0])],
-            ['name' => trim($row[1] ?? '')]
-        );
-
-        $locationStock = LocationStock::where('stock_id', $stock->id)
-            ->orderByDesc('quantity')
-            ->first();
-
-        if (! $locationStock) {
-            $unknownLocation = Location::firstOrCreate([
-                'location_name' => '-',
-            ]);
-
-            $locationStock = LocationStock::firstOrCreate(
-                [
-                    'stock_id' => $stock->id,
-                    'location_id' => $unknownLocation->id,
-                ],
-                [
-                    'quantity' => 0,
-                    'opening_balance' => 0,
-                ]
-            );
-        }
-
-        // Inisialisasi running balance dari opening_balance HANYA sekali,
-        // saat stock ini pertama kali muncul dalam proses import.
-        if (! array_key_exists($stock->id, $this->runningBalances)) {
-            $this->runningBalances[$stock->id] = (float) ($locationStock->opening_balance ?? 0);
-        }
-
+        $itemCode = trim($row[0]);
+        $itemName = trim($row[1] ?? '');
+        $transactionDate = $row[2] ?? null;
+        $transactionNumber = $row[3] ?? null;
         $qtyIn = (float) ($row[5] ?? 0);
         $qtyOut = (float) ($row[6] ?? 0);
-        $qtyBalanceExcel = (float) ($row[7] ?? 0);
 
-        // Hitung balance berjalan: opening_balance + akumulasi (in - out)
-        $this->runningBalances[$stock->id] += $qtyIn - $qtyOut;
-        $computedBalance = $this->runningBalances[$stock->id];
+        try {
 
-        // Validasi terhadap balance yang tertulis di Excel (tidak menghentikan proses,
-        // hanya dicatat supaya ketahuan kalau ada selisih / data tidak konsisten).
-        if (abs($computedBalance - $qtyBalanceExcel) > self::TOLERANCE) {
-            Log::warning('Selisih stok terdeteksi saat import mutasi', [
-                'item_code' => $stock->item_code_internal,
-                'transaction_number' => $row[3] ?? null,
-                'transaction_date' => $row[2] ?? null,
-                'computed_balance' => $computedBalance,
-                'excel_balance' => $qtyBalanceExcel,
-                'selisih' => round($computedBalance - $qtyBalanceExcel, 2),
-            ]);
+            DB::transaction(function () use (
+                $row,
+                $itemCode,
+                $itemName,
+                $transactionDate,
+                $transactionNumber,
+                $qtyIn,
+                $qtyOut
+            ) {
+                $stock = Stock::firstOrCreate(
+                    ['item_code_internal' => $itemCode],
+                    ['name' => $itemName]
+                );
+
+                $locationStock = LocationStock::where('stock_id', $stock->id)
+                    ->orderByDesc('quantity')
+                    ->first();
+
+                if (! $locationStock) {
+                    $unknownLocation = Location::firstOrCreate([
+                        'location_name' => '-',
+                    ]);
+
+                    $locationStock = LocationStock::firstOrCreate(
+                        [
+                            'stock_id' => $stock->id,
+                            'location_id' => $unknownLocation->id,
+                        ],
+                        [
+                            'quantity' => 0,
+                            'opening_balance' => 0,
+                        ]
+                    );
+                }
+
+                if (! array_key_exists($stock->id, $this->runningBalances)) {
+                    $this->runningBalances[$stock->id] = (float) ($locationStock->opening_balance ?? 0);
+                }
+
+                $qtyBalanceExcel = (float) ($row[7] ?? 0);
+                $computedBalance = $this->runningBalances[$stock->id] + $qtyIn - $qtyOut;
+
+                if (abs($computedBalance - $qtyBalanceExcel) > self::TOLERANCE) {
+                    Log::warning('Selisih stok terdeteksi saat import mutasi', [
+                        'item_code' => $stock->item_code_internal,
+                        'transaction_number' => $transactionNumber,
+                        'transaction_date' => $transactionDate,
+                        'computed_balance' => $computedBalance,
+                        'excel_balance' => $qtyBalanceExcel,
+                        'selisih' => round($computedBalance - $qtyBalanceExcel, 2),
+                    ]);
+                }
+
+                StockMutation::create([
+                    'stock_id' => $stock->id,
+                    'location_id' => $locationStock->location_id,
+                    'transaction_date' => $this->parseDate($transactionDate),
+                    'transaction_number' => $transactionNumber,
+                    'description' => $row[4] ?? null,
+                    'qty_in' => $qtyIn,
+                    'qty_out' => $qtyOut,
+                    'qty_balance' => $computedBalance,
+                ]);
+
+                $locationStock->update([
+                    'quantity' => $computedBalance,
+                ]);
+
+                // Baris berhasil disimpan -> baru sekarang running balance di-commit.
+                $this->runningBalances[$stock->id] = $computedBalance;
+            });
+
+            $this->imported++;
+
+        } catch (\Throwable $e) {
+
+            $this->errors[] =
+                "Baris Excel {$row['__excel_row']} gagal.\n".
+                'Item Code         : '.($itemCode ?: '-')."\n".
+                'Nama Barang       : '.($itemName ?: '-')."\n".
+                'No. Transaksi     : '.($transactionNumber ?: '-')."\n".
+                'Tanggal Transaksi : '.($transactionDate ?: '-')."\n".
+                'Qty In            : '.$qtyIn."\n".
+                'Qty Out           : '.$qtyOut."\n".
+                'Error             : '.$e->getMessage();
+
         }
-
-        StockMutation::create([
-            'stock_id' => $stock->id,
-            'location_id' => $locationStock->location_id,
-            'transaction_date' => $this->parseDate($row[2]),
-            'transaction_number' => $row[3] ?? null,
-            'description' => $row[4] ?? null,
-            'qty_in' => $qtyIn,
-            'qty_out' => $qtyOut,
-            'qty_balance' => $computedBalance,
-        ]);
-
-        $locationStock->update([
-            'quantity' => $computedBalance,
-        ]);
     }
 }

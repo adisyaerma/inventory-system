@@ -1,93 +1,92 @@
 @extends('master')
 @section('title', 'Staging')
 @section('content')
-<div class="row g-4 mb-4">
+    <div class="row g-4 mb-4">
+        <!-- Total Entry -->
+        <div class="col-md-6 col-xl-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
 
-    <!-- Total Entry -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-primary-subtle text-primary me-4">
+                        <i class="bi bi-card-list fs-4"></i>
+                    </div>
 
-                <div class="icon-box bg-primary-subtle text-primary me-4">
-                    <i class="bi bi-card-list fs-4"></i>
+                    <div>
+                        <small class="text-muted d-block">Total Entry</small>
+                        <h4 class="fw-bold mb-1">
+                            {{ number_format($totalEntry, 0, ',', '.') }}
+                        </h4>
+                        <small class="text-primary">Semua Data</small>
+                    </div>
+
                 </div>
-
-                <div>
-                    <small class="text-muted d-block">Total Entry</small>
-                    <h4 class="fw-bold mb-1">
-                        {{ number_format($totalEntry, 0, ',', '.') }}
-                    </h4>
-                    <small class="text-primary">Semua Data</small>
-                </div>
-
             </div>
         </div>
-    </div>
 
-    <!-- Total Qty -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
+        <!-- Total Qty -->
+        <div class="col-md-6 col-xl-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
 
-                <div class="icon-box bg-success-subtle text-success me-4">
-                    <i class="bi bi-box-seam fs-4"></i>
+                    <div class="icon-box bg-success-subtle text-success me-4">
+                        <i class="bi bi-box-seam fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Total Qty</small>
+                        <h4 class="fw-bold mb-1">
+                            {{ number_format($totalQty, 0, ',', '.') }}
+                        </h4>
+                        <small class="text-success">Unit Barang</small>
+                    </div>
+
                 </div>
-
-                <div>
-                    <small class="text-muted d-block">Total Qty</small>
-                    <h4 class="fw-bold mb-1">
-                        {{ number_format($totalQty, 0, ',', '.') }}
-                    </h4>
-                    <small class="text-success">Unit Barang</small>
-                </div>
-
             </div>
         </div>
-    </div>
 
-    <!-- Inbound Shipment -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
+        <!-- Inbound Shipment -->
+        <div class="col-md-6 col-xl-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
 
-                <div class="icon-box bg-info-subtle text-info me-4">
-                    <i class="bi bi-box-arrow-in-down fs-4"></i>
+                    <div class="icon-box bg-info-subtle text-info me-4">
+                        <i class="bi bi-box-arrow-in-down fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Inbound Shipment</small>
+                        <h4 class="fw-bold mb-1">
+                            {{ number_format($inboundShipment, 0, ',', '.') }}
+                        </h4>
+                        <small class="text-info">Jumlah Entry</small>
+                    </div>
+
                 </div>
-
-                <div>
-                    <small class="text-muted d-block">Inbound Shipment</small>
-                    <h4 class="fw-bold mb-1">
-                        {{ number_format($inboundShipment, 0, ',', '.') }}
-                    </h4>
-                    <small class="text-info">Jumlah Entry</small>
-                </div>
-
             </div>
         </div>
-    </div>
 
-    <!-- Hold / Repair -->
-    <div class="col-md-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
+        <!-- Hold / Repair -->
+        <div class="col-md-6 col-xl-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
 
-                <div class="icon-box bg-warning-subtle text-warning me-4">
-                    <i class="bi bi-tools fs-4"></i>
+                    <div class="icon-box bg-warning-subtle text-warning me-4">
+                        <i class="bi bi-tools fs-4"></i>
+                    </div>
+
+                    <div>
+                        <small class="text-muted d-block">Hold / Repair</small>
+                        <h4 class="fw-bold mb-1">
+                            {{ number_format($holdRepair, 0, ',', '.') }}
+                        </h4>
+                        <small class="text-warning">Jumlah Entry</small>
+                    </div>
+
                 </div>
-
-                <div>
-                    <small class="text-muted d-block">Hold / Repair</small>
-                    <h4 class="fw-bold mb-1">
-                        {{ number_format($holdRepair, 0, ',', '.') }}
-                    </h4>
-                    <small class="text-warning">Jumlah Entry</small>
-                </div>
-
             </div>
         </div>
-    </div>
 
-</div>
+    </div>
     <div class="card">
         <div class="card-header">
             <div class="float-start">
@@ -152,8 +151,8 @@
                                     <div class="d-flex align-items-center gap-3">
 
                                         <div class=" rounded-3 p-2 flex-shrink-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
-                                                height="1em" viewBox="0 0 24 24">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary"
+                                                width="1em" height="1em" viewBox="0 0 24 24">
                                                 <path d="M0 0h24v24H0z" fill="none" />
                                                 <path fill="none" stroke="currentColor" stroke-linecap="round"
                                                     stroke-linejoin="round" stroke-width="1.5"
@@ -235,12 +234,12 @@
 
                                             <label class="upload-box w-100">
                                                 <input type="file" id="excelFileStaging" name="file"
-                                                    accept=".xlsx,.xls"  hidden>
+                                                    accept=".xlsx,.xls" hidden>
 
                                                 <div class="border border-2 border-primary-subtle rounded p-5 text-center">
 
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="fs-4 mb-1" width="1em"
-                                                        height="1em" viewBox="0 0 24 24">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="fs-4 mb-1"
+                                                        width="1em" height="1em" viewBox="0 0 24 24">
                                                         <path d="M0 0h24v24H0z" fill="none" />
                                                         <path fill="currentColor"
                                                             d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm4 18H6V4h7v5h5z" />
@@ -306,7 +305,7 @@
                                     <div>
 
                                         <h4 class="mb-1 fw-bold">
-                                            Tambah Staging
+                                            Tambah Item Staging
                                         </h4>
 
                                         <small class="text-muted">
@@ -344,6 +343,26 @@
 
                                                 <div class="card-body px-4 pb-4">
 
+
+                                                    <div class="mb-3">
+
+                                                        <label class="form-label fw-semibold">
+                                                            No. PO
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text">
+                                                                <i class="bx bx-receipt"></i>
+                                                            </span>
+
+                                                            <input type="text" class="form-control form-control-sm"
+                                                                name="po_number" placeholder="Contoh: PO-2026-0001">
+
+                                                        </div>
+
+                                                    </div>
+
                                                     <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
@@ -357,7 +376,7 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="item_code" placeholder="Contoh: NL3195" >
+                                                                name="item_code" placeholder="Contoh: NL3195">
 
                                                         </div>
 
@@ -377,7 +396,7 @@
 
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="item_name"
-                                                                placeholder="Contoh: Nord-Lock Steel Washer" >
+                                                                placeholder="Contoh: Nord-Lock Steel Washer">
 
                                                         </div>
 
@@ -396,13 +415,13 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="item_owner" placeholder="Contoh: PT. XYZ" >
+                                                                name="item_owner" placeholder="Contoh: PT. XYZ">
 
                                                         </div>
 
                                                     </div>
 
-                                                    <div class="mb-3">
+                                                    <div class="">
 
                                                         <label class="form-label fw-semibold">
                                                             Asal Supplier
@@ -415,28 +434,7 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="supplier_origin" placeholder="Contoh: PT. ABC"
-                                                                >
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div>
-
-                                                        <label class="form-label fw-semibold">
-                                                            No. PO
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-receipt"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="po_number" placeholder="Contoh: PO-2026-0001"
-                                                                >
+                                                                name="supplier_origin" placeholder="Contoh: PT. ABC">
 
                                                         </div>
 
@@ -481,8 +479,7 @@
                                                             </span>
 
                                                             <input type="date" class="form-control form-control-sm"
-                                                                name="arrival_date" value="{{ now()->format('Y-m-d') }}"
-                                                                >
+                                                                name="arrival_date" value="{{ now()->format('Y-m-d') }}">
 
                                                         </div>
 
@@ -501,7 +498,7 @@
                                                             </span>
 
                                                             <input type="number" class="form-control form-control-sm"
-                                                                name="qty" min="0" placeholder="0" >
+                                                                name="qty" min="0" placeholder="0">
 
                                                         </div>
 
@@ -519,8 +516,7 @@
                                                                 <i class="bx bx-current-location"></i>
                                                             </span>
 
-                                                            <select name="location" class="form-select form-select-sm"
-                                                                >
+                                                            <select name="location" class="form-select form-select-sm">
                                                                 <option value="" selected disabled>Pilih lokasi
                                                                 </option>
                                                                 @foreach (\App\Models\Staging::LOCATIONS as $location)
@@ -736,7 +732,7 @@
                         <div>
 
                             <h4 class="mb-1 fw-bold">
-                                Edit Staging
+                                Edit Item Staging
                             </h4>
 
                             <small class="text-muted">
@@ -772,6 +768,26 @@
                                     </div>
 
                                     <div class="card-body px-4 pb-4">
+                                        
+
+                                        <div class="mb-3">
+
+                                            <label class="form-label fw-semibold">
+                                                No. PO
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-receipt"></i>
+                                                </span>
+
+                                                <input type="text" class="form-control form-control-sm"
+                                                    name="po_number" id="editPoNumber">
+
+                                            </div>
+
+                                        </div>
 
                                         <div class="mb-3">
 
@@ -786,7 +802,7 @@
                                                 </span>
 
                                                 <input type="text" class="form-control form-control-sm"
-                                                    name="item_code" id="editItemCode" >
+                                                    name="item_code" id="editItemCode">
 
                                             </div>
 
@@ -805,7 +821,7 @@
                                                 </span>
 
                                                 <input type="text" class="form-control form-control-sm"
-                                                    name="item_name" id="editItemName" >
+                                                    name="item_name" id="editItemName">
 
                                             </div>
 
@@ -824,13 +840,13 @@
                                                 </span>
 
                                                 <input type="text" class="form-control form-control-sm"
-                                                    name="item_owner" id="editItemOwner" >
+                                                    name="item_owner" id="editItemOwner">
 
                                             </div>
 
                                         </div>
 
-                                        <div class="mb-3">
+                                        <div class="">
 
                                             <label class="form-label fw-semibold">
                                                 Asal Supplier
@@ -843,26 +859,7 @@
                                                 </span>
 
                                                 <input type="text" class="form-control form-control-sm"
-                                                    name="supplier_origin" id="editSupplierOrigin" >
-
-                                            </div>
-
-                                        </div>
-
-                                        <div>
-
-                                            <label class="form-label fw-semibold">
-                                                No. PO
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-receipt"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="po_number" id="editPoNumber" >
+                                                    name="supplier_origin" id="editSupplierOrigin">
 
                                             </div>
 
@@ -907,7 +904,7 @@
                                                 </span>
 
                                                 <input type="date" class="form-control form-control-sm"
-                                                    name="arrival_date" id="editArrivalDate" >
+                                                    name="arrival_date" id="editArrivalDate">
 
                                             </div>
 
@@ -926,7 +923,7 @@
                                                 </span>
 
                                                 <input type="number" class="form-control form-control-sm" name="qty"
-                                                    min="0" id="editQty" >
+                                                    min="0" id="editQty">
 
                                             </div>
 
@@ -945,7 +942,7 @@
                                                 </span>
 
                                                 <select name="location" class="form-select form-select-sm"
-                                                    id="editLocation" >
+                                                    id="editLocation">
                                                     @foreach (\App\Models\Staging::LOCATIONS as $location)
                                                         <option value="{{ $location }}">
                                                             {{ $location }}
@@ -1004,8 +1001,8 @@
     </div>
 
     @push('script')
-    <style>
-        .icon-box {
+        <style>
+            .icon-box {
                 border-radius: 18px;
                 width: 64px;
                 height: 64px;
@@ -1018,7 +1015,7 @@
             .icon-box i {
                 font-size: 30px;
             }
-    </style>
+        </style>
         <script>
             let table;
 
@@ -1029,6 +1026,7 @@
                     dom: 'rtip',
                     processing: true,
                     serverSide: true,
+                    order: [],
 
                     ajax: {
                         url: "{{ route('stagings.data') }}",
@@ -1590,7 +1588,7 @@
 
                             Swal.fire({
                                 toast: true,
-                                position: 'top-end',
+                                position:` 'top-end',
                                 icon: 'success',
                                 title: res.message,
                                 timer: 2000,

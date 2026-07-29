@@ -11,13 +11,30 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class StockImport implements ToCollection, WithHeadingRow
 {
+    /**
+     * Human-readable messages for rows that failed to import.
+     */
+    public array $errors = [];
+
+    /**
+     * Count of rows saved successfully.
+     */
+    public int $imported = 0;
+
     public function collection(Collection $rows)
     {
+        $this->errors = [];
+        $this->imported = 0;
+
         foreach ($rows as $index => $row) {
 
             $excelRow = $index + 2;
 
             try {
+
+                if (empty($row['item_code_internal']) || empty($row['name'])) {
+                    throw new \Exception('Kode barang internal dan nama barang wajib diisi.');
+                }
 
                 $vendor = null;
 
@@ -69,19 +86,29 @@ class StockImport implements ToCollection, WithHeadingRow
                     ]);
                 }
 
-            } catch (\Exception $e) {
+                $this->imported++;
 
-                throw new \Exception(
+            } catch (\Throwable $e) {
+
+                // Hanya baris ini yang gagal, baris lain tetap lanjut diproses.
+                $this->errors[] =
                     "Baris Excel {$excelRow} gagal.\n".
                     'Vendor    : '.($row['vendor'] ?? '-')."\n".
-                    'Item Code : '.$row['item_code_internal']."\n".
-                    'Nama      : '.$row['name']."\n".
-                    'Location  : '.$row['location']."\n".
-                    'Quantity  : '.$row['quantity']."\n\n".
-                    'Error Database : '.$e->getMessage()
-                );
+                    'Item Code : '.($row['item_code_internal'] ?? '-')."\n".
+                    'Nama      : '.($row['name'] ?? '-')."\n".
+                    'Location  : '.($row['location'] ?? '-')."\n".
+                    'Quantity  : '.($row['quantity'] ?? '-')."\n".
+                    'Error     : '.$e->getMessage();
 
             }
+        }
+
+        // Baris yang valid tetap tersimpan meski ada baris lain yang gagal.
+        if (! empty($this->errors)) {
+            throw new \Exception(
+                "Import selesai: {$this->imported} baris berhasil disimpan, ".count($this->errors).' baris gagal.'.
+                "\n\n".implode("\n\n", $this->errors)
+            );
         }
     }
 }

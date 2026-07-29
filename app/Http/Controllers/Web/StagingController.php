@@ -41,7 +41,7 @@ class StagingController extends Controller
      */
     public function data(Request $request)
     {
-        $query = Staging::query()->latest();
+        $query = Staging::query()->orderByDesc('id');
 
         if ($request->filled('location')) {
             $query->where('location', $request->location);
@@ -199,9 +199,9 @@ class StagingController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:5120'],
+            'file' => ['nullable', 'file', 'mimes:xlsx,xls', 'max:5120'],
         ], [
-            'file.required' => 'File wajib diupload',
+            'file.nullable' => 'File wajib diupload',
             'file.mimes' => 'File harus berformat .xlsx atau .xls',
             'file.max' => 'Ukuran file maksimal 5MB',
         ]);
@@ -225,28 +225,15 @@ class StagingController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'po_number' => ['required', 'max:255'],
-            'arrival_date' => ['required', 'date'],
-            'supplier_origin' => ['required', 'max:255'],
-            'item_owner' => ['required', 'max:255'],
-            'item_code' => ['required', 'max:255'],
+            'po_number' => ['nullable', 'max:255'],
+            'arrival_date' => ['nullable', 'date'],
+            'supplier_origin' => ['nullable', 'max:255'],
+            'item_owner' => ['nullable', 'max:255'],
+            'item_code' => ['nullable', 'max:255'],
             'item_name' => ['required', 'max:255'],
-            'qty' => ['required', 'integer', 'min:0'],
-            'location' => ['required', Rule::in(Staging::LOCATIONS)],
+            'qty' => ['nullable', 'integer', 'min:0'],
+            'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
             'notes' => ['nullable'],
-        ], [
-            'po_number.required' => 'No. PO wajib diisi',
-            'arrival_date.required' => 'Tanggal kedatangan wajib diisi',
-            'arrival_date.date' => 'Tanggal kedatangan tidak valid',
-            'supplier_origin.required' => 'Asal supplier wajib diisi',
-            'item_owner.required' => 'Pemilik barang wajib diisi',
-            'item_code.required' => 'Kode barang wajib diisi',
-            'item_name.required' => 'Nama barang wajib diisi',
-            'qty.required' => 'Qty wajib diisi',
-            'qty.integer' => 'Qty harus berupa angka',
-            'qty.min' => 'Qty tidak boleh kurang dari 0',
-            'location.required' => 'Lokasi wajib dipilih',
-            'location.in' => 'Lokasi tidak valid',
         ]);
 
         try {
@@ -289,28 +276,15 @@ class StagingController extends Controller
     public function update(Request $request, Staging $staging)
     {
         $validated = $request->validate([
-            'po_number' => ['required', 'max:255'],
-            'arrival_date' => ['required', 'date'],
-            'supplier_origin' => ['required', 'max:255'],
-            'item_owner' => ['required', 'max:255'],
-            'item_code' => ['required', 'max:255'],
+            'po_number' => ['nullable', 'max:255'],
+            'arrival_date' => ['nullable', 'date'],
+            'supplier_origin' => ['nullable', 'max:255'],
+            'item_owner' => ['nullable', 'max:255'],
+            'item_code' => ['nullable', 'max:255'],
             'item_name' => ['required', 'max:255'],
-            'qty' => ['required', 'integer', 'min:0'],
-            'location' => ['required', Rule::in(Staging::LOCATIONS)],
+            'qty' => ['nullable', 'integer', 'min:0'],
+            'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
             'notes' => ['nullable'],
-        ], [
-            'po_number.required' => 'No. PO wajib diisi',
-            'arrival_date.required' => 'Tanggal kedatangan wajib diisi',
-            'arrival_date.date' => 'Tanggal kedatangan tidak valid',
-            'supplier_origin.required' => 'Asal supplier wajib diisi',
-            'item_owner.required' => 'Pemilik barang wajib diisi',
-            'item_code.required' => 'Kode barang wajib diisi',
-            'item_name.required' => 'Nama barang wajib diisi',
-            'qty.required' => 'Qty wajib diisi',
-            'qty.integer' => 'Qty harus berupa angka',
-            'qty.min' => 'Qty tidak boleh kurang dari 0',
-            'location.required' => 'Lokasi wajib dipilih',
-            'location.in' => 'Lokasi tidak valid',
         ]);
 
         try {
