@@ -1588,7 +1588,7 @@
 
                             Swal.fire({
                                 toast: true,
-                                position:` 'top-end',
+                                position: 'top-end',
                                 icon: 'success',
                                 title: res.message,
                                 timer: 2000,
