@@ -150,8 +150,6 @@ class StagingImport implements ToCollection, WithHeadingRow
             $arrivalDate = $this->parseDate($row['tanggal_kedatangan'] ?? null);
             $location = $this->resolveLocation($rawLocation);
 
-            // Baris yang benar-benar kosong total (misal sisa baris kosong
-            // di bawah data) dilewati saja, tidak dihitung sebagai gagal.
             if ($poNumber === null && $itemCode === null && $itemName === null
                 && $supplierOrigin === null && $itemOwner === null && $rawLocation === null
                 && $notes === null && $arrivalDate === null && $qty === 0) {
@@ -160,7 +158,6 @@ class StagingImport implements ToCollection, WithHeadingRow
 
             try {
 
-                // Field yang kosong tetap disimpan sebagai null — tidak menggagalkan baris.
                 Staging::create([
                     'po_number' => $poNumber,
                     'arrival_date' => $arrivalDate,
@@ -177,8 +174,6 @@ class StagingImport implements ToCollection, WithHeadingRow
 
             } catch (\Throwable $e) {
 
-                // Ini hanya akan kena untuk error tak terduga di luar validasi
-                // di atas (mis. koneksi database), bukan karena data kosong.
                 $this->errors[] =
                     "Baris Excel {$excelRow} gagal.\n".
                     'No. PO      : '.($poNumber ?? '-')."\n".
@@ -191,9 +186,6 @@ class StagingImport implements ToCollection, WithHeadingRow
             }
         }
 
-        // Baris yang valid tetap tersimpan meski ada baris lain yang gagal.
-        // Ringkasan error (jika ada) dilempar setelah semua baris diproses,
-        // supaya import tidak berhenti hanya karena satu baris bermasalah.
         if (! empty($this->errors)) {
             throw new \Exception(
                 "Import selesai: {$this->imported} baris berhasil disimpan, ".count($this->errors).' baris gagal.'.

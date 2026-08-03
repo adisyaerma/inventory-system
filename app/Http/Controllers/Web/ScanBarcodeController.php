@@ -22,7 +22,6 @@ class ScanBarcodeController extends Controller
 
         $keyword = strtolower(trim($request->keyword));
 
-        // 1. Coba cari di tabel locations dulu (gudang utama)
         $location = Location::with('stocks.vendor')
             ->where(function ($query) use ($keyword) {
                 $query->whereRaw('LOWER(location_code) = ?', [$keyword])
@@ -58,8 +57,6 @@ class ScanBarcodeController extends Controller
             ]);
         }
 
-        // 2. Kalau tidak ketemu di locations, coba cari di tabel stagings
-        //    berdasarkan kolom "location" (case-insensitive, partial match)
         $stagingLocation = Staging::whereRaw('LOWER(location) = ?', [$keyword])
             ->orWhereRaw('LOWER(location) LIKE ?', ['%' . $keyword . '%'])
             ->value('location');
@@ -97,7 +94,6 @@ class ScanBarcodeController extends Controller
             ]);
         }
 
-        // 3. Tidak ketemu di keduanya
         return response()->json([
             'success' => false,
             'message' => 'Lokasi tidak ditemukan',
