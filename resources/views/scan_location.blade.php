@@ -170,12 +170,68 @@
 
             function renderHasil(response) {
 
+                const isStaging = response.type === 'staging';
+
                 let stocksHtml = '';
 
                 for (let i = 0; i < response.stocks.length; i++) {
                     const stock = response.stocks[i];
 
-                    stocksHtml += `
+                    if (isStaging) {
+
+                        // ==== ITEM DARI TABEL STAGING ====
+                        stocksHtml += `
+
+                <div class="card border border-light shadow-sm mb-3 stock-item">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between align-items-start">
+
+                            <!-- INFO BARANG STAGING -->
+                            <div class="flex-grow-1">
+
+                                <small class="text-muted">
+    ${stock.po_number ?? '-'} &bull; ${stock.item_code ?? '-'}
+</small>
+
+                                <div class=" text-dark fw-semibold mb-1">
+                                    ${stock.name ?? '-'}
+                                </div>
+
+                                <small class="text-muted d-block">
+                                    Supplier: ${stock.supplier_origin ?? '-'} &bull; Owner: ${stock.item_owner ?? '-'}
+                                </small>
+
+                                <small class="text-muted d-block">
+                                    Tgl Datang: ${stock.arrival_date ?? '-'}
+                                </small>
+
+                                ${stock.notes ? `<small class="text-muted d-block fst-italic">Catatan: ${stock.notes}</small>` : ''}
+
+                            </div>
+
+                            <!-- QTY -->
+                            <div class="text-end" width="300">
+
+                                <small class="badge bg-label-warning p-2">
+                                    Qty: ${parseInt(stock.quantity)}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                `;
+
+                    } else {
+
+                        // ==== ITEM DARI TABEL LOCATIONS (STOCK REGULER) ====
+                        stocksHtml += `
 
                 <div class="card border border-light shadow-sm mb-3 stock-item">
 
@@ -235,6 +291,8 @@
                 </div>
 
                 `;
+
+                    }
                 }
 
                 const html = `
@@ -261,16 +319,12 @@
                     <div>
 
                         <small class="text-muted fw-semibold">
-                            Lokasi Ditemukan
+                            ${isStaging ? 'Area Staging Ditemukan' : 'Lokasi Ditemukan'}
                         </small>
 
                         <h3 class="fw-bold mb-1">
                             ${response.location.location_name}
                         </h3>
-
-                        <div class="text-muted">
-                            ${response.location.location_code??"-"}
-                        </div>
 
                         <span class="badge mt-2 rounded-pill
                             ${response.location.status
