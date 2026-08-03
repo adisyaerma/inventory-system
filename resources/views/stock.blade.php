@@ -589,9 +589,18 @@
 
             </div>
 
+            <div id="bulkActionBar"
+                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                <span><span id="selectedCount">0</span> data dipilih</span>
+                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                </button>
+            </div>
+
             <table class="table table-bordered" id="stock">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>Item Code Internal</th>
                         <th>Item Code Supplier</th>
@@ -936,6 +945,11 @@
                     },
 
                     columns: [{
+                            data: 'checkbox',
+                            orderable: false,
+                            searchable: false
+                        },
+                        {
                             data: 'DT_RowIndex',
                             searchable: false,
                             orderable: false
@@ -1387,6 +1401,115 @@
                 });
             </script>
         @endif
+
+        <script>
+            let selectedStockIds = new Set();
+
+            function toggleBulkActionBar() {
+                $('#selectedCount').text(selectedStockIds.size);
+                $('#bulkActionBar').toggleClass('d-none', selectedStockIds.size === 0);
+            }
+
+            function resetStockSelection() {
+                selectedStockIds.clear();
+                $('#checkAll').prop('checked', false);
+                toggleBulkActionBar();
+            }
+
+            $(document).on('change', '.row-checkbox', function() {
+                let id = $(this).val();
+
+                if (this.checked) {
+                    selectedStockIds.add(id);
+                } else {
+                    selectedStockIds.delete(id);
+                }
+
+                toggleBulkActionBar();
+            });
+
+            $(document).on('change', '#checkAll', function() {
+                let checked = this.checked;
+
+                $('.row-checkbox').prop('checked', checked).each(function() {
+                    let id = $(this).val();
+
+                    if (checked) {
+                        selectedStockIds.add(id);
+                    } else {
+                        selectedStockIds.delete(id);
+                    }
+                });
+
+                toggleBulkActionBar();
+            });
+
+            $('#stock').on('draw.dt', function() {
+                resetStockSelection();
+            });
+
+            $('#btnBulkDelete').on('click', function() {
+
+                if (selectedStockIds.size === 0) return;
+
+                Swal.fire({
+                    title: `Hapus ${selectedStockIds.size} barang?`,
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+
+                    if (!result.isConfirmed) return;
+
+                    $.ajax({
+                        url: "{{ route('stocks.bulk-destroy') }}",
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            ids: Array.from(selectedStockIds)
+                        },
+
+                        success: function(res) {
+
+                            table.ajax.reload(null, false);
+                            resetStockSelection();
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex =
+                                        '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
+
+                    });
+
+                });
+
+            });
+        </script>
 
         <script>
             $(document).on('submit', '.form-hapus', function(e) {

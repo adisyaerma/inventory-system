@@ -16,12 +16,12 @@
                     </svg>
                     Tambah
                 </button>
-                <div class="modal fade" id="addLocationModal" tabindex="-1">
+                <div class="modal fade" id="addLocationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
 
                     <div class="modal-dialog modal-md modal-dialog-centered">
                         <div class="modal-content">
 
-                            <form action="{{ route('locations.store') }}" method="POST">
+                            <form id="formLocation">
 
                                 @csrf
 
@@ -141,7 +141,7 @@
 
                                     </button>
 
-                                    <button type="submit" class="btn btn-primary">
+                                    <button type="submit" class="btn btn-primary btnSaveLocation">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em" height="1em"
                                             viewBox="0 0 16 16">
                                             <path d="M0 0h16v16H0z" fill="none" />
@@ -162,32 +162,6 @@
                 </div>
             </div>
         </div>
-
-        {{-- <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
-            <option value="">Semua Status</option>
-            <option value="Aktif">Aktif</option>
-            <option value="Non Aktif">Non Aktif</option>
-        </select>
-
-        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-
-            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-
-                <path d="M0 0h21v21H0z" fill="none" />
-
-                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                    stroke-linejoin="round">
-
-                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                    <path d="M7.5 6.5h-4v-4" />
-
-                </g>
-
-            </svg>
-
-            Reset Filter
-
-        </button> --}}
 
         <div class="table-responsive text-nowrap">
             <div class="container-fluid px-4">
@@ -243,15 +217,45 @@
 
                     <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
                         <option value="">Semua Status</option>
-                        <option value="Aktif">Aktif</option>
-                        <option value="Non Aktif">Non Aktif</option>
+                        <option value="1">Aktif</option>
+                        <option value="0">Non Aktif</option>
                     </select>
+
+                    <button id="btnResetFilter" type="button"
+                        class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+
+                            <path d="M0 0h21v21H0z" fill="none" />
+
+                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                stroke-linejoin="round">
+
+                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                <path d="M7.5 6.5h-4v-4" />
+
+                            </g>
+
+                        </svg>
+
+                        Reset Filter
+
+                    </button>
                 </div>
+            </div>
+
+            <div id="bulkActionBar"
+                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                <span><span id="selectedCount">0</span> data dipilih</span>
+                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                </button>
             </div>
 
             <table class="table table-bordered" id="location">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>Nama Rak</th>
                         <th>Barcode Rak</th>
@@ -260,76 +264,7 @@
                         <th>Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="table-border-bottom-0">
-                    @foreach ($locations as $location)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $location->location_name }}</td>
-                            <td>
-                                @if (empty($location->location_code))
-                                    <span class="badge border border-warning text-warning bg-transparent"
-                                        style="font-size:10px;">
-                                        ⚠ No Code
-                                    </span>
-                                @else
-                                    <div class="d-flex align-items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="fs-4" width="1em"
-                                            height="1em" viewBox="0 0 24 24">
-                                            <path d="M0 0h24v24H0z" fill="none" />
-                                            <path fill="none" stroke="currentColor" stroke-linecap="round"
-                                                stroke-linejoin="round" stroke-miterlimit="10" stroke-width="1.5"
-                                                d="M6 22H4.4A2.4 2.4 0 0 1 2 19.6V18m16 4h1.6a2.4 2.4 0 0 0 2.4-2.4V18m0-12V4.4A2.4 2.4 0 0 0 19.6 2H18M6 2H4.4A2.4 2.4 0 0 0 2 4.4V6m16 3v6m-4-6v6m-4-6v6M6 9v6" />
-                                        </svg>
-
-                                        <span>{{ $location->location_code }}</span>
-
-
-                                    </div>
-                                @endif
-                            </td>
-                            <td>
-                                @if ($location->status)
-                                    <span class="badge bg-label-success rounded-pill" data-search="Aktif">
-                                        Aktif
-                                    </span>
-                                @else
-                                    <span class="badge bg-label-secondary rounded-pill" data-search="Non Aktif">
-                                        Non Aktif
-                                    </span>
-                                @endif
-                            </td>
-                            <td>{{ $location->description ?? '-' }}</td>
-                            <td>
-                                <div class="d-flex align-items-center gap-1">
-                                    <button class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnScanEdit" data-bs-toggle="modal"
-                                        data-bs-target="#editLocationModal{{ $location->id }}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
-                                            height="1em" viewBox="0 0 24 24">
-                                            <path d="M0 0h24v24H0z" fill="none" />
-                                            <path fill="currentColor"
-                                                d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z" />
-                                        </svg>
-                                    </button>
-
-                                    <form action="{{ route('locations.destroy', $location->id) }}" method="POST"
-                                        class="form-hapus m-0">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button type="submit" class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" class="fs-5"
-                                                height="1em" viewBox="0 0 24 24">
-                                                <path d="M0 0h24v24H0z" fill="none" />
-                                                <path fill="currentColor"
-                                                    d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
+                <tbody class="table-border-bottom-0"></tbody>
             </table>
             <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2" id="tableFooter">
                     <div class="d-flex align-items-center gap-2" id="lengthWrapper">
@@ -346,191 +281,144 @@
         </div>
     </div>
 
-    @foreach ($locations as $location)
-        <div class="modal fade" id="editLocationModal{{ $location->id }}" tabindex="-1">
+    {{-- ================= MODAL EDIT (tunggal, diisi via AJAX) ================= --}}
+    <div class="modal fade" id="editLocationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
 
-            <div class="modal-dialog modal-md modal-dialog-centered">
-                <div class="modal-content">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
 
-                    <form action="{{ route('locations.update', $location->id) }}" method="POST">
-                        @csrf
-                        @method('PUT')
+                <form id="formEditLocation">
+                    @csrf
+                    @method('PUT')
 
-                        <div class="modal-header">
-                            <h5 class="modal-title fw-bold">
-                                Edit Lokasi Rak <br>
-                                <small class="fw-light">Ubah data lokasi rak penyimpanan barang</small>
-                            </h5>
+                    <input type="hidden" name="id" id="editId">
 
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">
+                            Edit Lokasi Rak <br>
+                            <small class="fw-light">Ubah data lokasi rak penyimpanan barang</small>
+                        </h5>
+
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nama Rak</label>
+                            <input type="text" name="location_name" id="editLocationName" class="form-control"
+                                placeholder="Contoh: Rak A1" required>
                         </div>
 
-                        <div class="modal-body">
+                        <div class="mb-3">
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Nama Rak</label>
-                                <input type="text" name="location_name" class="form-control"
-                                    value="{{ $location->location_name }}" placeholder="Contoh: Rak A1" required>
+                            <label class="form-label fw-bold">Barcode Rak</label>
+
+                            <div class="border rounded p-4 text-center">
+
+                                <button type="button" class="btn btn-outline-secondary rounded" id="btnScanEdit">
+
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                                        viewBox="0 0 24 24" class="fs-4 me-2">
+                                        <path d="M0 0h24v24H0z" fill="none" />
+                                        <path fill="none" stroke="currentColor" stroke-linecap="round"
+                                            stroke-linejoin="round" stroke-width="2"
+                                            d="M7 12h10M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M17 3h2a2 2 0 0 1 2 2v2m-4 14h2a2 2 0 0 0 2-2v-2" />
+                                    </svg>
+
+                                    Scan Barcode
+
+                                </button>
+
+                                <div class="small text-muted mt-2">
+                                    Arahkan kamera ke barcode rak
+                                </div>
+
+                                <div class="small mt-1 fw-bold">atau</div>
+
+                                <input type="text" name="location_code" id="editLocationCode"
+                                    class="form-control form-control-sm mt-2"
+                                    placeholder="Masukkan kode barcode secara manual">
+
                             </div>
 
-                            <div class="mb-3">
+                        </div>
 
-                                <label class="form-label fw-bold">Barcode Rak</label>
+                        <div class="mb-3" id="scannerContainerEdit" style="display:none;">
+                            <div id="readerEdit"></div>
+                        </div>
 
-                                <div class="border rounded p-4 text-center">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Status</label>
 
-                                    <button type="button" class="btn btn-outline-secondary rounded btn-scan-edit"
-                                        data-id="{{ $location->id }}">
+                            <div class="d-flex gap-4">
 
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                                            viewBox="0 0 24 24" class="fs-4 me-2">
-                                            <path d="M0 0h24v24H0z" fill="none" />
-                                            <path fill="none" stroke="currentColor" stroke-linecap="round"
-                                                stroke-linejoin="round" stroke-width="2"
-                                                d="M7 12h10M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M17 3h2a2 2 0 0 1 2 2v2m-4 14h2a2 2 0 0 0 2-2v-2" />
-                                        </svg>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="status" id="editStatusAktif"
+                                        value="1">
+                                    <label class="form-check-label">Aktif</label>
+                                </div>
 
-                                        Scan Barcode
-
-                                    </button>
-
-                                    <div class="small text-muted mt-2">
-                                        Arahkan kamera ke barcode rak
-                                    </div>
-
-                                    <div class="small mt-1 fw-bold">atau</div>
-
-                                    <input type="text" name="location_code" id="location_code_{{ $location->id }}"
-                                        class="form-control form-control-sm mt-2" value="{{ $location->location_code }}"
-                                        placeholder="Masukkan kode barcode secara manual">
-
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="status" id="editStatusNonAktif"
+                                        value="0">
+                                    <label class="form-check-label">Non Aktif</label>
                                 </div>
 
                             </div>
-
-                            <div class="mb-3 scanner-container-edit" id="scanner_container_{{ $location->id }}"
-                                style="display:none;">
-                                <div id="reader_{{ $location->id }}"></div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Status</label>
-
-                                <div class="d-flex gap-4">
-
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="status" value="1"
-                                            {{ $location->status == 1 ? 'checked' : '' }}>
-                                        <label class="form-check-label">Aktif</label>
-                                    </div>
-
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="status" value="0"
-                                            {{ $location->status == 0 ? 'checked' : '' }}>
-                                        <label class="form-check-label">Non Aktif</label>
-                                    </div>
-
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Deskripsi</label>
-
-                                <textarea name="description" class="form-control" rows="3" placeholder="Opsional">{{ $location->description }}</textarea>
-                            </div>
-
                         </div>
 
-                        <div class="modal-footer">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Deskripsi</label>
 
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                                Batal
-                            </button>
-
-                            <button type="submit" class="btn btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em" height="1em"
-                                    viewBox="0 0 16 16">
-                                    <path d="M0 0h16v16H0z" fill="none" />
-                                    <path fill="currentColor"
-                                        d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z" />
-                                </svg>
-                                Ubah
-                            </button>
-
+                            <textarea name="description" id="editDescription" class="form-control" rows="3" placeholder="Opsional"></textarea>
                         </div>
 
-                    </form>
+                    </div>
 
-                </div>
+                    <div class="modal-footer">
+
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Batal
+                        </button>
+
+                        <button type="submit" class="btn btn-primary btnSaveEdit">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em" height="1em"
+                                viewBox="0 0 16 16">
+                                <path d="M0 0h16v16H0z" fill="none" />
+                                <path fill="currentColor"
+                                    d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z" />
+                            </svg>
+                            Ubah
+                        </button>
+
+                    </div>
+
+                </form>
+
             </div>
         </div>
-    @endforeach
+    </div>
 
     @push('script')
-        <script>
-            $(document).ready(function() {
-
-                let table = $('#location').DataTable({
-                    dom: '<"dt-top d-flex justify-content-between align-items-center flex-wrap mb-2"lf>rtip',
-                    scrollX: true,
-
-                    dom: 'rtip',
-                    pageLength: 10,
-
-                    lengthMenu: [
-                        [10, 25, 50, 100],
-                        [10, 25, 50, 100]
-                    ]
-                });
-
-                $('#customSearch').on('input', function() {
-                    table.search(this.value).draw();
-                    updateExportUrl();
-                });
-
-                $('#customLength').change(function() {
-
-                    table.page.len($(this).val()).draw();
-
-                })
-
-                $.fn.dataTable.ext.search.push(function(settings, data) {
-
-                    if (settings.nTable.id !== 'location') {
-                        return true;
-                    }
-
-                    let selected = $('#filterStatus').val();
-
-                    let status = $('<div>')
-                        .html(data[3])
-                        .text()
-                        .trim();
-
-                    if (selected === '') {
-                        return true;
-                    }
-
-                    return status === selected;
-                });
-
-                $('#btnResetFilter').on('click', function() {
-
-                    $('#filterStatus').val('');
-
-                    table.search('').draw();
-
-                    $('.dt-search input').val('');
-                });
-
-                $('#filterStatus').on('change', function() {
-                    table.draw();
-                });
-
-            });
-        </script>
-
         <style>
+            #location_wrapper {
+                padding: 1rem;
+            }
+
+            .dt-layout-row {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            #reader,
+            #readerEdit {
+                width: 100%;
+                min-height: 280px;
+                border-radius: 10px;
+                overflow: hidden;
+            }
+
             .dt-top {
                 display: flex;
                 justify-content: space-between;
@@ -588,25 +476,493 @@
             }
         </style>
 
-        <style>
-            #location_wrapper {
-                padding: 1rem;
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+        <script>
+            // ============ VARIABEL GLOBAL ============
+            let table;
+        </script>
+
+        <script>
+            $(document).ready(function() {
+
+                table = $('#location').DataTable({
+
+                    dom: 'rtip',
+                    processing: true,
+                    serverSide: true,
+                    order: [],
+
+                    ajax: {
+                        url: "{{ route('locations.data') }}",
+                        data: function(d) {
+                            d.status = $('#filterStatus').val();
+                        }
+                    },
+
+                    columns: [{
+                            data: 'checkbox',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
+                            data: 'DT_RowIndex',
+                            name: 'DT_RowIndex',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
+                            data: 'location_name',
+                            name: 'location_name'
+                        },
+                        {
+                            data: 'location_code',
+                            name: 'location_code'
+                        },
+                        {
+                            data: 'status',
+                            name: 'status'
+                        },
+                        {
+                            data: 'description',
+                            name: 'description'
+                        },
+                        {
+                            data: 'action',
+                            name: 'action',
+                            searchable: false,
+                            orderable: false
+                        }
+                    ],
+
+                    scrollX: true,
+                    autoWidth: false,
+
+                    columnDefs: [{
+                            targets: [2, 5],
+                            className: "text-wrap",
+                            width: "220px"
+                        },
+                        {
+                            targets: 1,
+                            width: "80px"
+                        },
+                        {
+                            targets: [4, 6],
+                            className: "text-center"
+                        }
+                    ],
+
+                    initComplete: function() {
+                        moveDataTablesElements();
+                    },
+
+                    drawCallback: function() {
+                        moveDataTablesElements();
+                    }
+
+                });
+
+                function moveDataTablesElements() {
+                    const $info = $('#location_info');
+                    if ($info.length && !$('#lengthWrapper').find('.dataTables_info').length) {
+                        $info.addClass('text-muted small ms-2').appendTo('#lengthWrapper');
+                    }
+
+                    const $paginate = $('#location_paginate');
+                    if ($paginate.length && !$('#tableFooter').find('.dataTables_paginate').length) {
+                        $paginate.appendTo('#tableFooter');
+                    }
+                }
+
+                $('#customSearch').on('input', function() {
+                    table.search(this.value).draw();
+                });
+
+                $('#customLength').change(function() {
+                    table.page.len($(this).val()).draw();
+                });
+
+                $('#filterStatus').on('change', function() {
+                    table.ajax.reload();
+                });
+
+                $('#btnResetFilter').on('click', function() {
+                    $('#filterStatus').val('');
+                    $('#customSearch').val('');
+                    table.search('').draw();
+                    table.ajax.reload();
+                });
+
+                // ================= TAMBAH (AJAX) =================
+                $(document).on('submit', '#formLocation', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    $.ajax({
+                        url: "{{ route('locations.store') }}",
+                        method: "POST",
+                        data: $(this).serialize(),
+
+                        beforeSend: function() {
+                            $('.btnSaveLocation').prop('disabled', true);
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveLocation').prop('disabled', false);
+
+                            $('#addLocationModal').modal('hide');
+                            $('#formLocation')[0].reset();
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveLocation').prop('disabled', false);
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+                    });
+
+                });
+
+                // ================= EDIT: buka modal & isi data =================
+                $(document).on('click', '.btnEdit', function() {
+
+                    let id = $(this).data('id');
+
+                    $.ajax({
+
+                        url: "{{ route('locations.edit', ':id') }}".replace(':id', id),
+                        type: 'GET',
+
+                        success: function(res) {
+
+                            $('#editId').val(res.id);
+                            $('#editLocationName').val(res.location_name);
+                            $('#editLocationCode').val(res.location_code);
+                            $('#editDescription').val(res.description);
+
+                            if (parseInt(res.status) === 1) {
+                                $('#editStatusAktif').prop('checked', true);
+                            } else {
+                                $('#editStatusNonAktif').prop('checked', true);
+                            }
+
+                        },
+
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Gagal memuat data.'
+                            });
+                        }
+
+                    });
+
+                });
+
+                // ================= EDIT: simpan perubahan (AJAX) =================
+                $(document).on('submit', '#formEditLocation', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    let id = $('#editId').val();
+
+                    $.ajax({
+
+                        url: "{{ route('locations.update', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: $(this).serialize() + '&_method=PUT',
+
+                        beforeSend: function() {
+                            $('.btnSaveEdit').prop('disabled', true);
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveEdit').prop('disabled', false);
+
+                            $('#editLocationModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveEdit').prop('disabled', false);
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+
+                    });
+
+                });
+
+                // ================= HAPUS (AJAX) =================
+                $(document).on('submit', '.form-hapus', function(e) {
+
+                    e.preventDefault();
+
+                    let form = this;
+
+                    Swal.fire({
+                        title: 'Hapus Data?',
+                        text: 'Data yang dihapus tidak dapat dikembalikan.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Ya, Hapus',
+                        cancelButtonText: 'Batal',
+                        reverseButtons: true
+                    }).then((result) => {
+
+                        if (!result.isConfirmed) return;
+
+                        $.ajax({
+                            url: $(form).attr('action'),
+                            type: 'POST',
+                            data: $(form).serialize(),
+
+                            success: function(res) {
+
+                                table.ajax.reload(null, false);
+
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: res.message,
+                                    timer: 2000,
+                                    showConfirmButton: false,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style
+                                            .zIndex = '9999999';
+                                    }
+                                });
+
+                            },
+
+                            error: function(xhr) {
+
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal',
+                                    text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                });
+
+                            }
+
+                        });
+
+                    });
+
+                });
+
+                $('#addLocationModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                });
+
+                $('#editLocationModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                });
+
+            });
+        </script>
+
+        {{-- ================= BULK DELETE (AJAX) ================= --}}
+        <script>
+            let selectedLocationIds = new Set();
+
+            function toggleBulkActionBar() {
+                $('#selectedCount').text(selectedLocationIds.size);
+                $('#bulkActionBar').toggleClass('d-none', selectedLocationIds.size === 0);
             }
 
-            .dt-layout-row {
-                padding-left: 1rem;
-                padding-right: 1rem;
+            function resetLocationSelection() {
+                selectedLocationIds.clear();
+                $('#checkAll').prop('checked', false);
+                toggleBulkActionBar();
             }
 
-            #reader {
-                width: 100%;
-                min-height: 280px;
-                border-radius: 10px;
-                overflow: hidden;
-            }
-        </style>
+            $(document).on('change', '.row-checkbox', function() {
+                let id = $(this).val();
 
+                if (this.checked) {
+                    selectedLocationIds.add(id);
+                } else {
+                    selectedLocationIds.delete(id);
+                }
 
+                toggleBulkActionBar();
+            });
+
+            $(document).on('change', '#checkAll', function() {
+                let checked = this.checked;
+
+                $('.row-checkbox').prop('checked', checked).each(function() {
+                    let id = $(this).val();
+
+                    if (checked) {
+                        selectedLocationIds.add(id);
+                    } else {
+                        selectedLocationIds.delete(id);
+                    }
+                });
+
+                toggleBulkActionBar();
+            });
+
+            $('#location').on('draw.dt', function() {
+                resetLocationSelection();
+            });
+
+            $('#btnBulkDelete').on('click', function() {
+
+                if (selectedLocationIds.size === 0) return;
+
+                Swal.fire({
+                    title: `Hapus ${selectedLocationIds.size} lokasi?`,
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true
+                }).then((result) => {
+
+                    if (!result.isConfirmed) return;
+
+                    $.ajax({
+                        url: "{{ route('locations.bulk-destroy') }}",
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            ids: Array.from(selectedLocationIds)
+                        },
+
+                        success: function(res) {
+
+                            table.ajax.reload(null, false);
+                            resetLocationSelection();
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
+
+                    });
+
+                });
+
+            });
+        </script>
+
+        {{-- ================= BARCODE SCAN: TAMBAH ================= --}}
         <script>
             let html5QrCode = null;
             let isProcessing = false;
@@ -707,154 +1063,138 @@
             });
         </script>
 
+        {{-- ================= BARCODE SCAN: EDIT (modal tunggal) ================= --}}
         <script>
             let html5QrCodeEdit = null;
             let isProcessingEdit = false;
 
-            document.querySelectorAll('.btn-scan-edit').forEach(button => {
+            document.getElementById('btnScanEdit').addEventListener('click', function() {
 
-                button.addEventListener('click', function() {
+                const id = $('#editId').val();
 
-                    const id = this.dataset.id;
+                const input = document.getElementById('editLocationCode');
+                const container = document.getElementById('scannerContainerEdit');
 
-                    const input = document.getElementById('location_code_' + id);
-                    const container = document.getElementById('scanner_container_' + id);
+                if (!input || !container) {
+                    console.error('Element tidak ditemukan');
+                    return;
+                }
 
-                    if (!input || !container) {
-                        console.error('Element tidak ditemukan');
-                        return;
-                    }
+                container.style.display = 'block';
 
-                    container.style.display = 'block';
+                setTimeout(() => {
 
-                    setTimeout(() => {
+                    if (html5QrCodeEdit) return;
 
-                        if (html5QrCodeEdit) return;
+                    html5QrCodeEdit = new Html5Qrcode('readerEdit');
 
-                        html5QrCodeEdit = new Html5Qrcode('reader_' + id);
-
-                        html5QrCodeEdit.start({
-                                facingMode: "environment"
-                            }, {
-                                fps: 5,
-                                qrbox: {
-                                    width: 250,
-                                    height: 250
-                                }
-                            },
-                            async (decodedText) => {
-
-                                if (isProcessingEdit) return;
-                                isProcessingEdit = true;
-
-                                const oldValue = input.value;
-
-                                try {
-
-                                    const res = await fetch(
-                                        `/check-location-code?code=${encodeURIComponent(decodedText)}&ignore_id=${id}`
-                                    );
-
-                                    const data = await res.json();
-
-
-                                    await html5QrCodeEdit.stop();
-
-                                    html5QrCodeEdit = null;
-                                    container.style.display = 'none';
-
-                                    if (data.exists) {
-
-                                        Swal.fire({
-                                            toast: true,
-                                            position: 'top-end',
-                                            icon: 'error',
-                                            title: 'Kode sudah digunakan!',
-                                            showConfirmButton: false,
-                                            timer: 2000,
-                                            target: document.body,
-                                            didOpen: () => {
-                                                document.querySelector(
-                                                        '.swal2-container').style
-                                                    .zIndex = '99999999';
-                                            }
-                                        });
-
-
-                                        input.value = oldValue;
-
-                                    } else {
-
-
-                                        input.value = decodedText;
-
-                                        Swal.fire({
-                                            toast: true,
-                                            position: 'top-end',
-                                            icon: 'success',
-                                            title: 'QR valid',
-                                            showConfirmButton: false,
-                                            timer: 1500,
-                                            target: document.body,
-                                            didOpen: () => {
-                                                document.querySelector(
-                                                        '.swal2-container').style
-                                                    .zIndex = '99999999';
-                                            }
-                                        });
-                                    }
-                                } catch (err) {
-
-                                    console.error(err);
-
-                                    if (html5QrCodeEdit) {
-                                        try {
-                                            await html5QrCodeEdit.stop();
-                                        } catch (e) {}
-                                        html5QrCodeEdit = null;
-                                    }
-
-                                } finally {
-                                    isProcessingEdit = false;
-                                }
+                    html5QrCodeEdit.start({
+                            facingMode: "environment"
+                        }, {
+                            fps: 5,
+                            qrbox: {
+                                width: 250,
+                                height: 250
                             }
-                        ).catch(err => {
-                            console.error("Camera error:", err);
+                        },
+                        async (decodedText) => {
 
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Kamera tidak bisa dibuka'
-                            });
+                            if (isProcessingEdit) return;
+                            isProcessingEdit = true;
+
+                            const oldValue = input.value;
+
+                            try {
+
+                                const res = await fetch(
+                                    `/check-location-code?code=${encodeURIComponent(decodedText)}&ignore_id=${id}`
+                                );
+
+                                const data = await res.json();
+
+                                await html5QrCodeEdit.stop();
+
+                                html5QrCodeEdit = null;
+                                container.style.display = 'none';
+
+                                if (data.exists) {
+
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'error',
+                                        title: 'Kode sudah digunakan!',
+                                        showConfirmButton: false,
+                                        timer: 2000,
+                                        target: document.body,
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style
+                                                .zIndex = '99999999';
+                                        }
+                                    });
+
+                                    input.value = oldValue;
+
+                                } else {
+
+                                    input.value = decodedText;
+
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: 'QR valid',
+                                        showConfirmButton: false,
+                                        timer: 1500,
+                                        target: document.body,
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style
+                                                .zIndex = '99999999';
+                                        }
+                                    });
+                                }
+                            } catch (err) {
+
+                                console.error(err);
+
+                                if (html5QrCodeEdit) {
+                                    try {
+                                        await html5QrCodeEdit.stop();
+                                    } catch (e) {}
+                                    html5QrCodeEdit = null;
+                                }
+
+                            } finally {
+                                isProcessingEdit = false;
+                            }
+                        }
+                    ).catch(err => {
+                        console.error("Camera error:", err);
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Kamera tidak bisa dibuka'
                         });
+                    });
 
-                    }, 300);
-                });
+                }, 300);
             });
 
+            document.getElementById('editLocationModal').addEventListener('hidden.bs.modal', async () => {
 
-            document.querySelectorAll('[id^="editLocationModal"]').forEach(modal => {
+                if (html5QrCodeEdit) {
+                    try {
+                        await html5QrCodeEdit.stop();
+                    } catch (e) {}
 
-                modal.addEventListener('hidden.bs.modal', async () => {
+                    html5QrCodeEdit = null;
+                }
 
-                    if (html5QrCodeEdit) {
-                        try {
-                            await html5QrCodeEdit.stop();
-                        } catch (e) {}
+                isProcessingEdit = false;
 
-                        html5QrCodeEdit = null;
-                    }
-
-                    isProcessingEdit = false;
-
-                    modal.querySelectorAll('.scanner-container-edit').forEach(el => {
-                        el.style.display = 'none';
-                    });
-                });
-
+                document.getElementById('scannerContainerEdit').style.display = 'none';
             });
         </script>
-
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         @if (session('success'))
             <script>
@@ -907,38 +1247,5 @@
                 });
             </script>
         @endif
-
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-
-                document.querySelectorAll('.form-hapus').forEach(form => {
-
-                    form.addEventListener('submit', function(e) {
-
-                        e.preventDefault();
-
-                        Swal.fire({
-                            title: 'Hapus Data?',
-                            text: 'Data yang dihapus tidak dapat dikembalikan.',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonText: 'Ya, Hapus',
-                            confirmButtonColor: 'red',
-                            cancelButtonText: 'Batal',
-                            reverseButtons: true
-                        }).then((result) => {
-
-                            if (result.isConfirmed) {
-                                form.submit();
-                            }
-
-                        });
-
-                    });
-
-                });
-
-            });
-        </script>
     @endpush
 @endsection

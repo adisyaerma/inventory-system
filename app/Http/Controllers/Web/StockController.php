@@ -51,6 +51,10 @@ class StockController extends Controller
 
             ->addIndexColumn()
 
+            ->addColumn('checkbox', function ($row) {
+                return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
+            })
+
             ->editColumn('item_code_internal', fn ($row) => $row->item_code_internal ?: '-')
             ->editColumn('item_code_supplier', fn ($row) => $row->item_code_supplier ?: '-')
             ->editColumn('item_code_customer', fn ($row) => $row->item_code_customer ?: '-')
@@ -139,6 +143,7 @@ class StockController extends Controller
             })
 
             ->rawColumns([
+                'checkbox',
                 'locations_qty',
                 'action',
             ])
@@ -362,6 +367,23 @@ class StockController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Barang berhasil dihapus.',
+        ]);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:stocks,id',
+        ]);
+
+        $count = Stock::whereIn('id', $request->ids)->count();
+
+        Stock::whereIn('id', $request->ids)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $count.' barang berhasil dihapus.',
         ]);
     }
 

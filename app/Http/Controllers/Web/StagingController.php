@@ -59,6 +59,10 @@ class StagingController extends Controller
 
             ->addIndexColumn()
 
+            ->addColumn('checkbox', function ($row) {
+                return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
+            })
+
             ->addColumn('item', function ($row) {
                 return '
                 <small class="fw-bold">'.e($row->item_code).'</small>
@@ -143,6 +147,7 @@ class StagingController extends Controller
             })
 
             ->rawColumns([
+                'checkbox',
                 'item',
                 'location',
                 'action',
@@ -313,6 +318,33 @@ class StagingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Data berhasil dihapus',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove multiple resources at once.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:stagings,id',
+        ]);
+
+        try {
+            $count = Staging::whereIn('id', $request->ids)->count();
+
+            Staging::whereIn('id', $request->ids)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => $count.' data berhasil dihapus',
             ]);
         } catch (\Exception $e) {
             return response()->json([

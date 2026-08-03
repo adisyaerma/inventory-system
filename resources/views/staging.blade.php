@@ -293,7 +293,7 @@
                 <div class="modal fade" id="addStaging" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="addStagingLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-xl">
+                    <div class="modal-dialog modal-lg">
                         <div class="modal-content">
 
                             <form action="{{ route('stagings.store') }}" method="POST" id="formStaging">
@@ -676,9 +676,18 @@
 
             </div>
 
+            <div id="bulkActionBar"
+                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                <span><span id="selectedCount">0</span> data dipilih</span>
+                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                </button>
+            </div>
+
             <table class="table table-bordered" id="staging">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>No. PO</th>
                         <th>Item</th>
@@ -718,7 +727,7 @@
     <div class="modal fade" id="editStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-hidden="true">
 
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
                 <form id="formEditStaging">
@@ -768,7 +777,6 @@
                                     </div>
 
                                     <div class="card-body px-4 pb-4">
-                                        
 
                                         <div class="mb-3">
 
@@ -1015,10 +1023,26 @@
             .icon-box i {
                 font-size: 30px;
             }
-        </style>
-        <script>
-            let table;
 
+            .upload-box {
+                cursor: pointer;
+                transition: all .2s ease;
+            }
+
+            .upload-box:hover .border {
+                background: #f8fafc;
+                border-color: #0d6efd !important;
+            }
+        </style>
+
+        <script>
+            // ============ VARIABEL GLOBAL ============
+            let table;
+            let appliedStartDate = '';
+            let appliedEndDate = '';
+        </script>
+
+        <script>
             $(document).ready(function() {
 
                 table = $('#staging').DataTable({
@@ -1031,13 +1055,18 @@
                     ajax: {
                         url: "{{ route('stagings.data') }}",
                         data: function(d) {
-                            d.start_date = $('#filterStartDate').val();
-                            d.end_date = $('#filterEndDate').val();
+                            d.start_date = appliedStartDate;
+                            d.end_date = appliedEndDate;
                             d.location = $('#filterLocation').val();
                         }
                     },
 
                     columns: [{
+                            data: 'checkbox',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
                             data: 'DT_RowIndex',
                             name: 'DT_RowIndex',
                             searchable: false,
@@ -1087,20 +1116,20 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [1, 2, 3, 4],
+                            targets: [2, 3, 4, 5],
                             className: "text-wrap",
                             width: "220px"
                         },
                         {
-                            targets: 0,
+                            targets: 1,
                             width: "80px"
                         },
                         {
-                            targets: 6,
+                            targets: 7,
                             className: "text-center"
                         },
                         {
-                            targets: 9,
+                            targets: 10,
                             className: "text-center"
                         }
                     ],
@@ -1136,7 +1165,8 @@
                     table.page.len($(this).val()).draw();
                 });
 
-                $('#filterStartDate, #filterEndDate, #filterLocation').on('change', function() {
+                // hanya location yang auto-reload; tanggal menunggu tombol "Terapkan"
+                $('#filterLocation').on('change', function() {
                     table.ajax.reload();
                     updateExportUrl();
                 });
@@ -1147,6 +1177,9 @@
                     $('#filterDateRange').val('');
                     $('#filterLocation').val('').trigger('change');
                     $('#customSearch').val('');
+
+                    appliedStartDate = '';
+                    appliedEndDate = '';
 
                     table.search('').draw();
                     updateExportUrl();
@@ -1348,6 +1381,7 @@
         </script>
 
         <script>
+            // ============ PANEL RENTANG TANGGAL ============
             const $dateInput = $('#filterDateRange');
             const $panel = $('#dateRangePanel');
             const $startInput = $('#filterStartDate');
@@ -1364,8 +1398,12 @@
                 e.stopPropagation();
             });
 
-            // tutup panel kalau klik di luar
+            // tutup panel kalau klik di luar, buang perubahan yang belum "Terapkan"
             $(document).on('click', function() {
+                if ($panel.hasClass('show')) {
+                    $startInput.val(appliedStartDate);
+                    $endInput.val(appliedEndDate);
+                }
                 $panel.removeClass('show');
             });
 
@@ -1378,6 +1416,9 @@
                     alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir');
                     return;
                 }
+
+                appliedStartDate = start;
+                appliedEndDate = end;
 
                 if (start && end) {
                     $dateInput.val(start + ' s/d ' + end);
@@ -1394,8 +1435,8 @@
             });
 
             function updateExportUrl() {
-                let start = $('#filterStartDate').val();
-                let end = $('#filterEndDate').val();
+                let start = appliedStartDate;
+                let end = appliedEndDate;
                 let location = $('#filterLocation').val();
                 let search = $('#customSearch').val().trim();
 
@@ -1555,6 +1596,116 @@
                 });
             </script>
         @endif
+
+        <script>
+            let selectedStagingIds = new Set();
+
+            function toggleBulkActionBar() {
+                $('#selectedCount').text(selectedStagingIds.size);
+                $('#bulkActionBar').toggleClass('d-none', selectedStagingIds.size === 0);
+            }
+
+            function resetStagingSelection() {
+                selectedStagingIds.clear();
+                $('#checkAll').prop('checked', false);
+                toggleBulkActionBar();
+            }
+
+            $(document).on('change', '.row-checkbox', function() {
+                let id = $(this).val();
+
+                if (this.checked) {
+                    selectedStagingIds.add(id);
+                } else {
+                    selectedStagingIds.delete(id);
+                }
+
+                toggleBulkActionBar();
+            });
+
+            $(document).on('change', '#checkAll', function() {
+                let checked = this.checked;
+
+                $('.row-checkbox').prop('checked', checked).each(function() {
+                    let id = $(this).val();
+
+                    if (checked) {
+                        selectedStagingIds.add(id);
+                    } else {
+                        selectedStagingIds.delete(id);
+                    }
+                });
+
+                toggleBulkActionBar();
+            });
+
+            $('#staging').on('draw.dt', function() {
+                resetStagingSelection();
+            });
+
+            $('#btnBulkDelete').on('click', function() {
+
+                if (selectedStagingIds.size === 0) return;
+
+                Swal.fire({
+                    title: `Hapus ${selectedStagingIds.size} data?`,
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true
+                }).then((result) => {
+
+                    if (!result.isConfirmed) return;
+
+                    $.ajax({
+                        url: "{{ route('stagings.bulk-destroy') }}",
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            ids: Array.from(selectedStagingIds)
+                        },
+
+                        success: function(res) {
+
+                            table.ajax.reload(null, false);
+                            resetStagingSelection();
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex =
+                                        '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
+
+                    });
+
+                });
+
+            });
+        </script>
 
         <script>
             $(document).on('submit', '.form-hapus', function(e) {

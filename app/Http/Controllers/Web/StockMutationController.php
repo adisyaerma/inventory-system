@@ -48,16 +48,25 @@ class StockMutationController extends Controller
 
             ->addIndexColumn()
 
+            ->addColumn('checkbox', function ($row) {
+                return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
+            })
+
             ->editColumn('transaction_date', function ($row) {
                 return optional($row->transaction_date)->format('d-m-Y');
             })
 
-            ->addColumn('item_code', function ($row) {
-                return $row->stock->item_code_internal;
+            // ================= GABUNGAN KODE + NAMA BARANG =================
+            ->addColumn('barang', function ($row) {
+                return '<div class="fw-bold">'.e($row->stock->item_code_internal).'</div>'
+                     .'<div class="text-muted small">'.e($row->stock->name).'</div>';
             })
 
-            ->addColumn('stock_name', function ($row) {
-                return $row->stock->name;
+            ->filterColumn('barang', function ($query, $keyword) {
+                $query->whereHas('stock', function ($q) use ($keyword) {
+                    $q->where('item_code_internal', 'like', "%{$keyword}%")
+                        ->orWhere('name', 'like', "%{$keyword}%");
+                });
             })
 
             ->addColumn('location_name', function ($row) {
@@ -123,9 +132,97 @@ class StockMutationController extends Controller
 
 </div>';
             })
-            ->rawColumns(['action'])
+            ->rawColumns(['action', 'barang', 'checkbox'])
 
             ->make(true);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:stock_mutations,id',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $mutations = StockMutation::whereIn('id', $request->ids)->get();
+
+            foreach ($mutations as $mutation) {
+                $this->deleteMutationAndRecalculate($mutation);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($mutations).' mutasi berhasil dihapus.',
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+
+        }
+    }
+
+    private function deleteMutationAndRecalculate(StockMutation $stockMutation)
+    {
+        $stockId = $stockMutation->stock_id;
+        $locationId = $stockMutation->location_id;
+
+        $nextMutation = StockMutation::where('stock_id', $stockId)
+            ->where('location_id', $locationId)
+            ->where(function ($q) use ($stockMutation) {
+                $q->where('transaction_date', '>', $stockMutation->transaction_date)
+                    ->orWhere(function ($q2) use ($stockMutation) {
+                        $q2->where('transaction_date', $stockMutation->transaction_date)
+                            ->where('id', '>', $stockMutation->id);
+                    });
+            })
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->first();
+
+        $stockMutation->delete();
+
+        if ($nextMutation) {
+
+            $this->recalculateLocationStock(
+                $stockId,
+                $locationId,
+                $nextMutation->id
+            );
+
+        } else {
+
+            $locationStock = LocationStock::where('stock_id', $stockId)
+                ->where('location_id', $locationId)
+                ->first();
+
+            $lastBalance = StockMutation::where('stock_id', $stockId)
+                ->where('location_id', $locationId)
+                ->orderByDesc('transaction_date')
+                ->orderByDesc('id')
+                ->value('qty_balance');
+
+            LocationStock::updateOrCreate(
+                [
+                    'stock_id' => $stockId,
+                    'location_id' => $locationId,
+                ],
+                [
+                    'quantity' => $lastBalance ?? ($locationStock->opening_balance ?? 0),
+                ]
+            );
+        }
     }
 
     private function recalculateLocationStock($stockId, $locationId, $startMutationId = null)
@@ -268,54 +365,7 @@ class StockMutationController extends Controller
 
         try {
 
-            $stockId = $stockMutation->stock_id;
-            $locationId = $stockMutation->location_id;
-
-            $nextMutation = StockMutation::where('stock_id', $stockId)
-                ->where('location_id', $locationId)
-                ->where(function ($q) use ($stockMutation) {
-                    $q->where('transaction_date', '>', $stockMutation->transaction_date)
-                        ->orWhere(function ($q2) use ($stockMutation) {
-                            $q2->where('transaction_date', $stockMutation->transaction_date)
-                                ->where('id', '>', $stockMutation->id);
-                        });
-                })
-                ->orderBy('transaction_date')
-                ->orderBy('id')
-                ->first();
-
-            $stockMutation->delete();
-
-            if ($nextMutation) {
-
-                $this->recalculateLocationStock(
-                    $stockId,
-                    $locationId,
-                    $nextMutation->id
-                );
-
-            } else {
-
-                $locationStock = LocationStock::where('stock_id', $stockId)
-                    ->where('location_id', $locationId)
-                    ->first();
-
-                $lastBalance = StockMutation::where('stock_id', $stockId)
-                    ->where('location_id', $locationId)
-                    ->orderByDesc('transaction_date')
-                    ->orderByDesc('id')
-                    ->value('qty_balance');
-
-                LocationStock::updateOrCreate(
-                    [
-                        'stock_id' => $stockId,
-                        'location_id' => $locationId,
-                    ],
-                    [
-                        'quantity' => $lastBalance ?? ($locationStock->opening_balance ?? 0),
-                    ]
-                );
-            }
+            $this->deleteMutationAndRecalculate($stockMutation);
 
             DB::commit();
 

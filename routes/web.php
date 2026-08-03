@@ -21,8 +21,14 @@ Route::post('/location', [LocationController::class, 'store'])
 Route::put('/location/{location}', [LocationController::class, 'update'])
     ->name('locations.update');
 
+Route::delete('/location/bulk/destroy', [LocationController::class, 'bulkDestroy'])
+    ->name('locations.bulk-destroy');
+
 Route::delete('/location/{location}', [LocationController::class, 'destroy'])
     ->name('locations.destroy');
+
+Route::get('locations/data', [LocationController::class, 'data'])->name('locations.data');
+Route::get('locations/{location}/edit', [LocationController::class, 'edit'])->name('locations.edit');
 
 Route::get('/check-location-code', function (Request $request) {
 
@@ -48,6 +54,9 @@ Route::get('/stock/template', [StockController::class, 'downloadTemplate'])
 
 Route::post('/stock/import', [StockController::class, 'import'])
     ->name('stock.import');
+
+Route::delete('/stock/bulk/destroy', [StockController::class, 'bulkDestroy'])
+    ->name('stocks.bulk-destroy');
 
 Route::delete('/stock/{stock}', [StockController::class, 'destroy'])
     ->name('stocks.destroy');
@@ -84,6 +93,9 @@ Route::get('/stock-mutation/template', [StockMutationController::class, 'downloa
 
 Route::post('/stock-mutation/import', [StockMutationController::class, 'import'])
     ->name('stock-mutation.import');
+
+Route::delete('/stock-mutation/bulk/destroy', [StockMutationController::class, 'bulkDestroy'])
+    ->name('stock-mutation.bulk-destroy');
 
 Route::delete('/stock-mutation/{stockMutation}', [StockMutationController::class, 'destroy'])
     ->name('stock-mutation.destroy');
@@ -152,6 +164,9 @@ Route::get('/staging/{staging}/edit', [StagingController::class, 'edit'])
 Route::put('/staging/{staging}', [StagingController::class, 'update'])
     ->name('stagings.update');
  
+Route::delete('/staging/bulk/destroy', [StagingController::class, 'bulkDestroy'])
+    ->name('stagings.bulk-destroy');
+
 Route::delete('/staging/{staging}', [StagingController::class, 'destroy'])
     ->name('stagings.destroy');
     

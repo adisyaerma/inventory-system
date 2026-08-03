@@ -824,13 +824,21 @@
 
                 </div>
 
+                <div id="bulkActionBar"
+                    class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                    <span><span id="selectedCount">0</span> data dipilih</span>
+                    <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
+                        <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                    </button>
+                </div>
+
                 <table class="table table-bordered" id="stockMutation">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="checkAll"></th>
                             <th>No</th>
                             <th>Tanggal</th>
-                            <th>Kode Barang</th>
-                            <th>Nama Barang</th>
+                            <th>Barang</th>
                             <th>Lokasi</th>
                             <th>No. Transaksi</th>
                             <th>Qty Masuk</th>
@@ -1384,6 +1392,10 @@
             }
         </style>
         <script>
+            // ============ VARIABEL GLOBAL FILTER TANGGAL ============
+            let appliedStartDate = '';
+            let appliedEndDate = '';
+
             const $dateInput = $('#filterDateRange');
             const $panel = $('#dateRangePanel');
             const $startInput = $('#filterStartDate');
@@ -1400,8 +1412,12 @@
                 e.stopPropagation();
             });
 
-            // tutup panel kalau klik di luar
+            // tutup panel kalau klik di luar, buang perubahan yang belum "Terapkan"
             $(document).on('click', function() {
+                if ($panel.hasClass('show')) {
+                    $startInput.val(appliedStartDate);
+                    $endInput.val(appliedEndDate);
+                }
                 $panel.removeClass('show');
             });
 
@@ -1414,6 +1430,9 @@
                     alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir');
                     return;
                 }
+
+                appliedStartDate = start;
+                appliedEndDate = end;
 
                 if (start && end) {
                     $dateInput.val(start + ' s/d ' + end);
@@ -1428,7 +1447,8 @@
 
                 $panel.removeClass('show');
 
-                // table.ajax.reload();
+                table.ajax.reload();
+                updateExportUrl();
             });
 
             // helper untuk format tanggal jadi lebih enak dibaca, misal "16 Jul 2026"
@@ -1447,8 +1467,8 @@
             });
 
             function updateExportUrl() {
-                let start = $('#filterStartDate').val();
-                let end = $('#filterEndDate').val();
+                let start = appliedStartDate;
+                let end = appliedEndDate;
                 let transaction = $('#filterTransaction').val();
                 let location = $('#filterLocation').val();
                 let search = $('#customSearch').val().trim(); // trim di sini
@@ -1467,8 +1487,6 @@
                 $('#exportBtn').attr('href', url.toString());
             }
 
-            $('#filterStartDate').on('change', updateExportUrl);
-            $('#filterEndDate').on('change', updateExportUrl);
             $('#filterTransaction').on('change', updateExportUrl);
             $('#filterLocation').on('change', updateExportUrl);
             $('#customSearch').on('keyup input', updateExportUrl); // trigger tiap ketik
@@ -1739,8 +1757,8 @@
                     ajax: {
                         url: "{{ route('stock-mutation.data') }}",
                         data: function(d) {
-                            d.start_date = $('#filterStartDate').val();
-                            d.end_date = $('#filterEndDate').val();
+                            d.start_date = appliedStartDate;
+                            d.end_date = appliedEndDate;
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
                             d.stock = new URLSearchParams(window.location.search).get('stock');
@@ -1748,6 +1766,11 @@
                     },
 
                     columns: [{
+                            data: 'checkbox',
+                            orderable: false,
+                            searchable: false
+                        },
+                        {
                             data: 'DT_RowIndex',
                             orderable: false,
                             searchable: false
@@ -1757,12 +1780,9 @@
                             name: 'transaction_date'
                         },
                         {
-                            data: 'item_code',
-                            name: 'stock.item_code_internal'
-                        },
-                        {
-                            data: 'stock_name',
-                            name: 'stock.name'
+                            data: 'barang',
+                            name: 'barang',
+                            orderable: false
                         },
                         {
                             data: 'location_name',
@@ -1834,9 +1854,11 @@
                     table.page.len($(this).val()).draw();
                 });
 
-                $('#filterStartDate,#filterEndDate,#filterTransaction,#filterLocation')
+                // hanya jenis transaksi & lokasi yang auto-reload; tanggal menunggu tombol "Terapkan"
+                $('#filterTransaction,#filterLocation')
                     .on('change', function() {
                         table.ajax.reload();
+                        updateExportUrl();
                     });
 
                 $('#resetFilter').click(function() {
@@ -1847,6 +1869,9 @@
                     $('#filterTransaction').val('').trigger('change');
                     $('#filterLocation').val('').trigger('change');
                     $('#customSearch').val('');
+
+                    appliedStartDate = '';
+                    appliedEndDate = '';
 
                     table.search('').draw();
                     updateExportUrl();
@@ -2110,6 +2135,116 @@
                     document.getElementById('fileName').textContent = file.name;
                     document.getElementById('selectedMutationFile').style.display = 'block';
                 }
+            });
+        </script>
+
+        <script>
+            let selectedMutationIds = new Set();
+
+            function toggleBulkActionBar() {
+                $('#selectedCount').text(selectedMutationIds.size);
+                $('#bulkActionBar').toggleClass('d-none', selectedMutationIds.size === 0);
+            }
+
+            function resetMutationSelection() {
+                selectedMutationIds.clear();
+                $('#checkAll').prop('checked', false);
+                toggleBulkActionBar();
+            }
+
+            $(document).on('change', '.row-checkbox', function() {
+                let id = $(this).val();
+
+                if (this.checked) {
+                    selectedMutationIds.add(id);
+                } else {
+                    selectedMutationIds.delete(id);
+                }
+
+                toggleBulkActionBar();
+            });
+
+            $(document).on('change', '#checkAll', function() {
+                let checked = this.checked;
+
+                $('.row-checkbox').prop('checked', checked).each(function() {
+                    let id = $(this).val();
+
+                    if (checked) {
+                        selectedMutationIds.add(id);
+                    } else {
+                        selectedMutationIds.delete(id);
+                    }
+                });
+
+                toggleBulkActionBar();
+            });
+
+            // Reset seleksi tiap kali tabel digambar ulang (ganti halaman, filter, reload)
+            $('#stockMutation').on('draw.dt', function() {
+                resetMutationSelection();
+            });
+
+            $('#btnBulkDelete').on('click', function() {
+
+                if (selectedMutationIds.size === 0) return;
+
+                Swal.fire({
+                    title: `Hapus ${selectedMutationIds.size} mutasi?`,
+                    text: 'Data yang dihapus tidak dapat dikembalikan.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+
+                    if (!result.isConfirmed) return;
+
+                    $.ajax({
+                        url: "{{ route('stock-mutation.bulk-destroy') }}",
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}',
+                            ids: Array.from(selectedMutationIds)
+                        },
+
+                        success: function(res) {
+
+                            table.ajax.reload(null, false);
+                            resetMutationSelection();
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: res.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex =
+                                        '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                            });
+
+                        }
+
+                    });
+
+                });
+
             });
         </script>
 
