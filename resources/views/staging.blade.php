@@ -290,7 +290,7 @@
                         </form>
                     </div>
                 </div>
-                <div class="modal fade" id="addStaging" data-bs-backdrop="static" data-bs-keyboard="false"
+               <div class="modal fade" id="addStaging" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="addStagingLabel" aria-hidden="true">
 
                     <div class="modal-dialog modal-lg">
@@ -421,7 +421,7 @@
 
                                                     </div>
 
-                                                    <div class="">
+                                                    <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
                                                             Asal Supplier
@@ -435,6 +435,30 @@
 
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="supplier_origin" placeholder="Contoh: PT. ABC">
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div class="">
+
+                                                        <label class="form-label fw-semibold">
+                                                            Incoterms
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text">
+                                                                <i class="bx bx-world"></i>
+                                                            </span>
+
+                                                            <select name="incoterms" class="form-select form-select-sm">
+                                                                <option value="" selected>Pilih incoterms</option>
+                                                                @foreach (\App\Models\Staging::INCOTERMS as $incoterm)
+                                                                    <option value="{{ $incoterm }}">
+                                                                        {{ $incoterm }}</option>
+                                                                @endforeach
+                                                            </select>
 
                                                         </div>
 
@@ -524,6 +548,25 @@
                                                                         {{ $location }}</option>
                                                                 @endforeach
                                                             </select>
+
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div class="mb-3">
+
+                                                        <label class="form-label fw-semibold">
+                                                            Status
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text">
+                                                                <i class="bx bx-flag"></i>
+                                                            </span>
+
+                                                            <input type="text" class="form-control form-control-sm"
+                                                                name="status" placeholder="Opsional">
 
                                                         </div>
 
@@ -690,13 +733,15 @@
                         <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>No. PO</th>
-                        <th>Item</th>
+                        <th>Tgl Kedatangan</th>
                         <th>Supplier</th>
                         <th>Owner</th>
-                        <th>Tgl Kedatangan</th>
+                        <th>Incoterms</th>
+                        <th>Item</th>
                         <th>Qty</th>
                         <th>Lokasi</th>
                         <th>Keterangan</th>
+                        <th>Status</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -724,7 +769,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="editStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+   <div class="modal fade" id="editStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-hidden="true">
 
         <div class="modal-dialog modal-lg">
@@ -854,7 +899,7 @@
 
                                         </div>
 
-                                        <div class="">
+                                        <div class="mb-3">
 
                                             <label class="form-label fw-semibold">
                                                 Asal Supplier
@@ -868,6 +913,32 @@
 
                                                 <input type="text" class="form-control form-control-sm"
                                                     name="supplier_origin" id="editSupplierOrigin">
+
+                                            </div>
+
+                                        </div>
+
+                                        <div class="">
+
+                                            <label class="form-label fw-semibold">
+                                                Incoterms
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-world"></i>
+                                                </span>
+
+                                                <select name="incoterms" class="form-select form-select-sm"
+                                                    id="editIncoterms">
+                                                    <option value="">Pilih incoterms</option>
+                                                    @foreach (\App\Models\Staging::INCOTERMS as $incoterm)
+                                                        <option value="{{ $incoterm }}">
+                                                            {{ $incoterm }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
 
                                             </div>
 
@@ -957,6 +1028,25 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
+
+                                            </div>
+
+                                        </div>
+
+                                        <div class="mb-3">
+
+                                            <label class="form-label fw-semibold">
+                                                Status
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-flag"></i>
+                                                </span>
+
+                                                <input type="text" class="form-control form-control-sm" name="status"
+                                                    id="editStatus" placeholder="Opsional">
 
                                             </div>
 
@@ -1077,9 +1167,8 @@
                             name: 'po_number'
                         },
                         {
-                            data: 'item',
-                            name: 'item',
-                            orderable: false
+                            data: 'arrival_date',
+                            name: 'arrival_date'
                         },
                         {
                             data: 'supplier_origin',
@@ -1090,8 +1179,13 @@
                             name: 'item_owner'
                         },
                         {
-                            data: 'arrival_date',
-                            name: 'arrival_date'
+                            data: 'incoterms',
+                            name: 'incoterms'
+                        },
+                        {
+                            data: 'item',
+                            name: 'item',
+                            orderable: false
                         },
                         {
                             data: 'qty',
@@ -1106,6 +1200,10 @@
                             name: 'notes'
                         },
                         {
+                            data: 'status',
+                            name: 'status'
+                        },
+                        {
                             data: 'action',
                             name: 'action',
                             searchable: false,
@@ -1116,7 +1214,7 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [2, 3, 4, 5],
+                            targets: [2, 4, 5, 7],
                             className: "text-wrap",
                             width: "220px"
                         },
@@ -1125,15 +1223,14 @@
                             width: "80px"
                         },
                         {
-                            targets: 7,
+                            targets: 8,
                             className: "text-center"
                         },
                         {
-                            targets: 10,
+                            targets: 11,
                             className: "text-center"
                         }
                     ],
-
                     initComplete: function() {
                         moveDataTablesElements();
                     },
@@ -1277,10 +1374,12 @@
                             $('#editArrivalDate').val(res.arrival_date);
                             $('#editSupplierOrigin').val(res.supplier_origin);
                             $('#editItemOwner').val(res.item_owner);
+                            $('#editIncoterms').val(res.incoterms);
                             $('#editItemCode').val(res.item_code);
                             $('#editItemName').val(res.item_name);
                             $('#editQty').val(res.qty);
                             $('#editLocation').val(res.location);
+                            $('#editStatus').val(res.status);
                             $('#editNotes').val(res.notes);
 
                         },
@@ -1376,7 +1475,6 @@
                 $('#editStagingModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
                 });
-
             });
         </script>
 

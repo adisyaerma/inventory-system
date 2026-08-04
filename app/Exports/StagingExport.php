@@ -23,14 +23,16 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
     {
         return [
             'No. PO',
-            'Kode Barang',
-            'Nama Barang',
+            'Tanggal Kedatangan',
             'Supplier',
             'Owner',
-            'Tanggal Kedatangan',
+            'Incoterms',
+            'Kode Barang',
+            'Nama Barang',
             'Qty',
             'Lokasi',
             'Keterangan',
+            'Status',
         ];
     }
 
@@ -62,7 +64,9 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
                     ->orWhere('supplier_origin', 'ilike', "%{$search}%")
                     ->orWhere('item_owner', 'ilike', "%{$search}%")
                     ->orWhere('location', 'ilike', "%{$search}%")
+                    ->orWhere('incoterms', 'ilike', "%{$search}%")
                     ->orWhere('notes', 'ilike', "%{$search}%")
+                    ->orWhere('status', 'ilike', "%{$search}%")
                     ->orWhereRaw('CAST(qty AS TEXT) ilike ?', ["%{$search}%"]);
             });
         }
@@ -72,14 +76,16 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
         foreach ($stagings as $staging) {
             $rows[] = [
                 $staging->po_number,
-                $staging->item_code,
-                $staging->item_name,
+                optional($staging->arrival_date)->format('d/m/Y'),
                 $staging->supplier_origin,
                 $staging->item_owner,
-                optional($staging->arrival_date)->format('d/m/Y'),
+                $staging->incoterms,
+                $staging->item_code,
+                $staging->item_name,
                 $staging->qty,
                 $staging->location,
                 $staging->notes,
+                $staging->status,
             ];
         }
 
@@ -96,7 +102,7 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
 
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:I{$lastRow}")
+                $sheet->getStyle("A1:K{$lastRow}")
                     ->applyFromArray([
                         'borders' => [
                             'allBorders' => [
@@ -105,27 +111,29 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
                         ],
                     ]);
 
-                $sheet->getStyle("A1:I{$lastRow}")
+                $sheet->getStyle("A1:K{$lastRow}")
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                $sheet->getStyle("G2:G{$lastRow}")
+                $sheet->getStyle("H2:H{$lastRow}")
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
 
-                $sheet->getStyle('A1:I1')
+                $sheet->getStyle('A1:K1')
                     ->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                $sheet->getColumnDimension('A')->setWidth(20);
-                $sheet->getColumnDimension('B')->setWidth(18);
-                $sheet->getColumnDimension('C')->setWidth(35);
-                $sheet->getColumnDimension('D')->setWidth(25);
-                $sheet->getColumnDimension('E')->setWidth(20);
-                $sheet->getColumnDimension('F')->setWidth(18);
-                $sheet->getColumnDimension('G')->setWidth(10);
-                $sheet->getColumnDimension('H')->setWidth(28);
-                $sheet->getColumnDimension('I')->setWidth(35);
+                $sheet->getColumnDimension('A')->setWidth(20); // No. PO
+                $sheet->getColumnDimension('B')->setWidth(18); // Tanggal Kedatangan
+                $sheet->getColumnDimension('C')->setWidth(25); // Supplier
+                $sheet->getColumnDimension('D')->setWidth(20); // Owner
+                $sheet->getColumnDimension('E')->setWidth(15); // Incoterms
+                $sheet->getColumnDimension('F')->setWidth(18); // Kode Barang
+                $sheet->getColumnDimension('G')->setWidth(35); // Nama Barang
+                $sheet->getColumnDimension('H')->setWidth(10); // Qty
+                $sheet->getColumnDimension('I')->setWidth(28); // Lokasi
+                $sheet->getColumnDimension('J')->setWidth(35); // Keterangan
+                $sheet->getColumnDimension('K')->setWidth(20); // Status
             },
 
         ];

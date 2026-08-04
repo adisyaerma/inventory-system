@@ -19,6 +19,8 @@ class Staging extends Model
         'qty',
         'location',
         'notes',
+        'status',
+        'incoterms',
     ];
 
     protected $casts = [
@@ -34,5 +36,17 @@ class Staging extends Model
         'Temporary hold / repair 1',
         'Temporary hold / repair 2',
         'Temporary hold / repair 3',
+    ];
+
+    /**
+     * Daftar pilihan incoterms (enum) — dipakai bareng di controller & view (dropdown).
+     */
+    public const INCOTERMS = [
+        'VHS',
+        'DDP',
+        'SMELTER',
+        'NON FI',
+        'FLUKE',
+        'NORD-LOCK',
     ];
 }

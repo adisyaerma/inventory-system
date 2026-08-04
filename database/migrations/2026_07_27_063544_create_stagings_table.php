@@ -26,7 +26,16 @@ return new class extends Migration
                 'Temporary hold / repair 2',
                 'Temporary hold / repair 3',
             ])->nullable();
+            $table->enum('incoterms', [
+                'VHS',
+                'DDP',
+                'SMELTER',
+                'NON FI',
+                'FLUKE',
+                'NORD-LOCK',
+            ])->nullable();
             $table->text('notes')->nullable();
+            $table->text('status')->nullable();
             $table->timestamps();
         });
     }

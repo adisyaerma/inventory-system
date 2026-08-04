@@ -144,9 +144,9 @@
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="/staging" class="menu-link">
+                        <a href="/staging-in" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Staging</div>
+                            <div class="text-truncate" data-i18n="Basic">Staging-in</div>
                         </a>
                     </li>
                     <li class="menu-item">

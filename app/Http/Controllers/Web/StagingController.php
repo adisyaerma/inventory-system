@@ -103,6 +103,14 @@ class StagingController extends Controller
                 return $row->notes ?: '-';
             })
 
+            ->editColumn('status', function ($row) {
+                return $row->status ?: '-';
+            })
+
+            ->editColumn('incoterms', function ($row) {
+                return $row->incoterms ?: '-';
+            })
+
             ->addColumn('action', function ($row) {
 
                 return '
@@ -212,7 +220,13 @@ class StagingController extends Controller
         ]);
 
         try {
-            Excel::import(new StagingImport, $request->file('file'));
+
+            // Hapus semua data lama secara eksplisit sebelum import,
+            // tidak lagi bergantung pada event BeforeImport.
+            Staging::query()->truncate();
+
+            Excel::import(new StagingImport(false), $request->file('file'));
+
         } catch (\Exception $e) {
             return redirect()
                 ->route('stagings.index')
@@ -238,7 +252,9 @@ class StagingController extends Controller
             'item_name' => ['required', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
+            'incoterms' => ['nullable', Rule::in(Staging::INCOTERMS)],
             'notes' => ['nullable'],
+            'status' => ['nullable'],
         ]);
 
         try {
@@ -272,6 +288,8 @@ class StagingController extends Controller
             'qty' => $staging->qty,
             'location' => $staging->location,
             'notes' => $staging->notes,
+            'status' => $staging->status,
+            'incoterms' => $staging->incoterms,
         ]);
     }
 
@@ -290,6 +308,9 @@ class StagingController extends Controller
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
             'notes' => ['nullable'],
+            'status' => ['nullable'],
+            'incoterms' => ['nullable', Rule::in(Staging::INCOTERMS)],
+
         ]);
 
         try {

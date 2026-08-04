@@ -2,15 +2,16 @@
 
 namespace App\Imports;
 
+use App\Imports\Concerns\ParsesExcelDates;
 use App\Models\Staging;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class StagingImport implements ToCollection, WithHeadingRow
 {
+    use ParsesExcelDates;
+
     /**
      * Human-readable messages for rows that failed to import
      * (only unexpected/database errors end up here now — missing fields
@@ -22,40 +23,6 @@ class StagingImport implements ToCollection, WithHeadingRow
      * Count of rows saved successfully.
      */
     public int $imported = 0;
-
-    private function parseDate($value)
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            return Carbon::instance(
-                Date::excelToDateTimeObject($value)
-            );
-        }
-
-        $value = trim($value);
-
-        if ($value === '' || $value === '-') {
-            return null;
-        }
-
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $value)) {
-            return Carbon::createFromFormat('d/m/Y', $value);
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return Carbon::createFromFormat('Y-m-d', $value);
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (\Throwable $e) {
-            // Tanggal tidak bisa dibaca -> simpan sebagai kosong, jangan gagalkan baris.
-            return null;
-        }
-    }
 
     /**
      * Normalize a raw cell value into a clean string or null.
@@ -130,6 +97,28 @@ class StagingImport implements ToCollection, WithHeadingRow
         return null;
     }
 
+    /**
+     * Match the incoterms cell against the known list of incoterms,
+     * tolerant of case and surrounding whitespace. Returns the canonical
+     * value (as defined in Staging::INCOTERMS), or null if it's empty or
+     * doesn't match anything — an unmatched incoterms is saved as null
+     * rather than rejecting the row.
+     */
+    private function resolveIncoterms(?string $incoterms): ?string
+    {
+        if ($incoterms === null) {
+            return null;
+        }
+
+        foreach (Staging::INCOTERMS as $valid) {
+            if (strcasecmp($valid, $incoterms) === 0) {
+                return $valid;
+            }
+        }
+
+        return null;
+    }
+
     public function collection(Collection $rows)
     {
         $this->errors = [];
@@ -146,13 +135,17 @@ class StagingImport implements ToCollection, WithHeadingRow
             $itemOwner = $this->cleanValue($row['owner'] ?? null);
             $notes = $this->cleanValue($row['keterangan'] ?? null);
             $rawLocation = $this->cleanValue($row['lokasi'] ?? null);
+            $status = $this->cleanValue($row['status'] ?? null);
+            $rawIncoterms = $this->cleanValue($row['incoterms'] ?? null);
             $qty = $this->parseQty($row['qty'] ?? null);
             $arrivalDate = $this->parseDate($row['tanggal_kedatangan'] ?? null);
             $location = $this->resolveLocation($rawLocation);
+            $incoterms = $this->resolveIncoterms($rawIncoterms);
 
             if ($poNumber === null && $itemCode === null && $itemName === null
                 && $supplierOrigin === null && $itemOwner === null && $rawLocation === null
-                && $notes === null && $arrivalDate === null && $qty === 0) {
+                && $notes === null && $arrivalDate === null && $qty === 0 && $status === null
+                && $rawIncoterms === null) {
                 continue;
             }
 
@@ -167,6 +160,8 @@ class StagingImport implements ToCollection, WithHeadingRow
                     'item_name' => $itemName,
                     'qty' => $qty,
                     'location' => $location,
+                    'incoterms' => $incoterms,
+                    'status' => $status,
                     'notes' => $notes,
                 ]);
 
@@ -180,6 +175,8 @@ class StagingImport implements ToCollection, WithHeadingRow
                     'Kode Barang : '.($itemCode ?? '-')."\n".
                     'Nama Barang : '.($itemName ?? '-')."\n".
                     'Lokasi      : '.($rawLocation ?? '-')."\n".
+                    'Incoterms   : '.($rawIncoterms ?? '-')."\n".
+                    'Status      : '.($status ?? '-')."\n".
                     'Qty         : '.$qty."\n".
                     'Error       : '.$e->getMessage();
 
