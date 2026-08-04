@@ -7,7 +7,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class StagingTemplateExport implements WithHeadings
+class StagingInTemplateExport implements WithHeadings
 {
     /**
     * @return \Illuminate\Support\Collection

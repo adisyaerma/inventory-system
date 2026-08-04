@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\Staging;
+use App\Models\StagingIn;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class StagingExport implements FromArray, WithEvents, WithHeadings
+class StagingInExport implements FromArray, WithEvents, WithHeadings
 {
     protected $request;
 
@@ -40,7 +40,7 @@ class StagingExport implements FromArray, WithEvents, WithHeadings
     {
         $rows = [];
 
-        $query = Staging::query();
+        $query = StagingIn::query();
 
         if ($this->request->filled('location')) {
             $query->where('location', $this->request->location);

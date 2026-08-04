@@ -90,7 +90,7 @@
     <div class="card">
         <div class="card-header">
             <div class="float-start">
-                <h4 class="mb-0">Staging</h4>
+                <h4 class="mb-0">Staging In</h4>
                 <small class="text-muted">Kelola data staging</small>
             </div>
             <div class="float-end mt-3">
@@ -105,7 +105,7 @@
                     <span class="d-none d-md-inline ms-1">Import</span>
                 </button>
 
-                <a href="{{ route('stagings.export') }}" class="btn-sm btn border-secondary bg-white border me-1"
+                <a href="{{ route('stagings-in.export') }}" class="btn-sm btn border-secondary bg-white border me-1"
                     id="exportBtn">
                     <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                         viewBox="0 0 24 24">
@@ -141,7 +141,7 @@
                 {{-- ================= MODAL IMPORT ================= --}}
                 <div class="modal fade" id="importStagingModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg">
-                        <form action="{{ route('stagings.import') }}" method="POST" enctype="multipart/form-data">
+                        <form action="{{ route('stagings-in.import') }}" method="POST" enctype="multipart/form-data">
                             @csrf
 
                             <div class="modal-content border-0 shadow">
@@ -196,7 +196,7 @@
                                                 Gunakan template Excel berikut untuk menyiapkan data impor.
                                             </p>
 
-                                            <a href="{{ route('stagings.template') }}"
+                                            <a href="{{ route('stagings-in.template') }}"
                                                 class="btn btn-sm btn-outline-secondary">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="me-1 fs-5" width="1em"
                                                     height="1em" viewBox="0 0 24 24">
@@ -296,7 +296,7 @@
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
 
-                            <form action="{{ route('stagings.store') }}" method="POST" id="formStaging">
+                            <form action="{{ route('stagings-in.store') }}" method="POST" id="formStaging">
 
                                 @csrf
 
@@ -454,7 +454,7 @@
 
                                                             <select name="incoterms" class="form-select form-select-sm">
                                                                 <option value="" selected>Pilih incoterms</option>
-                                                                @foreach (\App\Models\Staging::INCOTERMS as $incoterm)
+                                                                @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
                                                                     <option value="{{ $incoterm }}">
                                                                         {{ $incoterm }}</option>
                                                                 @endforeach
@@ -543,7 +543,7 @@
                                                             <select name="location" class="form-select form-select-sm">
                                                                 <option value="" selected disabled>Pilih lokasi
                                                                 </option>
-                                                                @foreach (\App\Models\Staging::LOCATIONS as $location)
+                                                                @foreach (\App\Models\StagingIn::LOCATIONS as $location)
                                                                     <option value="{{ $location }}">
                                                                         {{ $location }}</option>
                                                                 @endforeach
@@ -710,7 +710,7 @@
                     <!-- Lokasi -->
                     <select class="form-select form-select-sm shadow-sm" id="filterLocation" title="Lokasi">
                         <option value="">Semua Lokasi</option>
-                        @foreach (\App\Models\Staging::LOCATIONS as $locationOption)
+                        @foreach (\App\Models\StagingIn::LOCATIONS as $locationOption)
                             <option value="{{ $locationOption }}">{{ $locationOption }}</option>
                         @endforeach
                     </select>
@@ -933,7 +933,7 @@
                                                 <select name="incoterms" class="form-select form-select-sm"
                                                     id="editIncoterms">
                                                     <option value="">Pilih incoterms</option>
-                                                    @foreach (\App\Models\Staging::INCOTERMS as $incoterm)
+                                                    @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
                                                         <option value="{{ $incoterm }}">
                                                             {{ $incoterm }}
                                                         </option>
@@ -1011,7 +1011,7 @@
                                         <div class="mb-3">
 
                                             <label class="form-label fw-semibold">
-                                                Lokasi
+                            e                    Lokasi
                                             </label>
 
                                             <div class="input-group">
@@ -1022,7 +1022,7 @@
 
                                                 <select name="location" class="form-select form-select-sm"
                                                     id="editLocation">
-                                                    @foreach (\App\Models\Staging::LOCATIONS as $location)
+                                                    @foreach (\App\Models\StagingIn::LOCATIONS as $location)
                                                         <option value="{{ $location }}">
                                                             {{ $location }}
                                                         </option>
@@ -1143,7 +1143,7 @@
                     order: [],
 
                     ajax: {
-                        url: "{{ route('stagings.data') }}",
+                        url: "{{ route('stagings-in.data') }}",
                         data: function(d) {
                             d.start_date = appliedStartDate;
                             d.end_date = appliedEndDate;
@@ -1299,7 +1299,7 @@
                     e.stopPropagation();
 
                     $.ajax({
-                        url: "{{ route('stagings.store') }}",
+                        url: "{{ route('stagings-in.store') }}",
                         method: "POST",
                         data: $(this).serialize(),
 
@@ -1364,7 +1364,7 @@
 
                     $.ajax({
 
-                        url: "{{ route('stagings.edit', ':id') }}".replace(':id', id),
+                        url: "{{ route('stagings-in.edit', ':id') }}".replace(':id', id),
                         type: 'GET',
 
                         success: function(res) {
@@ -1406,7 +1406,7 @@
 
                     $.ajax({
 
-                        url: "{{ route('stagings.update', ':id') }}".replace(':id', id),
+                        url: "{{ route('stagings-in.update', ':id') }}".replace(':id', id),
                         method: 'POST',
                         data: $(this).serialize() + '&_method=PUT',
 
@@ -1538,7 +1538,7 @@
                 let location = $('#filterLocation').val();
                 let search = $('#customSearch').val().trim();
 
-                let url = new URL("{{ route('stagings.export') }}");
+                let url = new URL("{{ route('stagings-in.export') }}");
 
                 if (start) url.searchParams.append('start_date', start);
                 if (end) url.searchParams.append('end_date', end);
@@ -1760,7 +1760,7 @@
                     if (!result.isConfirmed) return;
 
                     $.ajax({
-                        url: "{{ route('stagings.bulk-destroy') }}",
+                        url: "{{ route('stagings-in.bulk-destroy') }}",
                         type: 'DELETE',
                         data: {
                             _token: '{{ csrf_token() }}',

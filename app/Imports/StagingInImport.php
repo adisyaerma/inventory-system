@@ -3,12 +3,12 @@
 namespace App\Imports;
 
 use App\Imports\Concerns\ParsesExcelDates;
-use App\Models\Staging;
+use App\Models\StagingIn;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class StagingImport implements ToCollection, WithHeadingRow
+class StagingInImport implements ToCollection, WithHeadingRow
 {
     use ParsesExcelDates;
 
@@ -88,7 +88,7 @@ class StagingImport implements ToCollection, WithHeadingRow
             return null;
         }
 
-        foreach (Staging::LOCATIONS as $valid) {
+        foreach (StagingIn::LOCATIONS as $valid) {
             if (strcasecmp($valid, $location) === 0) {
                 return $valid;
             }
@@ -110,7 +110,7 @@ class StagingImport implements ToCollection, WithHeadingRow
             return null;
         }
 
-        foreach (Staging::INCOTERMS as $valid) {
+        foreach (StagingIn::INCOTERMS as $valid) {
             if (strcasecmp($valid, $incoterms) === 0) {
                 return $valid;
             }
@@ -151,7 +151,7 @@ class StagingImport implements ToCollection, WithHeadingRow
 
             try {
 
-                Staging::create([
+                StagingIn::create([
                     'po_number' => $poNumber,
                     'arrival_date' => $arrivalDate,
                     'supplier_origin' => $supplierOrigin,

@@ -2,7 +2,8 @@
 
 use App\Http\Controllers\Web\LocationController;
 use App\Http\Controllers\Web\ScanBarcodeController;
-use App\Http\Controllers\Web\StagingController;
+use App\Http\Controllers\Web\StagingInController;
+use App\Http\Controllers\Web\StagingOutController;
 use App\Http\Controllers\Web\StockController;
 use App\Http\Controllers\Web\StockMutationController;
 use App\Http\Controllers\Web\VendorController;
@@ -141,33 +142,64 @@ Route::put('/vendor/{vendor}', [VendorController::class, 'update'])
 Route::delete('/vendor/{vendor}', [VendorController::class, 'destroy'])
     ->name('vendors.destroy');
 
-// ===staging===
+// ===staging in===
 
-Route::get('/stagings/data', [StagingController::class, 'data'])
-    ->name('stagings.data');
+Route::get('/stagings-in/data', [StagingInController::class, 'data'])
+    ->name('stagings-in.data');
  
-Route::get('stagings/template', [StagingController::class, 'template'])
-    ->name('stagings.template');
+Route::get('stagings-in/template', [StagingInController::class, 'template'])
+    ->name('stagings-in.template');
  
-Route::post('stagings/import', [StagingController::class, 'import'])
-    ->name('stagings.import');
+Route::post('stagings-in/import', [StagingInController::class, 'import'])
+    ->name('stagings-in.import');
  
-Route::get('/staging', [StagingController::class, 'index'])
-    ->name('stagings.index');
+Route::get('/staging-in', [StagingInController::class, 'index'])
+    ->name('stagings-in.index');
  
-Route::post('/staging', [StagingController::class, 'store'])
-    ->name('stagings.store');
+Route::post('/staging-in', [StagingInController::class, 'store'])
+    ->name('stagings-in.store');
  
-Route::get('/staging/{staging}/edit', [StagingController::class, 'edit'])
-    ->name('stagings.edit');
+Route::get('/staging-in/{staging}/edit', [StagingInController::class, 'edit'])
+    ->name('stagings-in.edit');
  
-Route::put('/staging/{staging}', [StagingController::class, 'update'])
-    ->name('stagings.update');
+Route::put('/staging-in/{staging}', [StagingInController::class, 'update'])
+    ->name('stagings-in.update');
  
-Route::delete('/staging/bulk/destroy', [StagingController::class, 'bulkDestroy'])
-    ->name('stagings.bulk-destroy');
+Route::delete('/staging-in/bulk/destroy', [StagingInController::class, 'bulkDestroy'])
+    ->name('stagings-in.bulk-destroy');
 
-Route::delete('/staging/{staging}', [StagingController::class, 'destroy'])
-    ->name('stagings.destroy');
+Route::delete('/staging-in/{staging}', [StagingInController::class, 'destroy'])
+    ->name('stagings-in.destroy');
     
-Route::get('stagings/export', [StagingController::class, 'export'])->name('stagings.export');
+Route::get('stagings-in/export', [StagingInController::class, 'export'])->name('stagings-in.export');
+
+// ===staging out===
+
+Route::get('/stagings-out/data', [StagingOutController::class, 'data'])
+    ->name('stagings-out.data');
+ 
+Route::get('stagings-out/template', [StagingOutController::class, 'template'])
+    ->name('stagings-out.template');
+ 
+Route::post('stagings-out/import', [StagingOutController::class, 'import'])
+    ->name('stagings-out.import');
+ 
+Route::get('/staging-out', [StagingOutController::class, 'index'])
+    ->name('stagings-out.index');
+ 
+Route::post('/staging-out', [StagingOutController::class, 'store'])
+    ->name('stagings-out.store');
+ 
+Route::get('/staging-out/{staging}/edit', [StagingOutController::class, 'edit'])
+    ->name('stagings-out.edit');
+ 
+Route::put('/staging-out/{staging}', [StagingOutController::class, 'update'])
+    ->name('stagings-out.update');
+ 
+Route::delete('/staging-out/bulk/destroy', [StagingOutController::class, 'bulkDestroy'])
+    ->name('stagings-out.bulk-destroy');
+
+Route::delete('/staging-out/{staging}', [StagingOutController::class, 'destroy'])
+    ->name('stagings-out.destroy');
+    
+Route::get('stagings-out/export', [StagingOutController::class, 'export'])->name('stagings-out.export');

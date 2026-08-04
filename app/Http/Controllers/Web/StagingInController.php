@@ -2,33 +2,33 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Exports\StagingExport;
-use App\Exports\StagingTemplateExport;
+use App\Exports\StagingInExport;
+use App\Exports\StagingInTemplateExport;
 use App\Http\Controllers\Controller;
-use App\Imports\StagingImport;
-use App\Models\Staging;
+use App\Imports\StagingInImport;
+use App\Models\StagingIn;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
-class StagingController extends Controller
+class StagingInController extends Controller
 {
     public function index()
     {
-        $totalEntry = Staging::count();
+        $totalEntry = StagingIn::count();
 
-        $totalQty = Staging::sum('qty');
+        $totalQty = StagingIn::sum('qty');
 
-        $inboundShipment = Staging::where('location', 'Inbound shipment')->count();
+        $inboundShipment = StagingIn::where('location', 'Inbound shipment')->count();
 
-        $holdRepair = Staging::whereIn('location', [
+        $holdRepair = StagingIn::whereIn('location', [
             'Temporary hold / repair 1',
             'Temporary hold / repair 2',
             'Temporary hold / repair 3',
         ])->count();
 
-        return view('staging', compact(
+        return view('staging_in', compact(
             'totalEntry',
             'totalQty',
             'inboundShipment',
@@ -41,7 +41,7 @@ class StagingController extends Controller
      */
     public function data(Request $request)
     {
-        $query = Staging::query()->orderByDesc('id');
+        $query = StagingIn::query()->orderByDesc('id');
 
         if ($request->filled('location')) {
             $query->where('location', $request->location);
@@ -131,7 +131,7 @@ class StagingController extends Controller
 
                 </button>
 
-                <form action="'.route('stagings.destroy', $row->id).'"
+                <form action="'.route('stagings-in.destroy', $row->id).'"
                       method="POST"
                       class="form-hapus m-0">
 
@@ -197,7 +197,7 @@ class StagingController extends Controller
 
     public function template()
     {
-        return Excel::download(new StagingTemplateExport, 'template_staging.xlsx');
+        return Excel::download(new StagingInTemplateExport, 'template_staging_in.xlsx');
     }
 
     /**
@@ -206,7 +206,7 @@ class StagingController extends Controller
      */
     public function export(Request $request)
     {
-        return Excel::download(new StagingExport($request), 'staging.xlsx');
+        return Excel::download(new StagingInExport($request), 'staging.xlsx');
     }
 
     public function import(Request $request)
@@ -223,18 +223,17 @@ class StagingController extends Controller
 
             // Hapus semua data lama secara eksplisit sebelum import,
             // tidak lagi bergantung pada event BeforeImport.
-            Staging::query()->truncate();
+            StagingIn::query()->truncate();
 
-            Excel::import(new StagingImport(false), $request->file('file'));
-
+            Excel::import(new StagingInImport, $request->file('file'));
         } catch (\Exception $e) {
             return redirect()
-                ->route('stagings.index')
+                ->route('stagings-in.index')
                 ->with('error', $e->getMessage());
         }
 
         return redirect()
-            ->route('stagings.index')
+            ->route('stagings-in.index')
             ->with('success', 'Data staging berhasil diimpor');
     }
 
@@ -251,14 +250,14 @@ class StagingController extends Controller
             'item_code' => ['nullable', 'max:255'],
             'item_name' => ['required', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
-            'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
-            'incoterms' => ['nullable', Rule::in(Staging::INCOTERMS)],
+            'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
+            'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
             'notes' => ['nullable'],
             'status' => ['nullable'],
         ]);
 
         try {
-            Staging::create($validated);
+            StagingIn::create($validated);
 
             return response()->json([
                 'success' => true,
@@ -275,7 +274,7 @@ class StagingController extends Controller
     /**
      * Return the record as JSON for the AJAX edit modal.
      */
-    public function edit(Staging $staging)
+    public function edit(StagingIn $staging)
     {
         return response()->json([
             'id' => $staging->id,
@@ -296,7 +295,7 @@ class StagingController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Staging $staging)
+    public function update(Request $request, StagingIn $staging)
     {
         $validated = $request->validate([
             'po_number' => ['nullable', 'max:255'],
@@ -306,10 +305,10 @@ class StagingController extends Controller
             'item_code' => ['nullable', 'max:255'],
             'item_name' => ['required', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
-            'location' => ['nullable', Rule::in(Staging::LOCATIONS)],
+            'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
             'notes' => ['nullable'],
             'status' => ['nullable'],
-            'incoterms' => ['nullable', Rule::in(Staging::INCOTERMS)],
+            'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
 
         ]);
 
@@ -331,7 +330,7 @@ class StagingController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Staging $staging)
+    public function destroy(StagingIn $staging)
     {
         try {
             $staging->delete();
@@ -359,9 +358,9 @@ class StagingController extends Controller
         ]);
 
         try {
-            $count = Staging::whereIn('id', $request->ids)->count();
+            $count = StagingIn::whereIn('id', $request->ids)->count();
 
-            Staging::whereIn('id', $request->ids)->delete();
+            StagingIn::whereIn('id', $request->ids)->delete();
 
             return response()->json([
                 'success' => true,
