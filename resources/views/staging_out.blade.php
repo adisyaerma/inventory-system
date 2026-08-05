@@ -1380,7 +1380,7 @@
                     table.page.len($(this).val()).draw();
                 });
 
-                $('#resetFilter').click(function() {
+                $('#resetFilterInline').click(function() {
                     $('#filterStartDate').val('');
                     $('#filterEndDate').val('');
                     $('#filterDateRange').val('');
@@ -1397,11 +1397,6 @@
                     table.search('').draw();
                     updateExportUrl();
                     table.ajax.reload();
-                });
-
-                // Tombol reset icon-only di panel filter memicu logic yang sama
-                $('#resetFilterInline').on('click', function() {
-                    $('#resetFilter').trigger('click');
                 });
 
                 $('#excelFileStagingOut').on('change', function() {
