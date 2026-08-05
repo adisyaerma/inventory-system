@@ -1,10 +1,25 @@
 @extends('master')
 @section('title', 'Staging Out')
 @section('content')
+    <style>
+        .stat-card-clickable {
+            cursor: pointer;
+            transition: box-shadow .15s ease, border-color .15s ease;
+        }
+
+        .stat-card-clickable:hover {
+            box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .1) !important;
+        }
+
+        .stat-card-clickable.stat-card-active {
+            border: 1px solid var(--bs-primary) !important;
+        }
+    </style>
+
     <div class="row g-4 mb-4">
         <!-- Total Entry -->
         <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 stat-card-clickable" id="statCardAll" data-status="">
                 <div class="card-body d-flex align-items-center">
 
                     <div class="icon-box bg-primary-subtle text-primary me-4">
@@ -46,7 +61,7 @@
 
         <!-- Sudah Picking -->
         <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 stat-card-clickable" id="statCardPicking" data-status="sudah_picking">
                 <div class="card-body d-flex align-items-center">
 
                     <div class="icon-box bg-info-subtle text-info me-4">
@@ -67,7 +82,7 @@
 
         <!-- Sudah Dikirim -->
         <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 stat-card-clickable" id="statCardDikirim" data-status="sudah_dikirim">
                 <div class="card-body d-flex align-items-center">
 
                     <div class="icon-box bg-warning-subtle text-warning me-4">
@@ -115,19 +130,6 @@
                     </svg>
                     <span class="d-none d-md-inline ms-1">Export</span>
                 </a>
-
-                <button type="button" class="btn-sm btn border-secondary bg-white border me-1" id="resetFilter"
-                    title="Reset Filter">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-                        <path d="M0 0h21v21H0z" fill="none" />
-                        <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                            <path d="M7.5 6.5h-4v-4" />
-                        </g>
-                    </svg>
-                    <span class="d-none d-md-inline ms-1">Reset</span>
-                </button>
 
                 <button data-bs-toggle="modal" data-bs-target="#addStagingOut" type="button"
                     class="btn btn-primary btn-sm">
@@ -586,80 +588,258 @@
             <div class="px-3 pt-3">
 
                 <style>
+                    .filter-toolbar-card {
+                        background: #f8f9fb;
+                        border: 1px solid #eceef2;
+                        border-radius: 1rem;
+                        padding: 1rem 1.1rem;
+                        margin-bottom: 1rem;
+                    }
+
+                    .filter-toolbar-eyebrow {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: .5rem;
+                        margin-bottom: .75rem;
+                        color: #6c757d;
+                        font-size: .8rem;
+                        font-weight: 600;
+                        letter-spacing: .02em;
+                        text-transform: uppercase;
+                    }
+
+                    .filter-toolbar-eyebrow .filter-toolbar-eyebrow-label {
+                        display: flex;
+                        align-items: center;
+                        gap: .5rem;
+                    }
+
+                    .filter-toolbar-eyebrow i {
+                        color: var(--bs-primary);
+                    }
+
                     .filter-toolbar {
-                        --gap: 0.5rem;
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                        gap: .65rem;
+                        align-items: end;
                     }
 
-                    .filter-toolbar>* {
-                        flex: 1 1 calc(25% - var(--gap));
-                        max-width: 260px;
-                        min-width: 150px;
+                    .filter-toolbar .filter-group-search {
+                        max-width: 220px;
                     }
 
-                    @media (max-width: 991.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 calc(50% - var(--gap));
-                            max-width: 320px;
-                        }
+                    .filter-label {
+                        display: block;
+                        font-size: .72rem;
+                        font-weight: 600;
+                        color: #8a93a3;
+                        text-transform: uppercase;
+                        letter-spacing: .02em;
+                        margin-bottom: .3rem;
                     }
 
-                    @media (max-width: 575.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 100%;
-                            max-width: 100%;
-                        }
+                    .filter-toolbar .input-group {
+                        border-radius: .5rem;
+                        overflow: hidden;
+                        transition: box-shadow .15s ease;
+                    }
+
+                    .filter-toolbar .input-group:focus-within {
+                        box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
+                    }
+
+                    .filter-toolbar .input-group-text,
+                    .filter-toolbar .form-control,
+                    .filter-toolbar .form-select {
+                        border-color: #dfe3e9;
+                    }
+
+                    .filter-toolbar .form-select,
+                    .filter-toolbar .form-control {
+                        font-size: .85rem;
+                    }
+
+                    /* ===== Rentang tanggal ===== */
+                    .date-range-wrapper {
+                        position: relative;
                     }
 
                     .date-range-panel {
                         display: none;
                         position: absolute;
-                        top: calc(100% + 4px);
+                        top: calc(100% + 6px);
                         left: 0;
                         z-index: 1050;
                         background: #fff;
-                        border: 1px solid #dee2e6;
-                        border-radius: 0.375rem;
-                        padding: 12px;
-                        width: 220px;
+                        border: 1px solid #e5e7eb;
+                        border-radius: .75rem;
+                        box-shadow: 0 .5rem 1.5rem rgba(20, 20, 43, .12);
+                        padding: 14px;
+                        width: 240px;
+                        opacity: 0;
+                        transform: translateY(-4px);
+                        transition: opacity .12s ease, transform .12s ease;
                     }
 
                     .date-range-panel.show {
                         display: block;
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+
+                    /* ===== Toggle "hanya yang telat" ===== */
+                    .overdue-toggle {
+                        display: flex;
+                        align-items: center;
+                        height: calc(1.5em + .5rem + 2px);
+                        padding: 0 .75rem;
+                        background: #fff;
+                        border: 1px solid #dfe3e9;
+                        border-radius: .5rem;
+                        transition: background-color .15s ease, border-color .15s ease;
+                    }
+
+                    .overdue-toggle:has(#filterOverdue:checked) {
+                        background: var(--bs-danger-bg-subtle, #f8d7da);
+                        border-color: var(--bs-danger-border-subtle, #f1aeb5);
+                    }
+
+                    .overdue-toggle .form-check {
+                        margin: 0;
+                    }
+
+                    .overdue-toggle .form-check-label {
+                        color: #6c757d;
+                        font-weight: 500;
+                        white-space: nowrap;
+                    }
+
+                    .overdue-toggle:has(#filterOverdue:checked) .form-check-label {
+                        color: var(--bs-danger);
+                    }
+
+                    @media (max-width: 575.98px) {
+                        .filter-toolbar .filter-group-search {
+                            max-width: none;
+                        }
                     }
                 </style>
 
-                <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                <div class="filter-toolbar-card">
 
-                    <!-- Search -->
-                    <div class="input-group input-group-sm shadow-sm flex-nowrap">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="bi bi-search text-muted"></i>
-                        </span>
-                        <input type="text" id="customSearch" class="form-control border-start-0"
-                            placeholder="Cari...">
+                    <div class="filter-toolbar-eyebrow">
+                        <div class="filter-toolbar-eyebrow-label">
+                            <i class="bi bi-sliders"></i>
+                            <span>Filter Data</span>
+                        </div>
+
+                        <button type="button" class="btn-sm btn border-secondary bg-white border"
+                            id="resetFilterInline" title="Reset Filter">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+                                <path d="M0 0h21v21H0z" fill="none" />
+                                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                    <path d="M7.5 6.5h-4v-4" />
+                                </g>
+                            </svg>
+                        </button>
                     </div>
 
-                    <!-- Rentang Tanggal Instruksi Kirim -->
-                    <div class="date-range-wrapper" style="position: relative;">
-                        <input type="text" class="form-control form-control-sm shadow-sm w-100" id="filterDateRange"
-                            placeholder="Pilih rentang tanggal" title="Rentang Tanggal Instruksi Kirim" readonly
-                            autocomplete="off">
+                    <div class="filter-toolbar">
 
-                        <div class="date-range-panel shadow" id="dateRangePanel">
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Dari</label>
-                                <input type="date" class="form-control form-control-sm" id="filterStartDate">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Sampai</label>
-                                <input type="date" class="form-control form-control-sm" id="filterEndDate">
-                            </div>
-                            <div class="d-flex justify-content-end gap-2 mt-2">
-                                <button type="button" class="btn btn-sm btn-primary" id="dateRangeApply">
-                                    Terapkan
-                                </button>
+                        <!-- Search -->
+                        <div class="filter-group filter-group-search">
+                            <label class="filter-label" for="customSearch">Cari</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-search text-muted"></i>
+                                </span>
+                                <input type="text" id="customSearch" class="form-control border-start-0"
+                                    placeholder="No. SO, customer, kode barang...">
                             </div>
                         </div>
+
+                        <!-- Filter Status Pengiriman -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterStatus">Status</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-truck text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0" id="filterStatus">
+                                    <option value="">Semua Status</option>
+                                    <option value="belum_picking">Belum Picking</option>
+                                    <option value="sudah_picking">Sudah Picking</option>
+                                    <option value="sudah_dikirim">Sudah Dikirim</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Filter Customer -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterCustomer">Customer</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-building text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0" id="filterCustomer">
+                                    <option value="">Semua Customer</option>
+                                    @foreach ($customers as $customer)
+                                        <option value="{{ $customer }}">{{ $customer }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Pilihan jenis tanggal yang mau difilter -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterDateType">Jenis Tanggal</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-calendar-event text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0" id="filterDateType">
+                                    <option value="delivery_instruction_date">Tgl Instruksi Kirim</option>
+                                    <option value="picking_date">Tgl Picking</option>
+                                    <option value="delivery_date">Tgl Kirim</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Rentang Tanggal (mengikuti jenis tanggal yang dipilih) -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterDateRange">Rentang Tanggal</label>
+                            <div class="date-range-wrapper">
+                                <div class="input-group input-group-sm shadow-sm">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="bi bi-calendar-range text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="filterDateRange"
+                                        placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly
+                                        autocomplete="off">
+                                </div>
+
+                                <div class="date-range-panel" id="dateRangePanel">
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-1 text-muted">Dari</label>
+                                        <input type="date" class="form-control form-control-sm" id="filterStartDate">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-1 text-muted">Sampai</label>
+                                        <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button type="button" class="btn btn-sm btn-primary w-100" id="dateRangeApply">
+                                            Terapkan
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
                 </div>
@@ -1043,6 +1223,10 @@
                         data: function(d) {
                             d.start_date = appliedStartDate;
                             d.end_date = appliedEndDate;
+                            d.status = $('#filterStatus').val();
+                            d.customer = $('#filterCustomer').val();
+                            d.date_type = $('#filterDateType').val();
+                            d.overdue = $('#filterOverdue').is(':checked') ? 1 : 0;
                         }
                     },
 
@@ -1148,6 +1332,50 @@
                     updateExportUrl();
                 });
 
+                $('#filterStatus').on('change', function() {
+                    setActiveStatCard($(this).val());
+                    table.ajax.reload();
+                    updateExportUrl();
+                });
+
+                $('#filterCustomer').on('change', function() {
+                    table.ajax.reload();
+                    updateExportUrl();
+                });
+
+                $('#filterDateType').on('change', function() {
+                    // kalau rentang tanggal sudah diisi, reload pakai kolom tanggal yang baru
+                    if (appliedStartDate || appliedEndDate) {
+                        table.ajax.reload();
+                        updateExportUrl();
+                    }
+                });
+
+                $('#filterOverdue').on('change', function() {
+                    table.ajax.reload();
+                    updateExportUrl();
+                });
+
+                // Klik card ringkasan langsung filter status
+                $('.stat-card-clickable').on('click', function() {
+                    const status = $(this).data('status') || '';
+                    $('#filterStatus').val(status).trigger('change');
+                });
+
+                setActiveStatCard('');
+
+                function setActiveStatCard(status) {
+                    $('.stat-card-clickable').removeClass('stat-card-active');
+                    if (status === 'sudah_picking') {
+                        $('#statCardPicking').addClass('stat-card-active');
+                    } else if (status === 'sudah_dikirim') {
+                        $('#statCardDikirim').addClass('stat-card-active');
+                    } else if (status === '') {
+                        $('#statCardAll').addClass('stat-card-active');
+                    }
+                    // status 'belum_picking' tidak punya card khusus, jadi tidak ada yang di-highlight
+                }
+
                 $('#customLength').change(function() {
                     table.page.len($(this).val()).draw();
                 });
@@ -1157,6 +1385,11 @@
                     $('#filterEndDate').val('');
                     $('#filterDateRange').val('');
                     $('#customSearch').val('');
+                    $('#filterStatus').val('');
+                    setActiveStatCard('');
+                    $('#filterCustomer').val('');
+                    $('#filterDateType').val('delivery_instruction_date');
+                    $('#filterOverdue').prop('checked', false);
 
                     appliedStartDate = '';
                     appliedEndDate = '';
@@ -1164,6 +1397,11 @@
                     table.search('').draw();
                     updateExportUrl();
                     table.ajax.reload();
+                });
+
+                // Tombol reset icon-only di panel filter memicu logic yang sama
+                $('#resetFilterInline').on('click', function() {
+                    $('#resetFilter').trigger('click');
                 });
 
                 $('#excelFileStagingOut').on('change', function() {
@@ -1417,12 +1655,20 @@
                 let start = appliedStartDate;
                 let end = appliedEndDate;
                 let search = $('#customSearch').val().trim();
+                let status = $('#filterStatus').val();
+                let customer = $('#filterCustomer').val();
+                let dateType = $('#filterDateType').val();
+                let overdue = $('#filterOverdue').is(':checked') ? 1 : 0;
 
                 let url = new URL("{{ route('stagings-out.export') }}");
 
                 if (start) url.searchParams.append('start_date', start);
                 if (end) url.searchParams.append('end_date', end);
                 if (search) url.searchParams.append('search', search);
+                if (status) url.searchParams.append('status', status);
+                if (customer) url.searchParams.append('customer', customer);
+                if (start || end) url.searchParams.append('date_type', dateType);
+                if (overdue) url.searchParams.append('overdue', overdue);
 
                 $('#exportBtn').attr('href', url.toString());
             }

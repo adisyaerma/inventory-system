@@ -40,12 +40,36 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
 
         $query = StagingOut::query();
 
+        // 1. Status
+        if ($this->request->status === 'belum_picking') {
+            $query->whereNull('picking_date');
+        } elseif ($this->request->status === 'sudah_picking') {
+            $query->whereNotNull('picking_date')->whereNull('delivery_date');
+        } elseif ($this->request->status === 'sudah_dikirim') {
+            $query->whereNotNull('delivery_date');
+        }
+
+        // 2. Customer
+        if ($this->request->filled('customer')) {
+            $query->where('customer', $this->request->customer);
+        }
+
+        // 3. Rentang tanggal — mengikuti date_type yang dipilih (sama seperti data())
+        $dateColumn = in_array($this->request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date'])
+            ? $this->request->date_type
+            : 'delivery_instruction_date';
+
         if ($this->request->filled('start_date')) {
-            $query->whereDate('delivery_instruction_date', '>=', $this->request->start_date);
+            $query->whereDate($dateColumn, '>=', $this->request->start_date);
         }
 
         if ($this->request->filled('end_date')) {
-            $query->whereDate('delivery_instruction_date', '<=', $this->request->end_date);
+            $query->whereDate($dateColumn, '<=', $this->request->end_date);
+        }
+
+        // 4. Overdue
+        if ($this->request->overdue == 1) {
+            $query->whereDate('delivery_instruction_date', '<', now())->whereNull('delivery_date');
         }
 
         if ($this->request->filled('search')) {

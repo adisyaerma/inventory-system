@@ -18,6 +18,7 @@ class StagingOutController extends Controller
         $totalEntry = StagingOut::count();
 
         $totalQty = StagingOut::sum('qty');
+        $customers = StagingOut::select('customer')->distinct()->orderBy('customer')->pluck('customer');
 
         $sudahPicking = StagingOut::whereNotNull('picking_date')->count();
 
@@ -27,7 +28,8 @@ class StagingOutController extends Controller
             'totalEntry',
             'totalQty',
             'sudahPicking',
-            'sudahDikirim'
+            'sudahDikirim',
+            'customers'
         ));
     }
 
@@ -38,12 +40,35 @@ class StagingOutController extends Controller
     {
         $query = StagingOut::query()->orderByDesc('id');
 
-        if ($request->filled('start_date')) {
-            $query->whereDate('delivery_instruction_date', '>=', $request->start_date);
+        // 1. Status
+        if ($request->status === 'belum_picking') {
+            $query->whereNull('picking_date');
+        } elseif ($request->status === 'sudah_picking') {
+            $query->whereNotNull('picking_date')->whereNull('delivery_date');
+        } elseif ($request->status === 'sudah_dikirim') {
+            $query->whereNotNull('delivery_date');
         }
 
+        // 2. Customer
+        if ($request->filled('customer')) {
+            $query->where('customer', $request->customer);
+        }
+
+        // 3. Rentang tanggal — HANYA satu kolom, sesuai date_type yang dipilih
+        $dateColumn = in_array($request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date'])
+            ? $request->date_type
+            : 'delivery_instruction_date';
+
+        if ($request->filled('start_date')) {
+            $query->whereDate($dateColumn, '>=', $request->start_date);
+        }
         if ($request->filled('end_date')) {
-            $query->whereDate('delivery_instruction_date', '<=', $request->end_date);
+            $query->whereDate($dateColumn, '<=', $request->end_date);
+        }
+
+        // 4. Overdue
+        if ($request->overdue == 1) {
+            $query->whereDate('delivery_instruction_date', '<', now())->whereNull('delivery_date');
         }
 
         return DataTables::eloquent($query)
@@ -55,24 +80,19 @@ class StagingOutController extends Controller
             })
 
             ->editColumn('item_code', function ($row) {
-    return $row->item_code ?: '-';
-})
-
-->filterColumn('item_code', function ($query, $keyword) {
-    $query->where('item_code', 'like', "%{$keyword}%");
-})
-
-->orderColumn('item_code', 'item_code $1')
-
-->editColumn('line_item', function ($row) {
-    return $row->line_item ?: '-';
-})
-
-->filterColumn('line_item', function ($query, $keyword) {
-    $query->where('line_item', 'like', "%{$keyword}%");
-})
-
-->orderColumn('line_item', 'line_item $1')
+                return $row->item_code ?: '-';
+            })
+            ->filterColumn('item_code', function ($query, $keyword) {
+                $query->where('item_code', 'like', "%{$keyword}%");
+            })
+            ->orderColumn('item_code', 'item_code $1')
+            ->editColumn('line_item', function ($row) {
+                return $row->line_item ?: '-';
+            })
+            ->filterColumn('line_item', function ($query, $keyword) {
+                $query->where('line_item', 'like', "%{$keyword}%");
+            })
+            ->orderColumn('line_item', 'line_item $1')
 
             ->filterColumn('customer', function ($query, $keyword) {
                 $query->where('customer', 'like', "%{$keyword}%");
@@ -214,7 +234,7 @@ class StagingOutController extends Controller
                 'success' => true,
                 'message' => 'Data berhasil disimpan',
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

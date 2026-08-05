@@ -45,15 +45,15 @@ class StagingInController extends Controller
 
         $days = (int) $arrivalDate->startOfDay()->diffInDays(now()->startOfDay());
 
-        [$color, $label] = match (true) {
-            $days <= 2 => ['success', 'Baru'],
-            $days <= 10 => ['warning', 'Perhatian'],
-            default => ['danger',    'Lama'],
+        $color = match (true) {
+            $days <= 5 => 'success',
+            $days <= 10 => 'warning',
+            default => 'danger',
         };
 
         return '
         <span class="badge bg-'.$color.'-subtle text-'.$color.' mt-1 d-inline-block">
-            '.$days.' hari &middot; '.$label.'
+            '.$days.' hari
         </span>';
     }
 
