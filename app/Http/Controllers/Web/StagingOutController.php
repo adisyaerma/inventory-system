@@ -187,7 +187,7 @@ class StagingOutController extends Controller
 
         return redirect()
             ->route('stagings-out.index')
-            ->with('success', 'Data staging out berhasil diimpor');
+            ->with('success', 'Data staging berhasil diimpor');
     }
 
     /**
@@ -214,6 +214,7 @@ class StagingOutController extends Controller
                 'success' => true,
                 'message' => 'Data berhasil disimpan',
             ]);
+            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

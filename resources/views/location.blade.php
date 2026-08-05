@@ -8,7 +8,29 @@
                 <small class="text-muted">Kelola data lokasi rak penyimpanan barang</small>
             </div>
             <div class="float-end mt-3">
-                <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button" class="btn btn-primary btn-sm">
+
+                <button id="btnResetFilter" type="button"
+                    class="btn btn-sm btn-outline-secondary ">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21" class="me-1">
+
+                        <path d="M0 0h21v21H0z" fill="none" />
+
+                        <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                            stroke-linejoin="round">
+
+                            <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                            <path d="M7.5 6.5h-4v-4" />
+
+                        </g>
+
+                    </svg>
+
+                    Reset
+
+                </button>
+                <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                    class="btn btn-primary btn-sm">
                     <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
                         viewBox="0 0 24 24">
                         <path d="M0 0h24v24H0z" fill="none" />
@@ -16,7 +38,8 @@
                     </svg>
                     Tambah
                 </button>
-                <div class="modal fade" id="addLocationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+                <div class="modal fade" id="addLocationModal" data-bs-backdrop="static" data-bs-keyboard="false"
+                    tabindex="-1">
 
                     <div class="modal-dialog modal-md modal-dialog-centered">
                         <div class="modal-content">
@@ -142,8 +165,8 @@
                                     </button>
 
                                     <button type="submit" class="btn btn-primary btnSaveLocation">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em" height="1em"
-                                            viewBox="0 0 16 16">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em"
+                                            height="1em" viewBox="0 0 16 16">
                                             <path d="M0 0h16v16H0z" fill="none" />
                                             <path fill="currentColor"
                                                 d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z" />
@@ -221,26 +244,6 @@
                         <option value="0">Non Aktif</option>
                     </select>
 
-                    <button id="btnResetFilter" type="button"
-                        class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
-
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-
-                            <path d="M0 0h21v21H0z" fill="none" />
-
-                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                stroke-linejoin="round">
-
-                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                <path d="M7.5 6.5h-4v-4" />
-
-                            </g>
-
-                        </svg>
-
-                        Reset Filter
-
-                    </button>
                 </div>
             </div>
 
@@ -266,18 +269,19 @@
                 </thead>
                 <tbody class="table-border-bottom-0"></tbody>
             </table>
-            <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2" id="tableFooter">
-                    <div class="d-flex align-items-center gap-2" id="lengthWrapper">
-                        <span>Tampilkan</span>
-                        <select id="customLength" class="fonrm-select form-select-sm" style="width:80px">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                        <span>data</span>
-                    </div>
+            <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                id="tableFooter">
+                <div class="d-flex align-items-center gap-2" id="lengthWrapper">
+                    <span>Tampilkan</span>
+                    <select id="customLength" class="fonrm-select form-select-sm" style="width:80px">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span>data</span>
                 </div>
+            </div>
         </div>
     </div>
 
@@ -360,8 +364,8 @@
                                 </div>
 
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="status" id="editStatusNonAktif"
-                                        value="0">
+                                    <input class="form-check-input" type="radio" name="status"
+                                        id="editStatusNonAktif" value="0">
                                     <label class="form-check-label">Non Aktif</label>
                                 </div>
 
@@ -818,7 +822,8 @@
                                     timer: 2000,
                                     showConfirmButton: false,
                                     didOpen: () => {
-                                        document.querySelector('.swal2-container').style
+                                        document.querySelector(
+                                                '.swal2-container').style
                                             .zIndex = '9999999';
                                     }
                                 });
@@ -830,7 +835,8 @@
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Gagal',
-                                    text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                    text: xhr.responseJSON?.message ||
+                                        'Terjadi kesalahan.'
                                 });
 
                             }

@@ -190,10 +190,10 @@ Route::get('/staging-out', [StagingOutController::class, 'index'])
 Route::post('/staging-out', [StagingOutController::class, 'store'])
     ->name('stagings-out.store');
  
-Route::get('/staging-out/{staging}/edit', [StagingOutController::class, 'edit'])
+Route::get('/staging-out/{stagingOut}/edit', [StagingOutController::class, 'edit'])
     ->name('stagings-out.edit');
  
-Route::put('/staging-out/{staging}', [StagingOutController::class, 'update'])
+Route::put('/staging-out/{stagingOut}', [StagingOutController::class, 'update'])
     ->name('stagings-out.update');
  
 Route::delete('/staging-out/bulk/destroy', [StagingOutController::class, 'bulkDestroy'])

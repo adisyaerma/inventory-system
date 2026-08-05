@@ -9,6 +9,27 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * Shared, defensive Excel date parsing — used by every Import class so
  * behaviour stays identical everywhere. Never throws: an unparseable date
  * always comes back as null instead of blocking the row from being saved.
+ *
+ * IMPORTANT CONTEXT:
+ * Source spreadsheets were typed in dd/mm/yyyy (Indonesian) format, but
+ * opened/saved under a locale that reads mm/dd/yyyy. As a result:
+ *
+ *   - If the intended DAY is > 12 (e.g. "24/01/2026"), Excel cannot read
+ *     it as a valid month, so it gives up and stores the cell as plain
+ *     TEXT — still in the original dd/mm/yyyy order. No swap needed here;
+ *     the text-parsing branches below already read day-first correctly.
+ *
+ *   - If the intended DAY is <= 12 (e.g. "05/03/2026", meant to be
+ *     5 March), Excel happily (and wrongly) treats the first number as
+ *     the MONTH and the second as the DAY, and converts the cell into a
+ *     real Date/serial-number type — e.g. it becomes "May 3" instead of
+ *     "March 5". This is the case that was silently saving wrong dates.
+ *
+ * Fix: whenever the cell arrives as an actual date type (DateTimeInterface
+ * or a numeric Excel serial), we swap day <-> month back, because we know
+ * Excel only auto-converts these ambiguous strings when the *original*
+ * day was <= 12 — which guarantees both components are in the 1-12 range
+ * and the swap is always a valid date.
  */
 trait ParsesExcelDates
 {
@@ -23,15 +44,15 @@ trait ParsesExcelDates
         // Passing an object into trim()/is_numeric() below would either
         // throw a TypeError or silently misbehave.
         if ($value instanceof \DateTimeInterface) {
-            return Carbon::instance($value)->startOfDay();
+            return $this->fixAmbiguousDayMonth(Carbon::instance($value))->startOfDay();
         }
 
         // Excel serial number (raw, unformatted date cell).
         if (is_numeric($value)) {
             try {
-                return Carbon::instance(
-                    Date::excelToDateTimeObject($value)
-                )->startOfDay();
+                $date = Carbon::instance(Date::excelToDateTimeObject($value));
+
+                return $this->fixAmbiguousDayMonth($date)->startOfDay();
             } catch (\Throwable $e) {
                 return null;
             }
@@ -113,4 +134,30 @@ trait ParsesExcelDates
 
         return null;
     }
-}
+
+    /**
+     * Correct Excel's mm/dd misinterpretation of an originally dd/mm string.
+     *
+     * Excel only ever auto-converts an ambiguous "dd/mm" string into a real
+     * date when the first number (the intended day) is <= 12 — otherwise it
+     * can't be read as a valid month and stays as text. That means whenever
+     * we receive an actual Date-typed value here, its current `day`
+     * component is guaranteed to be <= 12, so swapping day <-> month is
+     * always safe and always produces a valid date.
+     *
+     * If `day` is > 12, this was never one of those ambiguous strings in
+     * the first place (e.g. it came from a real date picker / formula), so
+     * we leave it untouched rather than risk corrupting a correct value.
+     */
+    private function fixAmbiguousDayMonth(Carbon $date): Carbon
+    {
+        $day = $date->day;
+        $month = $date->month;
+
+        if ($day > 12) {
+            return $date;
+        }
+
+        return Carbon::create($date->year, $day, $month, 0, 0, 0);
+    }
+}           
