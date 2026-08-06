@@ -621,14 +621,11 @@
 
                     .filter-toolbar {
                         display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-                        gap: .65rem;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: .75rem 1rem;
                         align-items: end;
                     }
 
-                    .filter-toolbar .filter-group-search {
-                        max-width: 220px;
-                    }
 
                     .filter-label {
                         display: block;
@@ -720,9 +717,21 @@
                         color: var(--bs-danger);
                     }
 
+                    @media (max-width: 1199.98px) {
+                        .filter-toolbar {
+                            grid-template-columns: repeat(3, 1fr);
+                        }
+                    }
+
+                    @media (max-width: 991.98px) {
+                        .filter-toolbar {
+                            grid-template-columns: repeat(2, 1fr);
+                        }
+                    }
+
                     @media (max-width: 575.98px) {
-                        .filter-toolbar .filter-group-search {
-                            max-width: none;
+                        .filter-toolbar {
+                            grid-template-columns: 1fr;
                         }
                     }
                 </style>
@@ -770,7 +779,7 @@
                                     <i class="bi bi-truck text-muted"></i>
                                 </span>
                                 <select class="form-select border-start-0" id="filterStatus">
-                                    <option value="">Semua Status</option>
+                                    <option va lue="">Semua Status</option>
                                     <option value="belum_picking">Belum Picking</option>
                                     <option value="sudah_picking">Sudah Picking</option>
                                     <option value="sudah_dikirim">Sudah Dikirim</option>

@@ -46,6 +46,22 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
             $query->where('location', $this->request->location);
         }
 
+        if ($this->request->filled('status')) {
+            $query->where('status', $this->request->status);
+        }
+
+        if ($this->request->filled('incoterms')) {
+            $query->where('incoterms', $this->request->incoterms);
+        }
+
+        if ($this->request->filled('item_owner')) {
+            $query->where('item_owner', $this->request->item_owner);
+        }
+
+        if ($this->request->filled('supplier_origin')) {
+            $query->where('supplier_origin', $this->request->supplier_origin);
+        }
+
         if ($this->request->filled('start_date')) {
             $query->whereDate('arrival_date', '>=', $this->request->start_date);
         }

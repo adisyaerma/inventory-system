@@ -29,11 +29,32 @@ class StagingInController extends Controller
             'Temporary hold / repair 3',
         ])->count();
 
+        $statusOptions = StagingIn::whereNotNull('status')
+            ->where('status', '!=', '')
+            ->distinct()
+            ->orderBy('status')
+            ->pluck('status');
+
+        $ownerOptions = StagingIn::whereNotNull('item_owner')
+            ->where('item_owner', '!=', '')
+            ->distinct()
+            ->orderBy('item_owner')
+            ->pluck('item_owner');
+
+        $supplierOptions = StagingIn::whereNotNull('supplier_origin')
+            ->where('supplier_origin', '!=', '')
+            ->distinct()
+            ->orderBy('supplier_origin')
+            ->pluck('supplier_origin');
+
         return view('staging_in', compact(
             'totalEntry',
             'totalQty',
             'inboundShipment',
-            'holdRepair'
+            'holdRepair',
+            'statusOptions',
+            'ownerOptions',
+            'supplierOptions'
         ));
     }
 
@@ -66,6 +87,22 @@ class StagingInController extends Controller
 
         if ($request->filled('location')) {
             $query->where('location', $request->location);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('incoterms')) {
+            $query->where('incoterms', $request->incoterms);
+        }
+
+        if ($request->filled('item_owner')) {
+            $query->where('item_owner', $request->item_owner);
+        }
+
+        if ($request->filled('supplier_origin')) {
+            $query->where('supplier_origin', $request->supplier_origin);
         }
 
         if ($request->filled('start_date')) {
@@ -236,7 +273,7 @@ class StagingInController extends Controller
      */
     public function export(Request $request)
     {
-        return Excel::download(new StagingInExport($request), 'staging.xlsx');
+        return Excel::download(new StagingInExport($request), 'staging_in.xlsx');
     }
 
     public function import(Request $request)

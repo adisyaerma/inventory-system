@@ -547,18 +547,6 @@
                         <span class="d-none d-md-inline ms-1">Export</span>
                     </a>
 
-                    <button class="btn btn-sm border-secondary bg-white border" id="resetFilter" title="Reset Filter">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-                            <path d="M0 0h21v21H0z" fill="none" />
-                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                <path d="M7.5 6.5h-4v-4" />
-                            </g>
-                        </svg>
-                        <span class="d-none d-md-inline ms-1">Reset</span>
-                    </button>
-
                     <button data-bs-toggle="modal" data-bs-target="#addMutationModal" type="button"
                         class="btn btn-sm btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
@@ -735,92 +723,196 @@
             <div class="container-fluid px-5">
 
                 <style>
+                    .filter-toolbar-card {
+                        background: #f8f9fb;
+                        border: 1px solid #eceef2;
+                        border-radius: 1rem;
+                        padding: 1rem 1.1rem;
+                        margin-bottom: 1rem;
+                    }
+
+                    .filter-toolbar-eyebrow {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: .5rem;
+                        margin-bottom: .75rem;
+                        color: #6c757d;
+                        font-size: .8rem;
+                        font-weight: 600;
+                        letter-spacing: .02em;
+                        text-transform: uppercase;
+                    }
+
+                    .filter-toolbar-eyebrow .filter-toolbar-eyebrow-label {
+                        display: flex;
+                        align-items: center;
+                        gap: .5rem;
+                    }
+
+                    .filter-toolbar-eyebrow i {
+                        color: var(--bs-primary);
+                    }
+
                     .filter-toolbar {
-                        --gap: 0.5rem;
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: .75rem 1rem;
+                        align-items: end;
                     }
 
-                    .filter-toolbar>* {
-                        flex: 1 1 calc(25% - var(--gap));
-                        max-width: 260px;
-                        min-width: 150px;
+                    .filter-label {
+                        display: block;
+                        font-size: .72rem;
+                        font-weight: 600;
+                        color: #8a93a3;
+                        text-transform: uppercase;
+                        letter-spacing: .02em;
+                        margin-bottom: .3rem;
                     }
 
-                    .filter-toolbar .btn-reset-wrapper {
-                        flex: 0 0 auto;
+                    .filter-toolbar .input-group {
+                        border-radius: .5rem;
+                        overflow: hidden;
+                        transition: box-shadow .15s ease;
+                    }
+
+                    .filter-toolbar .input-group:focus-within {
+                        box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
+                    }
+
+                    .filter-toolbar .input-group-text,
+                    .filter-toolbar .form-control,
+                    .filter-toolbar .form-select {
+                        border-color: #dfe3e9;
+                    }
+
+                    .filter-toolbar .form-select,
+                    .filter-toolbar .form-control {
+                        font-size: .85rem;
+                    }
+
+                    @media (max-width: 1199.98px) {
+                        .filter-toolbar {
+                            grid-template-columns: repeat(3, 1fr);
+                        }
                     }
 
                     @media (max-width: 991.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 calc(50% - var(--gap));
-                            max-width: 320px;
+                        .filter-toolbar {
+                            grid-template-columns: repeat(2, 1fr);
                         }
                     }
 
                     @media (max-width: 575.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 100%;
-                            max-width: 100%;
-                        }
-
-                        .filter-toolbar #resetFilter {
-                            width: 100%;
-                            justify-content: center;
+                        .filter-toolbar {
+                            grid-template-columns: 1fr;
                         }
                     }
                 </style>
 
-                <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                <div class="filter-toolbar-card">
 
-                    <!-- Search -->
-                    <div class="input-group input-group-sm shadow-sm flex-nowrap">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="bi bi-search text-muted"></i>
-                        </span>
-                        <input type="text" id="customSearch" class="form-control border-start-0"
-                            placeholder="Cari...">
+                    <div class="filter-toolbar-eyebrow">
+                        <div class="filter-toolbar-eyebrow-label">
+                            <i class="bi bi-sliders"></i>
+                            <span>Filter Data</span>
+                        </div>
+
+                        <button type="button" class="btn-sm btn border-secondary bg-white border" id="resetFilter"
+                            title="Reset Filter">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
+                                <path d="M0 0h21v21H0z" fill="none" />
+                                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
+                                    <path d="M7.5 6.5h-4v-4" />
+                                </g>
+                            </svg>
+                        </button>
                     </div>
 
-                    <!-- Rentang Tanggal -->
-                    <div class="date-range-wrapper" style="position: relative;">
-                        <input type="text" class="form-control form-control-sm shadow-sm w-100" id="filterDateRange"
-                            placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly autocomplete="off">
+                    <div class="filter-toolbar">
 
-                        <div class="date-range-panel shadow" id="dateRangePanel">
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Dari</label>
-                                <input type="date" class="form-control form-control-sm" id="filterStartDate">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Sampai</label>
-                                <input type="date" class="form-control form-control-sm" id="filterEndDate">
-                            </div>
-                            <div class="d-flex justify-content-end gap-2 mt-2">
-
-                                <button type="button" class="btn btn-sm btn-primary"
-                                    id="dateRangeApply">Terapkan</button>
+                        <!-- Search -->
+                        <div class="filter-group filter-group-search">
+                            <label class="filter-label" for="customSearch">Cari</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-search text-muted"></i>
+                                </span>
+                                <input type="text" id="customSearch" class="form-control border-start-0"
+                                    placeholder="Cari...">
                             </div>
                         </div>
+
+                        <!-- Rentang Tanggal -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterDateRange">Rentang Tanggal</label>
+                            <div class="date-range-wrapper" style="position: relative;">
+                                <div class="input-group input-group-sm shadow-sm">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="bi bi-calendar-range text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="filterDateRange"
+                                        placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly
+                                        autocomplete="off">
+                                </div>
+
+                                <div class="date-range-panel shadow" id="dateRangePanel">
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-1 text-muted">Dari</label>
+                                        <input type="date" class="form-control form-control-sm" id="filterStartDate">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-1 text-muted">Sampai</label>
+                                        <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button type="button" class="btn btn-sm btn-primary w-100"
+                                            id="dateRangeApply">
+                                            Terapkan
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Jenis Transaksi -->
+                        {{-- <div class="filter-group">
+                            <label class="filter-label" for="filterTransaction">Jenis Transaksi</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-arrow-left-right text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0" id="filterTransaction" title="Jenis Transaksi">
+                                    <option value="">Semua Transaksi</option>
+                                    @foreach ($transactionTypes as $type)
+                                        <option value="{{ $type }}">{{ $type }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div> --}}
+
+                        <!-- Lokasi (Select2) -->
+                        {{-- <div class="filter-group">
+                            <label class="filter-label" for="filterLocation">Lokasi</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-geo-alt text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0 w-100" id="filterLocation">
+                                    <option value="">Semua Lokasi</option>
+                                    @foreach ($locations as $location)
+                                        <option value="{{ $location->id }}" data-name="{{ $location->location_name }}">
+                                            {{ $location->location_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div> --}}
+
                     </div>
-
-                    <!-- Jenis Transaksi -->
-                    {{-- <select class="form-select form-select-sm shadow-sm" id="filterTransaction" title="Jenis Transaksi">
-                        <option value="">Semua Transaksi</option>
-                        @foreach ($transactionTypes as $type)
-                            <option value="{{ $type }}">{{ $type }}</option>
-                        @endforeach
-                    </select> --}}
-
-                    <!-- Lokasi (Select2) -->
-                    {{-- <div class="shadow-sm" title="Lokasi">
-                        <select class="form-select form-select-sm w-100" id="filterLocation">
-                            <option value="">Semua Lokasi</option>
-                            @foreach ($locations as $location)
-                                <option value="{{ $location->id }}" data-name="{{ $location->location_name }}">
-                                    {{ $location->location_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div> --}}
 
                 </div>
 
@@ -1383,13 +1475,6 @@
                 height: 29px !important;
             }
 
-            /* Responsive: full width di layar kecil */
-            @media (max-width: 768px) {
-                .filter-toolbar>* {
-                    width: 100% !important;
-                    max-width: 100% !important;
-                }
-            }
         </style>
         <script>
             // ============ VARIABEL GLOBAL FILTER TANGGAL ============

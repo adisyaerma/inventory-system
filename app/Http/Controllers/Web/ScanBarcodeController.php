@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Staging;
+use App\Models\StagingIn;
 use Illuminate\Http\Request;
 
 class ScanBarcodeController extends Controller
@@ -57,12 +57,12 @@ class ScanBarcodeController extends Controller
             ]);
         }
 
-        $stagingLocation = Staging::whereRaw('LOWER(location) = ?', [$keyword])
+        $stagingLocation = StagingIn::whereRaw('LOWER(location) = ?', [$keyword])
             ->orWhereRaw('LOWER(location) LIKE ?', ['%' . $keyword . '%'])
             ->value('location');
 
         if ($stagingLocation) {
-            $stagings = Staging::whereRaw('LOWER(location) = ?', [strtolower($stagingLocation)])
+            $stagings = StagingIn::whereRaw('LOWER(location) = ?', [strtolower($stagingLocation)])
                 ->orderByDesc('arrival_date')
                 ->get();
 
