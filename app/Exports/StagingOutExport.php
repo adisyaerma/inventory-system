@@ -40,7 +40,6 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
 
         $query = StagingOut::query();
 
-        // 1. Status
         if ($this->request->status === 'belum_picking') {
             $query->whereNull('picking_date');
         } elseif ($this->request->status === 'sudah_picking') {
@@ -49,12 +48,10 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             $query->whereNotNull('delivery_date');
         }
 
-        // 2. Customer
         if ($this->request->filled('customer')) {
             $query->where('customer', $this->request->customer);
         }
 
-        // 3. Rentang tanggal — mengikuti date_type yang dipilih (sama seperti data())
         $dateColumn = in_array($this->request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date'])
             ? $this->request->date_type
             : 'delivery_instruction_date';
@@ -67,7 +64,6 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             $query->whereDate($dateColumn, '<=', $this->request->end_date);
         }
 
-        // 4. Overdue
         if ($this->request->overdue == 1) {
             $query->whereDate('delivery_instruction_date', '<', now())->whereNull('delivery_date');
         }
@@ -113,6 +109,13 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
                 $sheet = $event->sheet->getDelegate();
 
                 $lastRow = $sheet->getHighestRow();
+
+                 $sheet->getStyle('A1:I1')
+                    ->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                        ],
+                    ]);
 
                 $sheet->getStyle("A1:I{$lastRow}")
                     ->applyFromArray([

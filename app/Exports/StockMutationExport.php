@@ -150,6 +150,12 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             AfterSheet::class => function (AfterSheet $event) {
 
                 $sheet = $event->sheet->getDelegate();
+                $sheet->getStyle('A1:I1')
+                    ->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                        ]
+                    ]);
 
                 foreach ($this->mergeRanges as [$start, $end]) {
 

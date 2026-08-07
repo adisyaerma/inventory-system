@@ -229,8 +229,7 @@
                 `;
 
                     } else {
-
-                        // ==== ITEM DARI TABEL LOCATIONS (STOCK REGULER) ====
+                            // item dari tabel untuk stok manual
                         stocksHtml += `
 
                 <div class="card border border-light shadow-sm mb-3 stock-item">

@@ -117,6 +117,12 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
                 $sheet = $event->sheet->getDelegate();
 
                 $lastRow = $sheet->getHighestRow();
+                $sheet->getStyle('A1:K1')
+                    ->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                        ],
+                    ]);
 
                 $sheet->getStyle("A1:K{$lastRow}")
                     ->applyFromArray([

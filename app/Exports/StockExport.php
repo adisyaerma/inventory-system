@@ -127,6 +127,13 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
 
                 $lastRow = $sheet->getHighestRow();
 
+                $sheet->getStyle('A1:H1')
+                    ->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                        ],
+                    ]);
+
                 $sheet->getStyle("A1:H{$lastRow}")
                     ->applyFromArray([
                         'borders' => [
