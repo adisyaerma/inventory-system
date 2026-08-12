@@ -119,6 +119,28 @@ class StagingInImport implements ToCollection, WithHeadingRow
         return null;
     }
 
+    /**
+     * Match the status cell against the known list of statuses,
+     * tolerant of case and surrounding whitespace. Returns the canonical
+     * value (as defined in StagingIn::STATUSES), or null if it's empty or
+     * doesn't match anything — an unmatched status is saved as null
+     * rather than rejecting the row.
+     */
+    private function resolveStatus(?string $status): ?string
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        foreach (StagingIn::STATUSES as $valid) {
+            if (strcasecmp($valid, $status) === 0) {
+                return $valid;
+            }
+        }
+
+        return null;
+    }
+
     public function collection(Collection $rows)
     {
         $this->errors = [];
@@ -135,16 +157,17 @@ class StagingInImport implements ToCollection, WithHeadingRow
             $itemOwner = $this->cleanValue($row['owner'] ?? null);
             $notes = $this->cleanValue($row['keterangan'] ?? null);
             $rawLocation = $this->cleanValue($row['lokasi'] ?? null);
-            $status = $this->cleanValue($row['status'] ?? null);
+            $rawStatus = $this->cleanValue($row['status'] ?? null);
             $rawIncoterms = $this->cleanValue($row['incoterms'] ?? null);
             $qty = $this->parseQty($row['qty'] ?? null);
             $arrivalDate = $this->parseDate($row['tanggal_kedatangan'] ?? null);
             $location = $this->resolveLocation($rawLocation);
             $incoterms = $this->resolveIncoterms($rawIncoterms);
+            $status = $this->resolveStatus($rawStatus);
 
             if ($poNumber === null && $itemCode === null && $itemName === null
                 && $supplierOrigin === null && $itemOwner === null && $rawLocation === null
-                && $notes === null && $arrivalDate === null && $qty === 0 && $status === null
+                && $notes === null && $arrivalDate === null && $qty === 0 && $rawStatus === null
                 && $rawIncoterms === null) {
                 continue;
             }
@@ -176,7 +199,7 @@ class StagingInImport implements ToCollection, WithHeadingRow
                     'Nama Barang : '.($itemName ?? '-')."\n".
                     'Lokasi      : '.($rawLocation ?? '-')."\n".
                     'Incoterms   : '.($rawIncoterms ?? '-')."\n".
-                    'Status      : '.($status ?? '-')."\n".
+                    'Status      : '.($rawStatus ?? '-')."\n".
                     'Qty         : '.$qty."\n".
                     'Error       : '.$e->getMessage();
 

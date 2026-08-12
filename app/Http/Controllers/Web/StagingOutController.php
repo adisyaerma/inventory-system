@@ -24,6 +24,10 @@ class StagingOutController extends Controller
 
         $sudahDikirim = StagingOut::whereNotNull('delivery_date')->count();
 
+        $belumPicking = StagingOut::whereNull('picking_date')->count();
+
+        $belumDikirim = StagingOut::whereNull('delivery_date')->count();
+
         return view('staging_out', compact(
             'totalEntry',
             'totalQty',
@@ -43,8 +47,13 @@ class StagingOutController extends Controller
         // 1. Status
         if ($request->status === 'belum_picking') {
             $query->whereNull('picking_date');
+
         } elseif ($request->status === 'sudah_picking') {
-            $query->whereNotNull('picking_date')->whereNull('delivery_date');
+            $query->whereNotNull('picking_date');
+
+        } elseif ($request->status === 'belum_dikirim') {
+            $query->whereNull('delivery_date');
+
         } elseif ($request->status === 'sudah_dikirim') {
             $query->whereNotNull('delivery_date');
         }
@@ -105,11 +114,45 @@ class StagingOutController extends Controller
             })
 
             ->editColumn('picking_date', function ($row) {
-                return optional($row->picking_date)->format('d M Y') ?: '-';
+
+                if ($row->picking_date) {
+                    return optional($row->picking_date)->format('d M Y');
+                }
+
+                return '
+                <button type="button"
+                    class="btn btn-sm btn-confirm-picking btnConfirmPicking"
+                    data-id="'.$row->id.'"
+                    data-bs-toggle="modal"
+                    data-bs-target="#confirmPickingModal">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="me-1">
+                        <path d="M0 0h24v24H0z" fill="none"/>
+                        <path fill="currentColor" d="M20 3H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1M9 17l-4-4l1.41-1.41L9 14.17l7.59-7.59L18 8z"/>
+                    </svg>
+                    Konfirmasi Picking
+                </button>';
             })
 
             ->editColumn('delivery_date', function ($row) {
-                return optional($row->delivery_date)->format('d M Y') ?: '-';
+
+                if ($row->delivery_date) {
+                    return optional($row->delivery_date)->format('d M Y');
+                }
+
+                return '
+                <button type="button"
+                    class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
+                    data-id="'.$row->id.'"
+                    data-bs-toggle="modal"
+                    data-bs-target="#confirmDeliveryModal">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="me-1">
+                        <path d="M0 0h24v24H0z" fill="none"/>
+                        <path fill="currentColor" d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5m13.5-9l1.96 2.5H17V9.5zM18 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5"/>
+                    </svg>
+                    Konfirmasi Kirim
+                </button>';
             })
 
             ->editColumn('do_number', function ($row) {
@@ -162,6 +205,8 @@ class StagingOutController extends Controller
             ->rawColumns([
                 'checkbox',
                 'item',
+                'picking_date',
+                'delivery_date',
                 'action',
             ])
 
@@ -193,9 +238,6 @@ class StagingOutController extends Controller
         ]);
 
         try {
-
-            // Hapus semua data lama secara eksplisit sebelum import,
-            // tidak lagi bergantung pada event BeforeImport.
             StagingOut::query()->truncate();
 
             Excel::import(new StagingOutImport, $request->file('file'));
@@ -284,7 +326,7 @@ class StagingOutController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Staging out berhasil diperbarui.',
+                'message' => 'Data berhasil diperbarui.',
             ]);
         } catch (\Exception $e) {
             return response()->json([

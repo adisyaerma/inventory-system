@@ -6,9 +6,15 @@ use App\Exports\StagingInExport;
 use App\Exports\StagingInTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StagingInImport;
+use App\Models\Location;
+use App\Models\LocationStock;
 use App\Models\StagingIn;
+use App\Models\StagingOut;
+use App\Models\Stock;
+use App\Models\StockMutation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
@@ -180,10 +186,34 @@ class StagingInController extends Controller
             ->addColumn('action', function ($row) {
 
                 return '
-            <div class="d-flex align-items-center gap-1">
+            <div class="">
 
                 <button
-                    class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
+                    class="btn btn-sm bg-success bg-opacity-10 text-success rounded-3 border-0 btnMove mb-1"
+                    type="button"
+                    data-id="'.$row->id.'"
+                    data-code="'.e($row->item_code).'"
+                    data-name="'.e($row->item_name).'"
+                    data-po="'.e($row->po_number).'"
+                    data-owner="'.e($row->item_owner).'"
+                    data-supplier="'.e($row->supplier_origin).'"
+                    data-qty="'.$row->qty.'"
+                    data-location="'.e($row->location).'"
+                    data-arrival="'.($row->arrival_date ? $row->arrival_date->format('d M Y') : '-').'"
+                    data-bs-toggle="modal"
+                    data-bs-target="#moveStagingModal"
+                    title="Pindahkan barang">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+                        <path d="M0 0h24v24H0z" fill="none"/>
+                        <path fill="currentColor"
+                            d="M9 3L5 6.99h3V14h2V6.99h3zm7 14.01V10h-2v7.01h-3L15 21l4-3.99z"/>
+                    </svg>
+
+                </button>
+
+                <button
+                    class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit mb-1"
                     type="button"
                     data-id="'.$row->id.'"
                     data-bs-toggle="modal"
@@ -224,7 +254,7 @@ class StagingInController extends Controller
                 'checkbox',
                 'item',
                 'location',
-                'arrival_date',   // <-- tambahkan ini
+                'arrival_date',   
                 'action',
             ])
 
@@ -412,6 +442,309 @@ class StagingInController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Search the stocks table for the "Barang" TomSelect used on the
+     * add/edit staging forms (mirrors StockMutationController::searchStock).
+     */
+    public function searchStock(Request $request)
+    {
+        $keyword = $request->q;
+
+        $stocks = Stock::query()
+            ->with('vendor')
+            ->when($keyword, function ($query) use ($keyword) {
+                $query->where(function ($q) use ($keyword) {
+                    $q->where('item_code_internal', 'like', "%{$keyword}%")
+                        ->orWhere('name', 'like', "%{$keyword}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+
+        return response()->json(
+            $stocks->map(function ($stock) {
+                return [
+                    'id' => $stock->id,
+                    'text' => $stock->item_code_internal.' | '.$stock->name,
+                    'item_code' => $stock->item_code_internal,
+                    'item_name' => $stock->name,
+                    'item_owner' => optional($stock->vendor)->name,
+                ];
+            })
+        );
+    }
+
+    /**
+     * Move a staging item into warehouse stock.
+     *
+     * Because this is triggered directly from the Staging In data, the
+     * corresponding Stock master record and stock mutation history are
+     * filled in automatically instead of asking the user to re-enter the
+     * item in the manual mutation menu. The moved qty is deducted from the
+     * staging entry (or the entry is removed once fully moved), and the
+     * remainder stays in Staging In.
+     */
+    public function moveToStock(Request $request, StagingIn $staging)
+    {
+        $validated = $request->validate([
+            'qty' => ['required', 'integer', 'min:1'],
+            'location' => ['required', 'max:255'],
+            'transaction_date' => ['required', 'date'],
+            'transaction_number' => ['nullable', 'max:100'],
+            'notes' => ['nullable'],
+        ], [
+            'qty.required' => 'Qty dipindah wajib diisi',
+            'qty.min' => 'Qty dipindah minimal 1',
+            'location.required' => 'Lokasi gudang tujuan wajib dipilih',
+            'transaction_date.required' => 'Tanggal wajib diisi',
+        ]);
+
+        if ($validated['qty'] > $staging->qty) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Qty dipindah melebihi sisa barang di staging in.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Cocokkan/buat master Stock berdasarkan kode barang staging, agar
+            // data barang tidak perlu diinput ulang secara manual.
+            $stock = Stock::firstOrCreate(
+                ['item_code_internal' => $staging->item_code ?: $staging->item_name],
+                [
+                    'name' => $staging->item_name,
+                    'description' => 'Dibuat otomatis dari Staging In'
+                        .($staging->po_number ? ' - PO '.$staging->po_number : ''),
+                ]
+            );
+
+            $location = Location::firstOrCreate([
+                'location_name' => trim($validated['location']),
+            ]);
+
+            LocationStock::firstOrCreate(
+                [
+                    'stock_id' => $stock->id,
+                    'location_id' => $location->id,
+                ],
+                ['quantity' => 0]
+            );
+
+            $mutation = StockMutation::create([
+                'stock_id' => $stock->id,
+                'location_id' => $location->id,
+                'transaction_date' => $validated['transaction_date'],
+                'transaction_number' => $validated['transaction_number'] ?: $staging->po_number,
+                'description' => $validated['notes'] ?? null,
+                'qty_in' => $validated['qty'],
+                'qty_out' => 0,
+                'qty_balance' => 0,
+            ]);
+
+            $this->recalculateLocationStock($stock->id, $location->id, $mutation->id);
+
+            $remaining = $staging->qty - $validated['qty'];
+
+            if ($remaining > 0) {
+                $staging->update(['qty' => $remaining]);
+            } else {
+                $staging->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Barang berhasil dipindahkan ke stok.',
+                'remaining_qty' => max($remaining, 0),
+                'deleted' => $remaining <= 0,
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Move a staging item out directly to a customer (Staging Out).
+     *
+     * Unlike moveToStock, this does not touch warehouse stock/mutation
+     * history - it records a delivery-out entry (staging_outs) instead.
+     * The moved qty is deducted from the staging entry (or the entry is
+     * removed once fully moved), same as moveToStock.
+     */
+    public function moveToStagingOut(Request $request, StagingIn $staging)
+    {
+        $validated = $request->validate([
+            'qty' => ['required', 'integer', 'min:1'],
+            'so_number' => ['required', 'max:255'],
+            'customer' => ['required', 'max:255'],
+            'line_item' => ['required', 'max:255'],
+            'delivery_instruction_date' => ['required', 'date'],
+        ], [
+            'qty.required' => 'Qty dipindah wajib diisi',
+            'qty.min' => 'Qty dipindah minimal 1',
+            'so_number.required' => 'No. SO wajib diisi',
+            'customer.required' => 'Customer wajib diisi',
+            'line_item.required' => 'Line item wajib diisi',
+            'delivery_instruction_date.required' => 'Tanggal delivery instruction wajib diisi',
+        ]);
+
+        if ($validated['qty'] > $staging->qty) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Qty dipindah melebihi sisa barang di staging in.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            StagingOut::create([
+                'so_number' => $validated['so_number'],
+                'customer' => $validated['customer'],
+                'item_code' => $staging->item_code,
+                'line_item' => $validated['line_item'],
+                'qty' => $validated['qty'],
+                'delivery_instruction_date' => $validated['delivery_instruction_date'],
+            ]);
+
+            $remaining = $staging->qty - $validated['qty'];
+
+            if ($remaining > 0) {
+                $staging->update(['qty' => $remaining]);
+            } else {
+                $staging->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Barang berhasil dipindahkan ke staging out.',
+                'remaining_qty' => max($remaining, 0),
+                'deleted' => $remaining <= 0,
+            ]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Recalculate the qty_balance chain for a stock+location starting from
+     * a given mutation onward, and sync LocationStock's running quantity.
+     *
+     * Mirrors StockMutationController::recalculateLocationStock so history
+     * created from Staging In stays consistent with manually entered
+     * mutations (e.g. if the transaction date is backdated before an
+     * existing mutation).
+     */
+    private function recalculateLocationStock($stockId, $locationId, $startMutationId = null)
+    {
+        if ($startMutationId) {
+
+            $startMutation = StockMutation::find($startMutationId);
+
+            if (! $startMutation) {
+                return;
+            }
+
+            $previousMutation = StockMutation::where('stock_id', $stockId)
+                ->where('location_id', $locationId)
+                ->where(function ($q) use ($startMutation) {
+                    $q->where('transaction_date', '<', $startMutation->transaction_date)
+                        ->orWhere(function ($q2) use ($startMutation) {
+                            $q2->where('transaction_date', $startMutation->transaction_date)
+                                ->where('id', '<', $startMutation->id);
+                        });
+                })
+                ->orderByDesc('transaction_date')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($previousMutation) {
+
+                $balance = $previousMutation->qty_balance;
+
+            } else {
+
+                $locationStock = LocationStock::where('stock_id', $stockId)
+                    ->where('location_id', $locationId)
+                    ->first();
+
+                $balance = $locationStock ? $locationStock->opening_balance : 0;
+            }
+
+            $mutations = StockMutation::where('stock_id', $stockId)
+                ->where('location_id', $locationId)
+                ->where(function ($q) use ($startMutation) {
+                    $q->where('transaction_date', '>', $startMutation->transaction_date)
+                        ->orWhere(function ($q2) use ($startMutation) {
+                            $q2->where('transaction_date', $startMutation->transaction_date)
+                                ->where('id', '>=', $startMutation->id);
+                        });
+                })
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
+
+        } else {
+
+            $balance = 0;
+
+            $mutations = StockMutation::where('stock_id', $stockId)
+                ->where('location_id', $locationId)
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
+        }
+
+        foreach ($mutations as $mutation) {
+
+            $balance += $mutation->qty_in;
+            $balance -= $mutation->qty_out;
+
+            $mutation->update([
+                'qty_balance' => $balance,
+            ]);
+        }
+
+        LocationStock::updateOrCreate(
+            [
+                'stock_id' => $stockId,
+                'location_id' => $locationId,
+            ],
+            [
+                'quantity' => $balance,
+            ]
+        );
+    }
+
+    /**
+     * Return the list of warehouse locations for the "pindahkan ke stok"
+     * destination select.
+     */
+    public function warehouseLocations()
+    {
+        return response()->json(
+            Location::orderBy('location_name')->pluck('location_name')
+        );
     }
 
     /**

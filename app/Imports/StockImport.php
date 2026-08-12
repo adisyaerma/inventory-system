@@ -41,8 +41,10 @@ class StockImport implements ToCollection, WithHeadingRow
                 if (! empty($row['vendor'])) {
                     $vendorName = trim($row['vendor']);
 
-                    $vendor = Vendor::whereRaw('LOWER(name) = ?', [strtolower($vendorName)])
-                        ->first();
+                    $vendor = Vendor::whereRaw(
+                        'LOWER(name) = ?',
+                        [strtolower($vendorName)]
+                    )->first();
 
                     if (! $vendor) {
                         $vendor = Vendor::create([
@@ -60,17 +62,25 @@ class StockImport implements ToCollection, WithHeadingRow
                     'description' => $row['description'] ?? null,
                 ]);
 
-                $locations = array_map('trim', preg_split('/[\/,]/', $row['location'] ?? ''));
-                $quantities = array_map('trim', preg_split('/[\/,]/', $row['quantity'] ?? ''));
+                $locations = array_map(
+                    'trim',
+                    preg_split('/[\\/,]/', $row['location'] ?? '')
+                );
+
+                $quantities = array_map(
+                    'trim',
+                    preg_split('/[\\/,]/', $row['quantity'] ?? '')
+                );
 
                 if (count($locations) === 1 && $locations[0] === '') {
-                    $locations = ['-'];
+                    $locations = ['Unlocated'];
                 }
 
                 foreach ($locations as $i => $locationName) {
 
-                    if ($locationName === '') {
-                        $locationName = '-';
+                    // Jika lokasi kosong atau "-" maka gunakan "Unlocated"
+                    if ($locationName === '' || $locationName === '-') {
+                        $locationName = 'Unlocated';
                     }
 
                     $location = Location::firstOrCreate(
@@ -78,7 +88,9 @@ class StockImport implements ToCollection, WithHeadingRow
                         ['location_code' => null]
                     );
 
-                    $qty = isset($quantities[$i]) ? (float) $quantities[$i] : 0;
+                    $qty = isset($quantities[$i])
+                        ? (float) $quantities[$i]
+                        : 0;
 
                     $stock->locations()->attach($location->id, [
                         'opening_balance' => $qty,
@@ -106,7 +118,8 @@ class StockImport implements ToCollection, WithHeadingRow
         // Baris yang valid tetap tersimpan meski ada baris lain yang gagal.
         if (! empty($this->errors)) {
             throw new \Exception(
-                "Import selesai: {$this->imported} baris berhasil disimpan, ".count($this->errors).' baris gagal.'.
+                "Import selesai: {$this->imported} baris berhasil disimpan, "
+                .count($this->errors).' baris gagal.'.
                 "\n\n".implode("\n\n", $this->errors)
             );
         }

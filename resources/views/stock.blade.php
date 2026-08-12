@@ -1329,15 +1329,15 @@
             }
 
             /* Kolom deskripsi dan lokasi lebih lebar */
-            #stock th:nth-child(5),
-            #stock td:nth-child(5) {
+            #stock th:nth-child(6),
+            #stock td:nth-child(6) {
                 min-width: 300px;
                 white-space: normal;
                 word-break: break-word;
             }
 
-            #stock th:nth-child(7),
-            #stock td:nth-child(7) {
+            #stock th:nth-child(8),
+            #stock td:nth-child(8) {
                 min-width: 250px;
                 white-space: normal;
                 word-break: break-word;

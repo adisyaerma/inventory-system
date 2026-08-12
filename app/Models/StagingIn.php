@@ -38,6 +38,17 @@ class StagingIn extends Model
         'Temporary hold / repair 3',
     ];
 
+    const STATUSES = [
+        'menunggu request kirim',
+        'menunggu request packing',
+        'menunggu sertifikat',
+        'menunggu dokumen pelengkap',
+        'rusak',
+        'tidak lengkap',
+        'salah ukuran',
+        'batal'
+    ];
+
     /**
      * Daftar pilihan incoterms (enum) — dipakai bareng di controller & view (dropdown).
      */

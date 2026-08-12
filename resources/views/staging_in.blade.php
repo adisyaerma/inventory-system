@@ -353,39 +353,13 @@
                                                     <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
-                                                            Kode Barang
+                                                            Barang
                                                         </label>
 
-                                                        <div class="input-group">
+                                                        <select id="addItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-barcode"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="item_code" placeholder="Contoh: NL3195">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Nama Barang
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-package"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="item_name"
-                                                                placeholder="Contoh: Nord-Lock Steel Washer">
-
-                                                        </div>
+                                                        <input type="hidden" name="item_code" id="addItemCode">
+                                                        <input type="hidden" name="item_name" id="addItemName">
 
                                                     </div>
 
@@ -402,7 +376,8 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="item_owner" placeholder="Contoh: PT. XYZ">
+                                                                name="item_owner" id="addItemOwner"
+                                                                placeholder="Contoh: PT. XYZ">
 
                                                         </div>
 
@@ -552,8 +527,14 @@
                                                                 <i class="bx bx-flag"></i>
                                                             </span>
 
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="status" placeholder="Opsional">
+                                                            <select name="status" class="form-select form-select-sm">
+                                                                <option value="" selected>Pilih status
+                                                                </option>
+                                                                @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                                    <option value="{{ $statusItem }}">
+                                                                        {{ $statusItem }}</option>
+                                                                @endforeach
+                                                            </select>
 
                                                         </div>
 
@@ -1012,38 +993,13 @@
                                         <div class="mb-3">
 
                                             <label class="form-label fw-semibold">
-                                                Kode Barang
+                                                Barang
                                             </label>
 
-                                            <div class="input-group">
+                                            <select id="editItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-barcode"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="item_code" id="editItemCode">
-
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Nama Barang
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-package"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="item_name" id="editItemName">
-
-                                            </div>
+                                            <input type="hidden" name="item_code" id="editItemCode">
+                                            <input type="hidden" name="item_name" id="editItemName">
 
                                         </div>
 
@@ -1212,8 +1168,15 @@
                                                     <i class="bx bx-flag"></i>
                                                 </span>
 
-                                                <input type="text" class="form-control form-control-sm" name="status"
-                                                    id="editStatus" placeholder="Opsional">
+                                                <select name="status" class="form-select form-select-sm"
+                                                    id="editStatus">
+                                                    <option value="" selected>Pilih status</option>
+                                                    @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                        <option value="{{ $statusItem }}">
+                                                            {{ $statusItem }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
 
                                             </div>
 
@@ -1265,6 +1228,177 @@
         </div>
     </div>
 
+    {{-- ================= MODAL PINDAHKAN ITEM ================= --}}
+    <div class="modal fade" id="moveStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="moveStagingLabel" aria-hidden="true">
+
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <form id="formMoveStaging">
+
+                    @csrf
+
+                    <input type="hidden" name="destination" id="moveDestination" value="stock">
+
+                    <div class="modal-header border-0 pb-0">
+
+                        <div>
+                            <h4 class="mb-1 fw-bold">Pindahkan Item</h4>
+                            <small class="text-muted">
+                                Tentukan tujuan perpindahan barang dari staging in.
+                            </small>
+                        </div>
+
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+                    </div>
+
+                    <div class="modal-body p-4">
+
+                        {{-- ================= RINGKASAN ITEM ================= --}}
+                        <div class="card border rounded-4 mb-4">
+                            <div class="card-body d-flex justify-content-between align-items-start gap-3">
+
+                                <div>
+                                    <small class="text-muted d-block" id="moveItemCode"></small>
+                                    <div class="fw-bold" id="moveItemName"></div>
+                                    <small class="text-muted d-block mt-1" id="moveItemMeta"></small>
+
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary-subtle text-secondary" id="moveFromLocation"></span>
+                                        <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                                        <span class="badge bg-primary-subtle text-primary" id="moveToLocationLabel">Masuk Stok</span>
+                                    </div>
+                                </div>
+
+                                <span class="badge bg-dark rounded-pill px-3 py-2 flex-shrink-0" id="moveQtyBadge"></span>
+
+                            </div>
+                        </div>
+
+                        {{-- ================= TUJUAN ================= --}}
+                        <label class="form-label fw-semibold text-muted small text-uppercase mb-2">
+                            Tujuan
+                        </label>
+
+                        <div class="row g-3 mb-4">
+
+                            <div class="col-6">
+                                <div class="tujuan-option border rounded-4 p-3 h-100 active" data-tujuan="stock">
+                                    <div class="icon-box-sm bg-secondary-subtle text-secondary mb-2">
+                                        <i class="bi bi-building"></i>
+                                    </div>
+                                    <div class="fw-bold">Masuk Stok</div>
+                                    <small class="text-muted">Barang disimpan sebagai stok gudang</small>
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <div class="tujuan-option border rounded-4 p-3 h-100" data-tujuan="out">
+                                    <div class="icon-box-sm bg-primary-subtle text-primary mb-2">
+                                        <i class="bi bi-truck"></i>
+                                    </div>
+                                    <div class="fw-bold">Staging Out</div>
+                                    <small class="text-muted">Barang langsung dikirim ke customer</small>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {{-- ================= QTY (SHARED) ================= --}}
+                        <div class="row g-3 mb-1">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Qty dipindah</label>
+                                <input type="number" class="form-control form-control-sm" name="qty"
+                                    id="moveQty" min="1">
+                                <small class="text-muted" id="moveQtyHelp"></small>
+                            </div>
+                        </div>
+
+                        {{-- ================= FIELD: MASUK STOK ================= --}}
+                        <div id="fieldsMasukStok" class="mt-3">
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Lokasi Gudang</label>
+                                    <select id="moveLocationSelect" name="location"></select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">No. Referensi</label>
+                                    <input type="text" class="form-control form-control-sm"
+                                        name="transaction_number" id="moveTransactionNumber"
+                                        placeholder="Contoh: GRN-2026-0001">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Tanggal Masuk</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        name="transaction_date" id="moveTransactionDate">
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Catatan</label>
+                                    <textarea rows="3" class="form-control form-control-sm" name="notes"
+                                        id="moveNotes" placeholder="Opsional"></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {{-- ================= FIELD: STAGING OUT ================= --}}
+                        <div id="fieldsStagingOut" class="mt-3 d-none">
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">No. SO</label>
+                                    <input type="text" class="form-control form-control-sm"
+                                        name="so_number" id="moveSoNumber" placeholder="SO-2026-0001">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Customer</label>
+                                    <input type="text" class="form-control form-control-sm"
+                                        name="customer" id="moveCustomer" placeholder="Nama customer">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Line Item</label>
+                                    <input type="text" class="form-control form-control-sm"
+                                        name="line_item" id="moveLineItem" placeholder="Nama/keterangan barang">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Tgl. Delivery Instruction</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        name="delivery_instruction_date" id="moveDeliveryInstructionDate">
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer border-0 pt-0">
+
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Batal
+                        </button>
+
+                        <button type="submit" class="btn btn-primary px-4 btnSaveMove">
+                            <i class="bx bx-transfer-alt me-1"></i>
+                            Pindahkan
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
     @push('script')
         <style>
             .icon-box {
@@ -1289,6 +1423,39 @@
             .upload-box:hover .border {
                 background: #f8fafc;
                 border-color: #0d6efd !important;
+            }
+
+            .icon-box-sm {
+                border-radius: 12px;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .tujuan-option {
+                cursor: pointer;
+                transition: all .15s ease;
+            }
+
+            .tujuan-option:hover {
+                border-color: #0d6efd !important;
+            }
+
+            .tujuan-option.active {
+                border-color: #0d6efd !important;
+                background: #f0f6ff;
+                box-shadow: 0 0 0 1px #0d6efd inset;
+            }
+
+            .tujuan-option.tujuan-disabled {
+                cursor: not-allowed;
+                opacity: .6;
+            }
+
+            .tujuan-option.tujuan-disabled:hover {
+                border-color: inherit !important;
             }
         </style>
 
@@ -1487,6 +1654,61 @@
                     }
                 });
 
+                // ================= BARANG (TomSelect dari tabel stocks) =================
+                function initItemSelect(selectId, codeFieldId, nameFieldId, ownerFieldId) {
+
+                    return new TomSelect(selectId, {
+                        valueField: 'id',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        preload: true,
+                        create: false,
+                        maxOptions: 20,
+                        placeholder: 'Cari kode / nama barang...',
+
+                        load: function(query, callback) {
+                            $.ajax({
+                                url: "{{ route('stagings-in.search-stock') }}",
+                                type: 'GET',
+                                data: {
+                                    q: query
+                                },
+                                success: function(res) {
+                                    callback(res);
+                                },
+                                error: function() {
+                                    callback();
+                                }
+                            });
+                        },
+
+                        onChange: function(value) {
+                            let data = this.options[value];
+
+                            $(codeFieldId).val(data ? data.item_code : '');
+                            $(nameFieldId).val(data ? data.item_name : '');
+
+                            // Pemilik barang otomatis terisi dari vendor stock.
+                            // Kalau stock tidak punya vendor, biarkan field
+                            // seperti apa adanya supaya bisa diisi manual.
+                            if (data && data.item_owner) {
+                                $(ownerFieldId).val(data.item_owner);
+                            }
+                        }
+                    });
+                }
+
+                let addItemSelect = initItemSelect('#addItemSelect', '#addItemCode',
+                    '#addItemName', '#addItemOwner');
+                let editItemSelect = initItemSelect('#editItemSelect', '#editItemCode',
+                    '#editItemName', '#editItemOwner');
+
+                $('#addStaging').on('hidden.bs.modal', function() {
+                    addItemSelect.clear();
+                    $('#addItemCode').val('');
+                    $('#addItemName').val('');
+                });
+
                 // ================= TAMBAH (AJAX) =================
                 $(document).on('submit', '#formStaging', function(e) {
 
@@ -1502,6 +1724,9 @@
 
                             $('#addStaging').modal('hide');
                             $('#formStaging')[0].reset();
+                            addItemSelect.clear();
+                            $('#addItemCode').val('');
+                            $('#addItemName').val('');
 
                             table.ajax.reload(null, false);
 
@@ -1570,12 +1795,33 @@
                             $('#editSupplierOrigin').val(res.supplier_origin);
                             $('#editItemOwner').val(res.item_owner);
                             $('#editIncoterms').val(res.incoterms);
-                            $('#editItemCode').val(res.item_code);
-                            $('#editItemName').val(res.item_name);
                             $('#editQty').val(res.qty);
                             $('#editLocation').val(res.location);
                             $('#editStatus').val(res.status);
                             $('#editNotes').val(res.notes);
+
+                            $('#editItemCode').val(res.item_code);
+                            $('#editItemName').val(res.item_name);
+
+                            editItemSelect.clear(true);
+                            editItemSelect.clearOptions();
+                            editItemSelect.loadedSearches = {};
+
+                            if (res.item_code || res.item_name) {
+
+                                let label = [res.item_code, res.item_name]
+                                    .filter(Boolean)
+                                    .join(' | ');
+
+                                editItemSelect.addOption({
+                                    id: 'current',
+                                    text: label,
+                                    item_code: res.item_code,
+                                    item_name: res.item_name
+                                });
+
+                                editItemSelect.setValue('current', true);
+                            }
 
                         },
 
@@ -1669,6 +1915,216 @@
 
                 $('#editStagingModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
+                    editItemSelect.clear();
+                    editItemSelect.clearOptions();
+                    editItemSelect.loadedSearches = {};
+                    $('#editItemCode').val('');
+                    $('#editItemName').val('');
+                });
+
+                // ================= PINDAHKAN ITEM =================
+                let moveLocationSelect;
+
+                function initMoveLocationSelect() {
+
+                    if (moveLocationSelect) return;
+
+                    moveLocationSelect = new TomSelect('#moveLocationSelect', {
+                        create: true,
+                        persist: false,
+                        createOnBlur: true,
+                        allowEmptyOption: true,
+                        placeholder: 'Pilih atau ketik lokasi gudang...',
+                        valueField: 'value',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        preload: true,
+                        load: function(query, callback) {
+                            $.ajax({
+                                url: "{{ route('stagings-in.warehouse-locations') }}",
+                                type: 'GET',
+                                success: function(res) {
+                                    callback((res || []).map(function(name) {
+                                        return {
+                                            value: name,
+                                            text: name
+                                        };
+                                    }));
+                                },
+                                error: function() {
+                                    callback();
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // buka modal & isi ringkasan item
+                $(document).on('click', '.btnMove', function() {
+
+                    initMoveLocationSelect();
+
+                    let $btn = $(this);
+                    let qty = parseInt($btn.data('qty')) || 0;
+
+                    $('#formMoveStaging').data('staging-id', $btn.data('id'));
+
+                    $('#moveItemCode').text($btn.data('code') || '-');
+                    $('#moveItemName').text($btn.data('name') || '-');
+
+                    let metaParts = [];
+                    if ($btn.data('po')) metaParts.push($btn.data('po'));
+                    if ($btn.data('owner')) metaParts.push($btn.data('owner'));
+                    if ($btn.data('arrival')) metaParts.push($btn.data('arrival'));
+                    $('#moveItemMeta').text(metaParts.join(' · '));
+
+                    $('#moveFromLocation').text($btn.data('location') || '-');
+                    $('#moveQtyBadge').text(qty + ' pcs');
+
+                    $('#moveQty').val(qty).attr('max', qty);
+                    $('#moveQtyHelp').text('Maksimal ' + qty + ' pcs. Sisa tetap di staging in.');
+
+                    // field masuk stok
+                    $('#moveTransactionNumber').val($btn.data('po') || '');
+                    $('#moveTransactionDate').val(new Date().toISOString().slice(0, 10));
+                    $('#moveNotes').val('');
+
+                    // field staging out
+                    $('#moveSoNumber').val('');
+                    $('#moveCustomer').val('');
+                    $('#moveLineItem').val($btn.data('name') || '');
+                    $('#moveDeliveryInstructionDate').val('');
+
+                    $('.tujuan-option').removeClass('active');
+                    $('.tujuan-option[data-tujuan="stock"]').addClass('active');
+                    $('#moveDestination').val('stock');
+                    $('#moveToLocationLabel').text('Masuk Stok');
+                    $('#fieldsMasukStok').removeClass('d-none');
+                    $('#fieldsStagingOut').addClass('d-none');
+
+                    if (moveLocationSelect) {
+                        moveLocationSelect.clear();
+                    }
+
+                });
+
+                // toggle kartu tujuan
+                $(document).on('click', '.tujuan-option', function() {
+
+                    $('.tujuan-option').removeClass('active');
+                    $(this).addClass('active');
+
+                    let tujuan = $(this).data('tujuan');
+                    $('#moveDestination').val(tujuan);
+                    $('#moveToLocationLabel').text(tujuan === 'stock' ? 'Masuk Stok' :
+                        'Staging Out');
+
+                    if (tujuan === 'stock') {
+                        $('#fieldsMasukStok').removeClass('d-none');
+                        $('#fieldsStagingOut').addClass('d-none');
+                    } else {
+                        $('#fieldsMasukStok').addClass('d-none');
+                        $('#fieldsStagingOut').removeClass('d-none');
+                    }
+
+                });
+
+                // simpan perpindahan (AJAX)
+                $(document).on('submit', '#formMoveStaging', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    let id = $(this).data('staging-id');
+
+                    if (!id) return;
+
+                    let tujuan = $('#moveDestination').val();
+
+                    let url = tujuan === 'stock' ?
+                        "{{ route('stagings-in.move-to-stock', ':id') }}".replace(':id',
+                            id) :
+                        "{{ route('stagings-in.move-to-staging-out', ':id') }}".replace(
+                            ':id', id);
+
+                    $.ajax({
+
+                        url: url,
+                        method: 'POST',
+                        data: $(this).serialize(),
+
+                        beforeSend: function() {
+                            $('.btnSaveMove').prop('disabled', true);
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveMove').prop('disabled', false);
+
+                            $('#moveStagingModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message,
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveMove').prop('disabled', false);
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+
+                    });
+
+                });
+
+                $('#moveStagingModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                    $('#moveQtyHelp').text('');
+                    $('.tujuan-option').removeClass('active');
+                    $('.tujuan-option[data-tujuan="stock"]').addClass('active');
+                    $('#moveDestination').val('stock');
+                    $('#moveToLocationLabel').text('Masuk Stok');
+                    $('#fieldsMasukStok').removeClass('d-none');
+                    $('#fieldsStagingOut').addClass('d-none');
+                    if (moveLocationSelect) moveLocationSelect.clear();
                 });
             });
         </script>

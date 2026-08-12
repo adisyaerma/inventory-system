@@ -101,6 +101,10 @@ class StagingOutImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
+            if ($doNumber === null){
+                continue;
+            }
+
             try {
 
                 StagingOut::create([

@@ -154,8 +154,8 @@
                                     <div class="d-flex align-items-center gap-3">
 
                                         <div class=" rounded-3 p-2 flex-shrink-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary"
-                                                width="1em" height="1em" viewBox="0 0 24 24">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
+                                                height="1em" viewBox="0 0 24 24">
                                                 <path d="M0 0h24v24H0z" fill="none" />
                                                 <path fill="none" stroke="currentColor" stroke-linecap="round"
                                                     stroke-linejoin="round" stroke-width="1.5"
@@ -744,8 +744,8 @@
                             <span>Filter Data</span>
                         </div>
 
-                        <button type="button" class="btn-sm btn border-secondary bg-white border"
-                            id="resetFilterInline" title="Reset Filter">
+                        <button type="button" class="btn-sm btn border-secondary bg-white border" id="resetFilterInline"
+                            title="Reset Filter">
                             <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
                                 <path d="M0 0h21v21H0z" fill="none" />
                                 <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
@@ -779,9 +779,10 @@
                                     <i class="bi bi-truck text-muted"></i>
                                 </span>
                                 <select class="form-select border-start-0" id="filterStatus">
-                                    <option va lue="">Semua Status</option>
+                                    <option value="">Semua Status</option>
                                     <option value="belum_picking">Belum Picking</option>
                                     <option value="sudah_picking">Sudah Picking</option>
+                                    <option value="belum_dikirim">Belum Dikirim</option>
                                     <option value="sudah_dikirim">Sudah Dikirim</option>
                                 </select>
                             </div>
@@ -1183,6 +1184,281 @@
         </div>
     </div>
 
+    {{-- ================= MODAL KONFIRMASI TANGGAL PICKING ================= --}}
+    <div class="modal fade" id="confirmPickingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-md">
+
+            <div class="modal-content ">
+
+                <form id="formConfirmPicking">
+
+                    @csrf
+                    @method('PUT')
+
+                    <input type="hidden" name="id" id="confirmPickingId">
+
+
+                    {{-- HEADER --}}
+                    <div class="modal-header border-0 px-4 pt-4 pb-3">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            {{-- ICON --}}
+                            <div class="rounded-3 d-flex align-items-center justify-content-center"
+                                style="
+                                width: 48px;
+                                height: 48px;
+                                background: rgba(var(--bs-primary-rgb), .12);
+                                color: var(--bs-primary);
+                            ">
+
+                                <i class="bx bx-package fs-3"></i>
+
+                            </div>
+
+
+                            {{-- TITLE --}}
+                            <div>
+
+                                <h5 class="modal-title fw-bold mb-1">
+                                    Konfirmasi Picking
+                                </h5>
+
+                                <p class="mb-0 text-muted small">
+                                    Tandai barang sebagai sudah selesai picking
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- CLOSE --}}
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        </button>
+
+                    </div>
+
+
+                    {{-- BODY --}}
+                    <div class="modal-body px-4 pt-2 pb-3">
+
+
+                        {{-- INFO --}}
+                        <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-4" style="background: #f8f9fa;">
+
+                            <div class="text-primary mt-1">
+
+                                <i class="bx bx-info-circle fs-4"></i>
+
+                            </div>
+
+
+                            <div>
+
+                                <div class="fw-semibold mb-1">
+                                    Pastikan tanggal picking
+                                </div>
+
+                                <div class="text-muted small">
+                                    Pilih tanggal ketika barang selesai
+                                    diambil dari lokasi penyimpanan.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- TANGGAL PICKING --}}
+                        <div class="mb-2">
+
+                            <label for="confirmPickingDate" class="form-label fw-semibold">
+
+                                Tanggal Picking
+
+                            </label>
+
+
+                            <div class="input-group">
+
+                                <span class="input-group-text bg-transparent">
+
+                                    <i class="bx bx-calendar-check text-primary"></i>
+
+                                </span>
+
+
+                                <input type="date" class="form-control" name="picking_date" id="confirmPickingDate"
+                                    required>
+
+                            </div>
+
+
+                            <div class="form-text">
+
+                                <i class="bx bx-info-circle me-1"></i>
+
+                                Secara otomatis menggunakan tanggal hari ini.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- FOOTER --}}
+                    <div class="modal-footer border-0 px-4 pb-4 pt-2">
+
+
+                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">
+
+                            Batal
+
+                        </button>
+
+
+                        <button type="submit" class="btn btn-primary px-4 btnSaveConfirmPicking">
+
+                            <i class="bx bx-check-circle me-1"></i>
+
+                            Konfirmasi Picking
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {{-- ================= MODAL KONFIRMASI TANGGAL KIRIM ================= --}}
+    <div class="modal fade" id="confirmDeliveryModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <div class="modal-content">
+
+                <form id="formConfirmDelivery">
+                    @csrf
+                    @method('PUT')
+
+                    <input type="hidden" name="id" id="confirmDeliveryId">
+
+                    {{-- HEADER --}}
+                    <div class="modal-header border-0 px-4 pt-4 pb-3">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <div class="rounded-3 d-flex align-items-center justify-content-center"
+                                style="
+                                width: 48px;
+                                height: 48px;
+                                background: rgba(var(--bs-primary-rgb), .12);
+                                color: var(--bs-primary);
+                            ">
+                                <i class="bx bx-package fs-3"></i>
+                            </div>
+
+                            <div>
+                                <h5 class="modal-title fw-bold mb-1">
+                                    Konfirmasi Pengiriman
+                                </h5>
+
+                                <p class="mb-0 text-muted small">
+                                    Tandai barang sebagai sudah dikirim
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        </button>
+
+                    </div>
+
+
+                    {{-- BODY --}}
+                    <div class="modal-body px-4 pt-2 pb-3">
+
+                        {{-- INFO --}}
+                        <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-4" style="background: #f8f9fa;">
+
+                            <div class="text-primary mt-1">
+                                <i class="bx bx-info-circle fs-4"></i>
+                            </div>
+
+                            <div>
+                                <div class="fw-semibold mb-1">
+                                    Pastikan tanggal pengiriman
+                                </div>
+
+                                <div class="text-muted small">
+                                    Pilih tanggal ketika barang benar-benar dikirim
+                                    kepada customer.
+                                </div>
+                            </div>
+
+                        </div>
+
+
+                        {{-- TANGGAL --}}
+                        <div class="mb-2">
+
+                            <label for="confirmDeliveryDate" class="form-label fw-semibold">
+                                Tanggal Kirim
+                            </label>
+
+                            <div class="input-group">
+
+                                <span class="input-group-text bg-transparent">
+                                    <i class="bx bx-calendar text-primary"></i>
+                                </span>
+
+                                <input type="date" class="form-control" name="delivery_date" id="confirmDeliveryDate"
+                                    required>
+
+                            </div>
+
+                            <div class="form-text">
+                                <i class="bx bx-info-circle me-1"></i>
+                                Secara otomatis menggunakan tanggal hari ini.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- FOOTER --}}
+                    <div class="modal-footer border-0 px-4 pb-4 pt-2">
+
+                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">
+                            Batal
+                        </button>
+
+                        <button type="submit" class="btn btn-primary px-4 btnSaveConfirmDelivery">
+
+                            <i class="bx bx-check-circle me-1"></i>
+                            Konfirmasi Kirim
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
     @push('script')
         <style>
             .icon-box {
@@ -1207,6 +1483,96 @@
             .upload-box:hover .border {
                 background: #f8fafc;
                 border-color: #0d6efd !important;
+            }
+
+            /* ===== Tombol konfirmasi tanggal picking (tabel) ===== */
+            .btn-confirm-picking {
+                background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+                color: #fff;
+                border: 0;
+                border-radius: 50px;
+                padding: .35rem .9rem;
+                font-weight: 600;
+                font-size: .78rem;
+                white-space: nowrap;
+                box-shadow: 0 .15rem .4rem rgba(67, 97, 238, .35);
+                transition: transform .15s ease, box-shadow .15s ease;
+            }
+
+            .btn-confirm-picking:hover {
+                color: #fff;
+                transform: translateY(-1px);
+                box-shadow: 0 .3rem .6rem rgba(67, 97, 238, .45);
+            }
+
+            .btn-confirm-picking svg {
+                vertical-align: -2px;
+            }
+
+            /* ===== Modal konfirmasi tanggal picking ===== */
+            .confirm-picking-modal .confirm-picking-header {
+                background: linear-gradient(135deg, #4361ee 0%, #4cc9f0 100%);
+            }
+
+            .confirm-picking-modal .confirm-picking-icon {
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255, 255, 255, .18);
+                backdrop-filter: blur(2px);
+            }
+
+            .confirm-picking-modal input[type="date"]:focus {
+                background-color: #fff !important;
+                box-shadow: none;
+            }
+
+            /* ===== Tombol konfirmasi tanggal kirim (tabel) ===== */
+            .btn-confirm-delivery {
+                background: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
+                color: #fff;
+                border: 0;
+                border-radius: 50px;
+                padding: .35rem .9rem;
+                font-weight: 600;
+                font-size: .78rem;
+                white-space: nowrap;
+                box-shadow: 0 .15rem .4rem rgba(251, 133, 0, .35);
+                transition: transform .15s ease, box-shadow .15s ease;
+            }
+
+            .btn-confirm-delivery:hover {
+                color: #fff;
+                transform: translateY(-1px);
+                box-shadow: 0 .3rem .6rem rgba(251, 133, 0, .45);
+            }
+
+            .btn-confirm-delivery svg {
+                vertical-align: -2px;
+            }
+
+            /* ===== Modal konfirmasi tanggal kirim ===== */
+            .confirm-delivery-modal .confirm-delivery-header {
+                background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+            }
+
+            .confirm-delivery-modal .confirm-delivery-icon {
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255, 255, 255, .18);
+                backdrop-filter: blur(2px);
+            }
+
+            .confirm-delivery-modal input[type="date"]:focus {
+                background-color: #fff !important;
+                box-shadow: none;
             }
         </style>
 
@@ -1307,6 +1673,10 @@
                         },
                         {
                             targets: 5,
+                            className: "text-center"
+                        },
+                        {
+                            targets: 8,
                             className: "text-center"
                         },
                         {
@@ -1596,6 +1966,210 @@
                 });
 
                 $('#editStagingOutModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                });
+
+                // ================= KONFIRMASI TANGGAL PICKING: buka modal =================
+                $(document).on('click', '.btnConfirmPicking', function() {
+
+                    let id = $(this).data('id');
+
+                    let today = new Date();
+                    let yyyy = today.getFullYear();
+                    let mm = String(today.getMonth() + 1).padStart(2, '0');
+                    let dd = String(today.getDate()).padStart(2, '0');
+
+                    $('#confirmPickingId').val(id);
+                    $('#confirmPickingDate').val(`${yyyy}-${mm}-${dd}`);
+
+                });
+
+                // ================= KONFIRMASI TANGGAL PICKING: simpan (AJAX) =================
+                $(document).on('submit', '#formConfirmPicking', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    let id = $('#confirmPickingId').val();
+
+                    $.ajax({
+
+                        url: "{{ route('stagings-out.update', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: $(this).serialize() + '&_method=PUT',
+
+                        beforeSend: function() {
+                            $('.btnSaveConfirmPicking').prop('disabled', true)
+                                .html(
+                                    '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...'
+                                );
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveConfirmPicking').prop('disabled', false)
+                                .html(
+                                '<i class="bi bi-check2-circle me-1"></i> Konfirmasi Picking');
+
+                            $('#confirmPickingModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message ||
+                                    'Tanggal picking berhasil dikonfirmasi',
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveConfirmPicking').prop('disabled', false)
+                                .html(
+                                '<i class="bi bi-check2-circle me-1"></i> Konfirmasi Picking');
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+
+                    });
+
+                });
+
+                $('#confirmPickingModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                });
+
+                // ================= KONFIRMASI TANGGAL KIRIM: buka modal =================
+                $(document).on('click', '.btnConfirmDelivery', function() {
+
+                    let id = $(this).data('id');
+
+                    let today = new Date();
+                    let yyyy = today.getFullYear();
+                    let mm = String(today.getMonth() + 1).padStart(2, '0');
+                    let dd = String(today.getDate()).padStart(2, '0');
+
+                    $('#confirmDeliveryId').val(id);
+                    $('#confirmDeliveryDate').val(`${yyyy}-${mm}-${dd}`);
+
+                });
+
+                // ================= KONFIRMASI TANGGAL KIRIM: simpan (AJAX) =================
+                $(document).on('submit', '#formConfirmDelivery', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    let id = $('#confirmDeliveryId').val();
+
+                    $.ajax({
+
+                        url: "{{ route('stagings-out.update', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: $(this).serialize() + '&_method=PUT',
+
+                        beforeSend: function() {
+                            $('.btnSaveConfirmDelivery').prop('disabled', true)
+                                .html(
+                                    '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...'
+                                );
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveConfirmDelivery').prop('disabled', false)
+                                .html('<i class="bi bi-check2-circle me-1"></i> Konfirmasi Kirim');
+
+                            $('#confirmDeliveryModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message ||
+                                    'Tanggal kirim berhasil dikonfirmasi',
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveConfirmDelivery').prop('disabled', false)
+                                .html('<i class="bi bi-check2-circle me-1"></i> Konfirmasi Kirim');
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+
+                    });
+
+                });
+
+                $('#confirmDeliveryModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
                 });
             });

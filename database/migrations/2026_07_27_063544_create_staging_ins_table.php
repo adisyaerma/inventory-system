@@ -35,7 +35,16 @@ return new class extends Migration
                 'NORD-LOCK',
             ])->nullable();
             $table->text('notes')->nullable();
-            $table->text('status')->nullable();
+            $table->enum('status', [
+                'menunggu request kirim',
+                'menunggu request packing',
+                'menunggu sertifikat',
+                'menunggu dokumen pelengkap',
+                'rusak',
+                'tidak lengkap',
+                'salah ukuran',
+                'batal'
+            ])->nullable();
             $table->timestamps();
         });
     }

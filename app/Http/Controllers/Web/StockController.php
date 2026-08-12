@@ -26,7 +26,7 @@ class StockController extends Controller
         SELECT 1 FROM location_stock
         INNER JOIN locations ON locations.id = location_stock.location_id
         WHERE location_stock.stock_id = stocks.id
-        AND locations.location_name = '-'
+        AND locations.location_name = 'Unlocated'
     ) THEN 1 ELSE 0 END ASC
 ")
             ->orderByDesc('id');
