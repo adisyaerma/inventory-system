@@ -42,11 +42,11 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
         $excelRow = 2;
 
         $query = StockMutation::with([
-            'stock:id,item_code_internal,name',
+            'item:id,item_code_internal,name',
             'location:id,location_name',
         ]);
-        if ($this->request->filled('stock')) {
-            $query->where('stock_id', $this->request->stock);
+        if ($this->request->filled('item')) {
+            $query->where('item_id', $this->request->item);
         }
         if ($this->request->filled('start_date')) {
             $query->whereDate(
@@ -67,7 +67,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
         if ($this->request->filled('location_id')) {
             $locationId = $this->request->location_id;
 
-            $query->whereHas('stock.locationStocks', function ($q) use ($locationId) {
+            $query->whereHas('item.locationStocks', function ($q) use ($locationId) {
                 $q->where('location_id', $locationId);
             });
         }
@@ -81,7 +81,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                     ->orWhereRaw('CAST(qty_in AS TEXT) ilike ?', ["%{$search}%"])
                     ->orWhereRaw('CAST(qty_out AS TEXT) ilike ?', ["%{$search}%"])
                     ->orWhereRaw('CAST(qty_balance AS TEXT) ilike ?', ["%{$search}%"])
-                    ->orWhereHas('stock', function ($sq) use ($search) {
+                    ->orWhereHas('item', function ($sq) use ($search) {
                         $sq->where('item_code_internal', 'ilike', "%{$search}%")
                             ->orWhere('name', 'ilike', "%{$search}%");
                     })
@@ -94,7 +94,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
         $mutations = $query
             ->select([
                 'id',
-                'stock_id',
+                'item_id',
                 'location_id',
                 'transaction_date',
                 'transaction_number',
@@ -103,12 +103,12 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
                 'qty_out',
                 'qty_balance',
             ])
-            ->orderBy('stock_id')
+            ->orderBy('item_id')
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get();
 
-        $groups = $mutations->groupBy('stock_id');
+        $groups = $mutations->groupBy('item_id');
 
         foreach ($groups as $group) {
 
@@ -118,8 +118,8 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
             foreach ($group as $mutation) {
 
                 $rows[] = [
-                    $first ? $mutation->stock->item_code_internal : '',
-                    $first ? $mutation->stock->name : '',
+                    $first ? $mutation->item->item_code_internal : '',
+                    $first ? $mutation->item->name : '',
                     $first ? optional($mutation->location)->location_name : '',
                     optional($mutation->transaction_date)->format('d/m/Y'),
                     $mutation->transaction_number,

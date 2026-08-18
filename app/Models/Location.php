@@ -16,9 +16,9 @@ class Location extends Model
         'status',
     ];
 
-    public function stocks()
+    public function items()
     {
-        return $this->belongsToMany(Stock::class)
+        return $this->belongsToMany(Item::class, 'location_stock', 'location_id', 'item_id')
             ->withPivot('quantity')
             ->withTimestamps();
     }

@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class StockTemplateExport implements withHeadings
+class LocationStockTemplateExport implements withHeadings
 {
     /**
     * @return \Illuminate\Support\Collection

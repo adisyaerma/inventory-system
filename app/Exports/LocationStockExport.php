@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\Stock;
+use App\Models\Item;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class StockExport implements FromCollection, WithEvents, WithHeadings
+class LocationStockExport implements FromCollection, WithEvents, WithHeadings
 {
     protected $request;
 
@@ -21,7 +21,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
 
     public function collection()
     {
-        $query = Stock::select([
+        $query = Item::select([
             'id',
             'item_code_supplier',
             'item_code_internal',
@@ -31,7 +31,7 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
             'vendor_id',
         ])
             ->with([
-                'locationStocks:id,stock_id,location_id,quantity',
+                'locationStocks:id,item_id,location_id,quantity',
                 'locationStocks.location:id,location_name',
                 'vendor:id,name',
             ]);
@@ -66,9 +66,9 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
             });
         }
 
-        return $query->get()->map(function ($stock) {
+        return $query->get()->map(function ($item) {
 
-            $locationStocks = $stock->locationStocks;
+            $locationStocks = $item->locationStocks;
 
             if ($this->request->filled('location_id')) {
                 $locationStocks = $locationStocks->where(
@@ -86,19 +86,22 @@ class StockExport implements FromCollection, WithEvents, WithHeadings
                 ->map(function ($qty) {
                     return fmod((float) $qty, 1) == 0
                         ? (int) $qty
-                        : rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.');
+                        : rtrim(
+                            rtrim(number_format($qty, 2, '.', ''), '0'),
+                            '.'
+                        );
                 })
                 ->implode(', ');
 
             return [
-                $stock->item_code_supplier,
-                $stock->item_code_internal,
-                $stock->item_code_customer,
+                $item->item_code_supplier,
+                $item->item_code_internal,
+                $item->item_code_customer,
                 $locations,
-                $stock->name,
+                $item->name,
                 $quantities,
-                $stock->description,
-                $stock->vendor ? $stock->vendor->name : '-',
+                $item->description,
+                $item->vendor ? $item->vendor->name : '-',
             ];
         });
     }

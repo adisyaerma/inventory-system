@@ -22,7 +22,7 @@ class ScanBarcodeController extends Controller
 
         $keyword = strtolower(trim($request->keyword));
 
-        $location = Location::with('stocks.vendor')
+        $location = Location::with('items.vendor')
             ->where(function ($query) use ($keyword) {
                 $query->whereRaw('LOWER(location_code) = ?', [$keyword])
                       ->orWhereRaw('LOWER(location_name) LIKE ?', ['%' . $keyword . '%']);
@@ -30,16 +30,16 @@ class ScanBarcodeController extends Controller
             ->first();
 
         if ($location) {
-            $stocks = $location->stocks->map(function ($stock) {
+            $items = $location->items->map(function ($item) {
                 return [
-                    'id' => $stock->id,
-                    'item_code_internal' => $stock->item_code_internal,
-                    'item_code_supplier' => $stock->item_code_supplier,
-                    'item_code_customer' => $stock->item_code_customer,
-                    'name' => $stock->name,
-                    'description' => $stock->description,
-                    'quantity' => $stock->pivot->quantity,
-                    'vendor_name' => $stock->vendor->name ?? null,
+                    'id' => $item->id,
+                    'item_code_internal' => $item->item_code_internal,
+                    'item_code_supplier' => $item->item_code_supplier,
+                    'item_code_customer' => $item->item_code_customer,
+                    'name' => $item->name,
+                    'description' => $item->description,
+                    'quantity' => $item->pivot->quantity,
+                    'vendor_name' => $item->vendor->name ?? null,
                 ];
             });
 
@@ -51,9 +51,9 @@ class ScanBarcodeController extends Controller
                     'location_code' => $location->location_code,
                     'status' => $location->status,
                 ],
-                'total_item' => $stocks->count(),
-                'total_qty' => $stocks->sum('quantity'),
-                'stocks' => $stocks->values(),
+                'total_item' => $items->count(),
+                'total_qty' => $items->sum('quantity'),
+                'items' => $items->values(),
             ]);
         }
 
@@ -66,7 +66,7 @@ class ScanBarcodeController extends Controller
                 ->orderByDesc('arrival_date')
                 ->get();
 
-            $stocks = $stagings->map(function ($staging) {
+            $items = $stagings->map(function ($staging) {
                 return [
                     'id' => $staging->id,
                     'po_number' => $staging->po_number,
@@ -88,9 +88,9 @@ class ScanBarcodeController extends Controller
                     'location_code' => null,
                     'status' => true,
                 ],
-                'total_item' => $stocks->count(),
-                'total_qty' => $stocks->sum('quantity'),
-                'stocks' => $stocks->values(),
+                'total_item' => $items->count(),
+                'total_qty' => $items->sum('quantity'),
+                'items' => $items->values(),
             ]);
         }
 

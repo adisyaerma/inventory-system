@@ -6,17 +6,19 @@ use App\Exports\StagingInExport;
 use App\Exports\StagingInTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StagingInImport;
+use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StagingIn;
 use App\Models\StagingOut;
-use App\Models\Stock;
 use App\Models\StockMutation;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
+use Psy\TabCompletion\Matcher\FunctionDefaultParametersMatcher;
 use Yajra\DataTables\Facades\DataTables;
 
 class StagingInController extends Controller
@@ -41,11 +43,15 @@ class StagingInController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        $ownerOptions = StagingIn::whereNotNull('item_owner')
-            ->where('item_owner', '!=', '')
-            ->distinct()
-            ->orderBy('item_owner')
-            ->pluck('item_owner');
+        $ownerOptions = Vendor::query()
+            ->whereIn('id', function ($query) {
+                $query->select('items.vendor_id')
+                    ->from('items')
+                    ->join('staging_ins', 'staging_ins.item_id', '=', 'items.id')
+                    ->whereNotNull('items.vendor_id');
+            })
+            ->orderBy('name')
+            ->pluck('name');
 
         $supplierOptions = StagingIn::whereNotNull('supplier_origin')
             ->where('supplier_origin', '!=', '')
@@ -89,34 +95,39 @@ class StagingInController extends Controller
      */
     public function data(Request $request)
     {
-        $query = StagingIn::query()->orderByDesc('id');
+        $query = StagingIn::query()
+            ->select('staging_ins.*')
+            ->leftJoin('items', 'items.id', '=', 'staging_ins.item_id')
+            ->leftJoin('vendors', 'vendors.id', '=', 'items.vendor_id')
+            ->with('item.vendor')
+            ->orderByDesc('staging_ins.id');
 
         if ($request->filled('location')) {
-            $query->where('location', $request->location);
+            $query->where('staging_ins.location', $request->location);
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->where('staging_ins.status', $request->status);
         }
 
         if ($request->filled('incoterms')) {
-            $query->where('incoterms', $request->incoterms);
+            $query->where('staging_ins.incoterms', $request->incoterms);
         }
 
         if ($request->filled('item_owner')) {
-            $query->where('item_owner', $request->item_owner);
+            $query->where('vendors.name', $request->item_owner);
         }
 
         if ($request->filled('supplier_origin')) {
-            $query->where('supplier_origin', $request->supplier_origin);
+            $query->where('staging_ins.supplier_origin', $request->supplier_origin);
         }
 
         if ($request->filled('start_date')) {
-            $query->whereDate('arrival_date', '>=', $request->start_date);
+            $query->whereDate('staging_ins.arrival_date', '>=', $request->start_date);
         }
 
         if ($request->filled('end_date')) {
-            $query->whereDate('arrival_date', '<=', $request->end_date);
+            $query->whereDate('staging_ins.arrival_date', '<=', $request->end_date);
         }
 
         return DataTables::eloquent($query)
@@ -129,31 +140,35 @@ class StagingInController extends Controller
 
             ->addColumn('item', function ($row) {
                 return '
-                <small class="fw-bold">'.e($row->item_code).'</small>
-                <div class="text-muted">'.e($row->item_name).'</div>
+                <small class="fw-bold">'.e(optional($row->item)->item_code_internal).'</small>
+                <div class="text-muted">'.e(optional($row->item)->name).'</div>
             ';
             })
 
             ->filterColumn('item', function ($query, $keyword) {
                 $query->where(function ($q) use ($keyword) {
-                    $q->where('item_name', 'like', "%{$keyword}%")
-                        ->orWhere('item_code', 'like', "%{$keyword}%");
+                    $q->where('items.name', 'like', "%{$keyword}%")
+                        ->orWhere('items.item_code_internal', 'like', "%{$keyword}%");
                 });
             })
 
-            ->orderColumn('item', 'item_name $1')
+            ->orderColumn('item', 'items.name $1')
 
             ->filterColumn('supplier_origin', function ($query, $keyword) {
-                $query->where('supplier_origin', 'like', "%{$keyword}%");
+                $query->where('staging_ins.supplier_origin', 'like', "%{$keyword}%");
             })
 
-            ->orderColumn('supplier_origin', 'supplier_origin $1')
+            ->orderColumn('supplier_origin', 'staging_ins.supplier_origin $1')
+
+            ->addColumn('item_owner', function ($row) {
+                return optional(optional($row->item)->vendor)->name;
+            })
 
             ->filterColumn('item_owner', function ($query, $keyword) {
-                $query->where('item_owner', 'like', "%{$keyword}%");
+                $query->where('vendors.name', 'like', "%{$keyword}%");
             })
 
-            ->orderColumn('item_owner', 'item_owner $1')
+            ->orderColumn('item_owner', 'vendors.name $1')
 
             ->editColumn('arrival_date', function ($row) {
 
@@ -192,10 +207,10 @@ class StagingInController extends Controller
                     class="btn btn-sm bg-success bg-opacity-10 text-success rounded-3 border-0 btnMove mb-1"
                     type="button"
                     data-id="'.$row->id.'"
-                    data-code="'.e($row->item_code).'"
-                    data-name="'.e($row->item_name).'"
+                    data-code="'.e(optional($row->item)->item_code_internal).'"
+                    data-name="'.e(optional($row->item)->name).'"
                     data-po="'.e($row->po_number).'"
-                    data-owner="'.e($row->item_owner).'"
+                    data-owner="'.e(optional(optional($row->item)->vendor)->name).'"
                     data-supplier="'.e($row->supplier_origin).'"
                     data-qty="'.$row->qty.'"
                     data-location="'.e($row->location).'"
@@ -254,7 +269,7 @@ class StagingInController extends Controller
                 'checkbox',
                 'item',
                 'location',
-                'arrival_date',   
+                'arrival_date',
                 'action',
             ])
 
@@ -343,14 +358,15 @@ class StagingInController extends Controller
             'po_number' => ['nullable', 'max:255'],
             'arrival_date' => ['nullable', 'date'],
             'supplier_origin' => ['nullable', 'max:255'],
-            'item_owner' => ['nullable', 'max:255'],
-            'item_code' => ['nullable', 'max:255'],
-            'item_name' => ['required', 'max:255'],
+            'item_id' => ['required', 'exists:items,id'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
             'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
             'notes' => ['nullable'],
             'status' => ['nullable'],
+        ], [
+            'item_id.required' => 'Barang wajib dipilih',
+            'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
         try {
@@ -373,14 +389,17 @@ class StagingInController extends Controller
      */
     public function edit(StagingIn $staging)
     {
+        $staging->loadMissing('item.vendor');
+
         return response()->json([
             'id' => $staging->id,
             'po_number' => $staging->po_number,
             'arrival_date' => optional($staging->arrival_date)->format('Y-m-d'),
             'supplier_origin' => $staging->supplier_origin,
-            'item_owner' => $staging->item_owner,
-            'item_code' => $staging->item_code,
-            'item_name' => $staging->item_name,
+            'item_id' => $staging->item_id,
+            'item_code' => optional($staging->item)->item_code_internal,
+            'item_name' => optional($staging->item)->name,
+            'item_owner' => optional(optional($staging->item)->vendor)->name,
             'qty' => $staging->qty,
             'location' => $staging->location,
             'notes' => $staging->notes,
@@ -398,15 +417,16 @@ class StagingInController extends Controller
             'po_number' => ['nullable', 'max:255'],
             'arrival_date' => ['nullable', 'date'],
             'supplier_origin' => ['nullable', 'max:255'],
-            'item_owner' => ['nullable', 'max:255'],
-            'item_code' => ['nullable', 'max:255'],
-            'item_name' => ['required', 'max:255'],
+            'item_id' => ['required', 'exists:items,id'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
             'notes' => ['nullable'],
             'status' => ['nullable'],
             'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
 
+        ], [
+            'item_id.required' => 'Barang wajib dipilih',
+            'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
         try {
@@ -452,7 +472,7 @@ class StagingInController extends Controller
     {
         $keyword = $request->q;
 
-        $stocks = Stock::query()
+        $items = Item::query()
             ->with('vendor')
             ->when($keyword, function ($query) use ($keyword) {
                 $query->where(function ($q) use ($keyword) {
@@ -465,13 +485,13 @@ class StagingInController extends Controller
             ->get();
 
         return response()->json(
-            $stocks->map(function ($stock) {
+            $items->map(function ($item) {
                 return [
-                    'id' => $stock->id,
-                    'text' => $stock->item_code_internal.' | '.$stock->name,
-                    'item_code' => $stock->item_code_internal,
-                    'item_name' => $stock->name,
-                    'item_owner' => optional($stock->vendor)->name,
+                    'id' => $item->id,
+                    'text' => $item->item_code_internal.' | '.$item->name,
+                    'item_code' => $item->item_code_internal,
+                    'item_name' => $item->name,
+                    'item_owner' => optional($item->vendor)->name,
                 ];
             })
         );
@@ -512,16 +532,8 @@ class StagingInController extends Controller
         DB::beginTransaction();
 
         try {
-            // Cocokkan/buat master Stock berdasarkan kode barang staging, agar
-            // data barang tidak perlu diinput ulang secara manual.
-            $stock = Stock::firstOrCreate(
-                ['item_code_internal' => $staging->item_code ?: $staging->item_name],
-                [
-                    'name' => $staging->item_name,
-                    'description' => 'Dibuat otomatis dari Staging In'
-                        .($staging->po_number ? ' - PO '.$staging->po_number : ''),
-                ]
-            );
+            // item_id staging in sudah merujuk langsung ke master Item.
+            $item = $staging->item;
 
             $location = Location::firstOrCreate([
                 'location_name' => trim($validated['location']),
@@ -529,14 +541,14 @@ class StagingInController extends Controller
 
             LocationStock::firstOrCreate(
                 [
-                    'stock_id' => $stock->id,
+                    'item_id' => $item->id,
                     'location_id' => $location->id,
                 ],
                 ['quantity' => 0]
             );
 
             $mutation = StockMutation::create([
-                'stock_id' => $stock->id,
+                'item_id' => $item->id,
                 'location_id' => $location->id,
                 'transaction_date' => $validated['transaction_date'],
                 'transaction_number' => $validated['transaction_number'] ?: $staging->po_number,
@@ -546,7 +558,7 @@ class StagingInController extends Controller
                 'qty_balance' => 0,
             ]);
 
-            $this->recalculateLocationStock($stock->id, $location->id, $mutation->id);
+            $this->recalculateLocationStock($item->id, $location->id, $mutation->id);
 
             $remaining = $staging->qty - $validated['qty'];
 
@@ -610,10 +622,13 @@ class StagingInController extends Controller
         DB::beginTransaction();
 
         try {
+            \DB::listen(function ($query) {
+                \Log::info('SQL QUERY', ['sql' => $query->sql, 'bindings' => $query->bindings]);
+            });
             StagingOut::create([
                 'so_number' => $validated['so_number'],
                 'customer' => $validated['customer'],
-                'item_code' => $staging->item_code,
+                'item_id' => $staging->item_id,
                 'line_item' => $validated['line_item'],
                 'qty' => $validated['qty'],
                 'delivery_instruction_date' => $validated['delivery_instruction_date'],
@@ -655,7 +670,7 @@ class StagingInController extends Controller
      * mutations (e.g. if the transaction date is backdated before an
      * existing mutation).
      */
-    private function recalculateLocationStock($stockId, $locationId, $startMutationId = null)
+    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null)
     {
         if ($startMutationId) {
 
@@ -665,7 +680,7 @@ class StagingInController extends Controller
                 return;
             }
 
-            $previousMutation = StockMutation::where('stock_id', $stockId)
+            $previousMutation = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '<', $startMutation->transaction_date)
@@ -684,14 +699,14 @@ class StagingInController extends Controller
 
             } else {
 
-                $locationStock = LocationStock::where('stock_id', $stockId)
+                $locationStock = LocationStock::where('item_id', $itemId)
                     ->where('location_id', $locationId)
                     ->first();
 
                 $balance = $locationStock ? $locationStock->opening_balance : 0;
             }
 
-            $mutations = StockMutation::where('stock_id', $stockId)
+            $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '>', $startMutation->transaction_date)
@@ -708,7 +723,7 @@ class StagingInController extends Controller
 
             $balance = 0;
 
-            $mutations = StockMutation::where('stock_id', $stockId)
+            $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->orderBy('transaction_date')
                 ->orderBy('id')
@@ -727,7 +742,7 @@ class StagingInController extends Controller
 
         LocationStock::updateOrCreate(
             [
-                'stock_id' => $stockId,
+                'item_id' => $itemId,
                 'location_id' => $locationId,
             ],
             [

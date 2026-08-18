@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stocks', function (Blueprint $table) {
+        Schema::create('items', function (Blueprint $table) {
 
             $table->bigIncrements('id');
 
-            $table->string('item_code_internal')->unique();
+            $table->string('item_code_internal')->unique()->nullable();
             $table->string('item_code_supplier')->nullable();
             $table->string('item_code_customer')->nullable();
 
-            $table->string('name');
+            $table->string('name')->nullable();
             $table->text('description')->nullable();
 
             $table->foreignId('vendor_id')
@@ -36,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('stocks');
+        Schema::dropIfExists('items');
     }
 };

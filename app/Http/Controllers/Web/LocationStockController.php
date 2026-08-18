@@ -2,41 +2,69 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Exports\StockExport;
-use App\Exports\StockTemplateExport;
 use App\Http\Controllers\Controller;
-use App\Imports\StockImport;
+use App\Models\Item;
 use App\Models\Location;
-use App\Models\Stock;
+use App\Models\LocationStock;
 use App\Models\Vendor;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Validators\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\LocationStockExport;
+use App\Exports\LocationStockTemplateExport;
+use App\Imports\LocationStockImport;
+use Illuminate\Database\QueryException;
+use Maatwebsite\Excel\Validators\ValidationException;
 
-class StockController extends Controller
+
+
+
+class LocationStockController extends Controller
 {
+    public function index()
+    {
+        $locations = Location::orderBy('location_name')->get();
+        $vendors = Vendor::orderBy('name')->get();
+
+        return view('location_stock', compact('locations', 'vendors'));
+    }
+
+    /**
+     * Endpoint pencarian item untuk TomSelect (remote search).
+     */
+    public function searchItem(Request $request)
+    {
+        $keyword = $request->get('q');
+
+        $items = Item::query()
+            ->when($keyword, function ($q) use ($keyword) {
+                $q->where('item_code_internal', 'LIKE', "%{$keyword}%")
+                    ->orWhere('name', 'LIKE', "%{$keyword}%");
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'item_code_internal', 'name']);
+
+        return response()->json($items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'text' => $item->item_code_internal.' - '.$item->name,
+            ];
+        }));
+    }
+
     public function data(Request $request)
     {
-        $query = Stock::with('locations', 'vendor')
-            ->orderByRaw("
-    CASE WHEN EXISTS (
-        SELECT 1 FROM location_stock
-        INNER JOIN locations ON locations.id = location_stock.location_id
-        WHERE location_stock.stock_id = stocks.id
-        AND locations.location_name = 'Unlocated'
-    ) THEN 1 ELSE 0 END ASC
-")
+        $query = Item::query()
+            ->whereHas('locations')
+            ->with(['locations', 'vendor'])
             ->orderByDesc('id');
 
         if ($request->filled('location_id')) {
 
             $query->whereHas('locations', function ($q) use ($request) {
-
                 $q->where('locations.id', $request->location_id);
-
             });
 
         }
@@ -56,11 +84,8 @@ class StockController extends Controller
             })
 
             ->editColumn('item_code_internal', fn ($row) => $row->item_code_internal ?: '-')
-            ->editColumn('item_code_supplier', fn ($row) => $row->item_code_supplier ?: '-')
-            ->editColumn('item_code_customer', fn ($row) => $row->item_code_customer ?: '-')
             ->editColumn('name', fn ($row) => $row->name ?: '-')
             ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
-            ->editColumn('description', fn ($row) => $row->description ?: '-')
 
             ->filterColumn('vendor', function ($query, $keyword) {
                 $query->whereHas('vendor', function ($q) use ($keyword) {
@@ -71,7 +96,7 @@ class StockController extends Controller
             ->orderColumn('vendor', function ($query, $order) {
                 $query->orderBy(
                     Vendor::select('name')
-                        ->whereColumn('vendors.id', 'stocks.vendor_id')
+                        ->whereColumn('vendors.id', 'items.vendor_id')
                         ->limit(1),
                     $order
                 );
@@ -99,13 +124,14 @@ class StockController extends Controller
                 return $html;
 
             })
+
             ->addColumn('action', function ($row) {
 
                 return '
 <div class="d-flex align-items-center gap-2">
 
     <button
-        class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEditStock"
+        class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEditLocationStock"
         type="button"
         data-id="'.$row->id.'">
 
@@ -117,7 +143,7 @@ class StockController extends Controller
 
     </button>
 
-    <form action="'.route('stocks.destroy', $row->id).'"
+    <form action="'.route('location-stock.destroy', $row->id).'"
           method="POST"
           class="form-hapus m-0">
 
@@ -149,27 +175,148 @@ class StockController extends Controller
             ])
 
             ->make(true);
-
     }
 
-    public function mutations(Stock $stock)
+    public function store(Request $request)
     {
-        $mutations = $stock->mutations()
-            ->oldest('transaction_date')
-            ->get();
+        $request->validate([
 
-        return response()->json($mutations);
+            'item_id' => 'required|exists:items,id|unique:location_stock,item_id',
+
+            'locations' => 'required|array|min:1',
+
+            'locations.*.location' => 'required|string|max:255',
+            'locations.*.quantity' => 'required|numeric|min:0',
+
+        ], [
+
+            'item_id.required' => 'Silakan pilih barang terlebih dahulu.',
+            'item_id.exists' => 'Barang tidak ditemukan.',
+            'item_id.unique' => 'Barang ini sudah memiliki data stok. Silakan edit data yang sudah ada.',
+
+            'locations.required' => 'Minimal harus ada satu lokasi.',
+            'locations.*.location.required' => 'Lokasi wajib diisi.',
+            'locations.*.quantity.required' => 'Qty wajib diisi.',
+            'locations.*.quantity.numeric' => 'Qty harus berupa angka.',
+            'locations.*.quantity.min' => 'Qty tidak boleh kurang dari 0.',
+
+        ]);
+
+        DB::transaction(function () use ($request) {
+
+            foreach ($request->locations as $row) {
+
+                $locationName = strtoupper(trim($row['location']));
+
+                $location = Location::firstOrCreate([
+                    'location_name' => $locationName,
+                ]);
+
+                LocationStock::create([
+                    'item_id' => $request->item_id,
+                    'location_id' => $location->id,
+                    'opening_balance' => $row['quantity'],
+                    'quantity' => $row['quantity'],
+                ]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stok barang berhasil ditambahkan.',
+        ]);
     }
 
-    public function index()
+    public function edit(Item $item)
     {
-        $vendors = Vendor::orderBy('name')->get();
-        $locations = Location::orderBy('location_name')->get();
+        $item->load('locations');
 
-        return view('stock', compact('locations', 'vendors'));
+        return response()->json([
+            'item' => $item,
+        ]);
     }
 
-    public function import(Request $request)
+    public function update(Request $request, Item $item)
+    {
+        $request->validate([
+
+            'locations' => 'required|array|min:1',
+
+            'locations.*.location' => 'required|string|max:255',
+            'locations.*.quantity' => 'required|numeric|min:0',
+
+        ], [
+
+            'locations.required' => 'Minimal harus ada satu lokasi.',
+            'locations.*.location.required' => 'Lokasi wajib diisi.',
+            'locations.*.quantity.required' => 'Qty wajib diisi.',
+            'locations.*.quantity.numeric' => 'Qty harus berupa angka.',
+            'locations.*.quantity.min' => 'Qty tidak boleh kurang dari 0.',
+
+        ]);
+
+        DB::transaction(function () use ($request, $item) {
+
+            $syncData = [];
+
+            foreach ($request->locations as $row) {
+
+                $location = Location::firstOrCreate([
+                    'location_name' => strtoupper(trim($row['location'])),
+                ]);
+
+                $syncData[$location->id] = [
+                    'quantity' => $row['quantity'],
+                ];
+
+            }
+
+            $item->locations()->sync($syncData);
+
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stok barang berhasil diperbarui.',
+        ]);
+    }
+
+    public function destroy(Item $item)
+    {
+        $item->locations()->detach();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data stok barang berhasil dihapus.',
+        ]);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:items,id',
+        ]);
+
+        $count = LocationStock::whereIn('item_id', $request->ids)
+            ->distinct('item_id')
+            ->count('item_id');
+
+        LocationStock::whereIn('item_id', $request->ids)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $count.' data stok barang berhasil dihapus.',
+        ]);
+    }
+
+     public function export(Request $request)
+    {
+
+        return Excel::download(new LocationStockExport($request), 'stock.xlsx');
+    }
+
+        public function import(Request $request)
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:2048',
@@ -181,7 +328,7 @@ class StockController extends Controller
 
         try {
 
-            Excel::import(new StockImport, $request->file('file'));
+            Excel::import(new LocationStockImport, $request->file('file'));
 
             return back()->with(
                 'success',
@@ -212,184 +359,8 @@ class StockController extends Controller
     public function downloadTemplate()
     {
         return Excel::download(
-            new StockTemplateExport,
+            new LocationStockTemplateExport,
             'template_stock.xlsx'
         );
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-
-            'item_code_internal' => 'required|string|max:255|unique:stocks,item_code_internal',
-            'item_code_supplier' => 'nullable|string|max:255',
-            'item_code_customer' => 'nullable|string|max:255',
-
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'vendor_id' => 'nullable|exists:vendors,id',
-
-            'locations' => 'required|array|min:1',
-
-            'locations.*.location' => 'required|string|max:255',
-            'locations.*.quantity' => 'required|numeric|min:0',
-
-        ], [
-
-            'item_code_internal.required' => 'Kode internal wajib diisi.',
-            'item_code_internal.unique' => 'Barang sudah ada.',
-
-            'name.required' => 'Nama barang wajib diisi.',
-
-            'vendor_id.exists' => 'Vendor tidak ditemukan.',
-
-            'locations.required' => 'Minimal harus ada satu lokasi.',
-            'locations.*.location.required' => 'Lokasi wajib diisi.',
-            'locations.*.quantity.required' => 'Qty wajib diisi.',
-            'locations.*.quantity.numeric' => 'Qty harus berupa angka.',
-            'locations.*.quantity.min' => 'Qty tidak boleh kurang dari 0.',
-
-        ]);
-
-        DB::transaction(function () use ($request) {
-
-            $stock = Stock::create([
-
-                'item_code_internal' => $request->item_code_internal,
-                'item_code_supplier' => $request->item_code_supplier,
-                'item_code_customer' => $request->item_code_customer,
-
-                'name' => $request->name,
-                'description' => $request->description,
-                'vendor_id' => $request->vendor_id,
-
-            ]);
-
-            foreach ($request->locations as $row) {
-
-                $locationName = strtoupper(trim($row['location']));
-
-                $location = Location::firstOrCreate([
-                    'location_name' => $locationName,
-                ]);
-
-                $stock->locations()->attach($location->id, [
-                    'opening_balance' => $row['quantity'],
-                    'quantity' => $row['quantity'],
-                ]);
-            }
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang berhasil ditambahkan.',
-        ]);
-    }
-
-    public function edit(Stock $stock)
-    {
-        $stock->load('locations');
-
-        return response()->json([
-            'stock' => $stock,
-        ]);
-    }
-
-    public function update(Request $request, Stock $stock)
-    {
-        $request->validate([
-            'item_code_internal' => 'required|string|max:255',
-            'item_code_supplier' => 'nullable|string|max:255',
-            'item_code_customer' => 'nullable|string|max:255',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'vendor_id' => 'nullable|exists:vendors,id',
-
-            'locations' => 'required|array|min:1',
-
-            'locations.*.location' => 'required|string',
-
-            'locations.*.quantity' => 'required|numeric|min:0',
-        ]);
-
-        DB::transaction(function () use ($request, $stock) {
-
-            $stock->update([
-
-                'item_code_internal' => $request->item_code_internal,
-
-                'item_code_supplier' => $request->item_code_supplier,
-
-                'item_code_customer' => $request->item_code_customer,
-
-                'name' => $request->name,
-
-                'description' => $request->description,
-
-                'vendor_id' => $request->vendor_id,
-
-            ]);
-
-            $syncData = [];
-
-            foreach ($request->locations as $row) {
-
-                $location = Location::firstOrCreate(
-
-                    [
-                        'location_name' => trim($row['location']),
-                    ]
-
-                );
-
-                $syncData[$location->id] = [
-
-                    'quantity' => $row['quantity'],
-
-                ];
-
-            }
-
-            $stock->locations()->sync($syncData);
-
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang berhasil diperbarui.',
-        ]);
-    }
-
-    public function destroy(Stock $stock)
-    {
-        $stock->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang berhasil dihapus.',
-        ]);
-    }
-
-    public function bulkDestroy(Request $request)
-    {
-        $request->validate([
-            'ids' => 'required|array|min:1',
-            'ids.*' => 'integer|exists:stocks,id',
-        ]);
-
-        $count = Stock::whereIn('id', $request->ids)->count();
-
-        Stock::whereIn('id', $request->ids)->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => $count.' barang berhasil dihapus.',
-        ]);
-    }
-
-    public function export(Request $request)
-    {
-
-        return Excel::download(new StockExport($request), 'stock.xlsx');
     }
 }

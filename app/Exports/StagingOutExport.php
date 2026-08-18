@@ -38,7 +38,7 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
     {
         $rows = [];
 
-        $query = StagingOut::query();
+        $query = StagingOut::query()->with('item');
 
         if ($this->request->status === 'belum_picking') {
             $query->whereNull('picking_date');
@@ -74,10 +74,13 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             $query->where(function ($q) use ($search) {
                 $q->where('so_number', 'ilike', "%{$search}%")
                     ->orWhere('customer', 'ilike', "%{$search}%")
-                    ->orWhere('item_code', 'ilike', "%{$search}%")
                     ->orWhere('line_item', 'ilike', "%{$search}%")
                     ->orWhere('do_number', 'ilike', "%{$search}%")
-                    ->orWhereRaw('CAST(qty AS TEXT) ilike ?', ["%{$search}%"]);
+                    ->orWhereRaw('CAST(qty AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhereHas('item', function ($q2) use ($search) {
+                        $q2->where('item_code_internal', 'ilike', "%{$search}%")
+                            ->orWhere('name', 'ilike', "%{$search}%");
+                    });
             });
         }
 
@@ -87,7 +90,7 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             $rows[] = [
                 $staging->so_number,
                 $staging->customer,
-                $staging->item_code,
+                optional($staging->item)->item_code_internal,
                 $staging->line_item,
                 $staging->qty,
                 optional($staging->delivery_instruction_date)->format('d/m/Y'),

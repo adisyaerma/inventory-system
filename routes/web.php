@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\LocationController;
+use App\Http\Controllers\Web\LocationStockController;
 use App\Http\Controllers\Web\ScanBarcodeController;
 use App\Http\Controllers\Web\StagingInController;
 use App\Http\Controllers\Web\StagingOutController;
 use App\Http\Controllers\Web\StockController;
 use App\Http\Controllers\Web\StockMutationController;
+use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\VendorController;
 use App\Models\Location;
 use Illuminate\Http\Request;
@@ -44,35 +47,56 @@ Route::get('/check-location-code', function (Request $request) {
     ]);
 });
 
-// ==stocks==
+// ==items==
 
-Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
+Route::get('/item', [ItemController::class, 'index'])->name('items.index');
 
-Route::post('/stock', [StockController::class, 'store'])->name('stock.store');
+Route::post('/item', [ItemController::class, 'store'])->name('items.store');
 
-Route::get('/stock/template', [StockController::class, 'downloadTemplate'])
-    ->name('stock.template');
+Route::delete('/item/bulk/destroy', [ItemController::class, 'bulkDestroy'])
+    ->name('items.bulk-destroy');
 
-Route::post('/stock/import', [StockController::class, 'import'])
-    ->name('stock.import');
+Route::delete('/item/{item}', [ItemController::class, 'destroy'])
+    ->name('items.destroy');
 
-Route::delete('/stock/bulk/destroy', [StockController::class, 'bulkDestroy'])
-    ->name('stocks.bulk-destroy');
+Route::get('/item/{item}/edit', [ItemController::class, 'edit'])
+    ->name('items.edit');
 
-Route::delete('/stock/{stock}', [StockController::class, 'destroy'])
-    ->name('stocks.destroy');
+Route::put('/item/{item}', [ItemController::class, 'update'])
+    ->name('items.update');
 
-Route::get('/stock/{stock}/edit', [StockController::class, 'edit'])
-    ->name('stock.edit');
+Route::get('item/data', [ItemController::class, 'data'])
+    ->name('items.data');
 
-Route::put('/stock/{stock}', [StockController::class, 'update'])
-    ->name('stock.update');
+// ==location stock==
 
-Route::get('/stock/export', [StockController::class, 'export'])
-    ->name('stock.export');
+Route::get('/location-stock', [LocationStockController::class, 'index'])
+    ->name('location-stock.index');
 
-Route::get('stock/data', [StockController::class, 'data'])
-    ->name('stock.data');
+Route::get('/location-stock/data', [LocationStockController::class, 'data'])
+    ->name('location-stock.data');
+
+Route::get('/location-stock/search-item', [LocationStockController::class, 'searchItem'])
+    ->name('location-stock.search-item');
+
+Route::post('/location-stock', [LocationStockController::class, 'store'])
+    ->name('location-stock.store');
+
+Route::delete('/location-stock/bulk/destroy', [LocationStockController::class, 'bulkDestroy'])
+    ->name('location-stock.bulk-destroy');
+
+Route::get('/location-stock/{item}/edit', [LocationStockController::class, 'edit'])
+    ->name('location-stock.edit');
+
+Route::put('/location-stock/{item}', [LocationStockController::class, 'update'])
+    ->name('location-stock.update');
+
+Route::delete('/location-stock/{item}', [LocationStockController::class, 'destroy'])
+    ->name('location-stock.destroy');
+
+Route::get('location-stock/export', [LocationStockController::class, 'export'])->name('location-stock.export');
+Route::get('location-stock/template', [LocationStockController::class, 'downloadTemplate'])->name('location-stock.template');
+Route::post('location-stock/import', [LocationStockController::class, 'import'])->name('location-stock.import');
 
 // ===scan===
 Route::get('/scan-location', [ScanBarcodeController::class, 'index'])
@@ -83,8 +107,8 @@ Route::post('/scan-location/search', [ScanBarcodeController::class, 'search'])
 
 // ===mutation===
 
-Route::get('/stock/{stock}/mutations', [StockController::class, 'mutations'])
-    ->name('stock.mutations');
+Route::get('/item/{item}/mutations', [ItemController::class, 'mutations'])
+    ->name('item.mutations');
 
 Route::get('/stock-mutation', [StockMutationController::class, 'index'])
     ->name('stock-mutation.index');
@@ -215,3 +239,8 @@ Route::delete('/staging-out/{stagingOut}', [StagingOutController::class, 'destro
     ->name('stagings-out.destroy');
 
 Route::get('stagings-out/export', [StagingOutController::class, 'export'])->name('stagings-out.export');
+
+Route::get('stagings-out/search-stock', [StagingOutController::class, 'searchStock'])->name('stagings-out.search-stock');
+
+
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

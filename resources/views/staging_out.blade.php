@@ -392,16 +392,9 @@
                                                             Kode Barang
                                                         </label>
 
-                                                        <div class="input-group">
+                                                        <select id="addItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-barcode"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="item_code" placeholder="Contoh: NL3195">
-
-                                                        </div>
+                                                        <input type="hidden" name="item_id" id="addItemId">
 
                                                     </div>
 
@@ -1003,16 +996,9 @@
                                                 Kode Barang
                                             </label>
 
-                                            <div class="input-group">
+                                            <select id="editItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-barcode"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="item_code" id="editItemCode">
-
-                                            </div>
+                                            <input type="hidden" name="item_id" id="editItemId">
 
                                         </div>
 
@@ -1787,6 +1773,49 @@
                     }
                 });
 
+                // ================= BARANG (TomSelect dari tabel items) =================
+                function initItemSelect(selectId, idFieldId) {
+
+                    return new TomSelect(selectId, {
+                        valueField: 'id',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        preload: true,
+                        create: false,
+                        maxOptions: 20,
+                        placeholder: 'Cari kode / nama barang...',
+
+                        load: function(query, callback) {
+                            $.ajax({
+                                url: "{{ route('stagings-out.search-stock') }}",
+                                type: 'GET',
+                                data: {
+                                    q: query
+                                },
+                                success: function(res) {
+                                    callback(res);
+                                },
+                                error: function() {
+                                    callback();
+                                }
+                            });
+                        },
+
+                        onChange: function(value) {
+                            let data = this.options[value];
+                            $(idFieldId).val(data ? data.id : '');
+                        }
+                    });
+                }
+
+                let addItemSelect = initItemSelect('#addItemSelect', '#addItemId');
+                let editItemSelect = initItemSelect('#editItemSelect', '#editItemId');
+
+                $('#addStagingOut').on('hidden.bs.modal', function() {
+                    addItemSelect.clear();
+                    $('#addItemId').val('');
+                });
+
                 // ================= TAMBAH (AJAX) =================
                 $(document).on('submit', '#formStagingOut', function(e) {
 
@@ -1802,6 +1831,8 @@
 
                             $('#addStagingOut').modal('hide');
                             $('#formStagingOut')[0].reset();
+                            addItemSelect.clear();
+                            $('#addItemId').val('');
 
                             table.ajax.reload(null, false);
 
@@ -1867,13 +1898,35 @@
                             $('#editId').val(res.id);
                             $('#editSoNumber').val(res.so_number);
                             $('#editCustomer').val(res.customer);
-                            $('#editItemCode').val(res.item_code);
                             $('#editLineItem').val(res.line_item);
                             $('#editQty').val(res.qty);
                             $('#editDeliveryInstructionDate').val(res.delivery_instruction_date);
                             $('#editPickingDate').val(res.picking_date);
                             $('#editDoNumber').val(res.do_number);
                             $('#editDeliveryDate').val(res.delivery_date);
+
+                            $('#editItemId').val(res.item_id);
+
+                            editItemSelect.clear(true);
+                            editItemSelect.clearOptions();
+                            editItemSelect.loadedSearches = {};
+                            editItemSelect.load('');
+
+                            if (res.item_id && (res.item_code || res.item_name)) {
+
+                                let label = [res.item_code, res.item_name]
+                                    .filter(Boolean)
+                                    .join(' | ');
+
+                                editItemSelect.addOption({
+                                    id: res.item_id,
+                                    text: label,
+                                    item_code: res.item_code,
+                                    item_name: res.item_name
+                                });
+
+                                editItemSelect.setValue(res.item_id, true);
+                            }
 
                         },
 
@@ -1967,6 +2020,10 @@
 
                 $('#editStagingOutModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
+                    editItemSelect.clear();
+                    editItemSelect.clearOptions();
+                    editItemSelect.loadedSearches = {};
+                    $('#editItemId').val('');
                 });
 
                 // ================= KONFIRMASI TANGGAL PICKING: buka modal =================

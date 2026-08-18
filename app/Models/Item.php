@@ -4,8 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Location;
 
-class Stock extends Model
+
+class Item extends Model
 {
     use HasFactory;
 
@@ -20,12 +22,12 @@ class Stock extends Model
         'quantity',
     ];
 
-    public function locations()
-    {
-        return $this->belongsToMany(Location::class)
-            ->withPivot('quantity')
-            ->withTimestamps();
-    }
+public function locations()
+{
+    return $this->belongsToMany(Location::class, 'location_stock', 'item_id', 'location_id')
+        ->withPivot(['opening_balance', 'quantity'])
+        ->withTimestamps();
+}
 
     public function mutations()
     {
@@ -34,7 +36,7 @@ class Stock extends Model
 
     public function locationStocks()
     {
-        return $this->hasMany(LocationStock::class, 'stock_id');
+        return $this->hasMany(LocationStock::class, 'item_id');
     }
 
     public function vendor()

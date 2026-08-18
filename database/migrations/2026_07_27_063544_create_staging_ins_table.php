@@ -16,9 +16,8 @@ return new class extends Migration
             $table->string('po_number')->nullable();
             $table->date('arrival_date')->nullable();
             $table->string('supplier_origin')->nullable();
-            $table->string('item_owner')->nullable();
-            $table->string('item_code')->nullable();
-            $table->string('item_name')->nullable();
+
+            $table->foreignId('item_id')->nullable()->constrained('items')->nullOnDelete();
             $table->unsignedInteger('qty')->default(0);
             $table->enum('location', [
                 'Inbound shipment',

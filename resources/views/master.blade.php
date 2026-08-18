@@ -123,16 +123,30 @@
                 <div class="menu-inner-shadow"></div>
 
                 <ul class="menu-inner py-1">
-                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Menu</span></li>
+                    <li class="menu-item">
+                        <a href="/" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-collection"></i>
+                            <div class="text-truncate" data-i18n="Basic">Dashboard</div>
+                        </a>
+                    </li>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Master Data</span>
+                    </li>
                     <!-- Cards -->
                     <li class="menu-item">
                         <a href="/location" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Lokasi Penyimpanan</div>
                         </a>
+                        <a href="/item" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-collection"></i>
+                            <div class="text-truncate" data-i18n="Basic">Barang</div>
+                        </a>
                     </li>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Inventory</span>
+                    </li>
+
                     <li class="menu-item">
-                        <a href="/stock" class="menu-link">
+                        <a href="/location-stock" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Stok</div>
                         </a>
@@ -143,6 +157,8 @@
                             <div class="text-truncate" data-i18n="Basic">Mutasi</div>
                         </a>
                     </li>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Staging</span></li>
+
                     <li class="menu-item">
                         <a href="/staging-in" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
@@ -155,6 +171,8 @@
                             <div class="text-truncate" data-i18n="Basic">Staging-out</div>
                         </a>
                     </li>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Tools</span></li>
+
                     <li class="menu-item">
                         <a href="/scan-location" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-scan"></i>
@@ -274,7 +292,7 @@
     @stack('script')
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/5.0.4/js/dataTables.fixedColumns.min.js"></script>
-       
+
 
 </body>
 

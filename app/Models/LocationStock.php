@@ -12,7 +12,7 @@ class LocationStock extends Model
     protected $table = 'location_stock';
 
     protected $fillable = [
-        'stock_id',
+        'item_id',
         'location_id',
         'opening_balance',
         'quantity',
@@ -22,4 +22,10 @@ class LocationStock extends Model
     {
         return $this->belongsTo(Location::class, 'location_id');
     }
+
+    public function item()
+    {
+        return $this->belongsTo(Item::class);
+    }
+
 }

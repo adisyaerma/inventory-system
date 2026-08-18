@@ -12,7 +12,7 @@ class StagingOut extends Model
     protected $fillable = [
         'so_number',
         'customer',
-        'item_code',
+        'item_id',
         'line_item',
         'qty',
         'delivery_instruction_date',
@@ -26,4 +26,9 @@ class StagingOut extends Model
         'picking_date' => 'date',
         'delivery_date' => 'date',
     ];
+
+    public function item()
+    {
+        return $this->belongsTo(Item::class);
+    }
 }

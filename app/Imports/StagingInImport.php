@@ -3,7 +3,9 @@
 namespace App\Imports;
 
 use App\Imports\Concerns\ParsesExcelDates;
+use App\Models\Item;
 use App\Models\StagingIn;
+use App\Models\Vendor;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -141,6 +143,47 @@ class StagingInImport implements ToCollection, WithHeadingRow
         return null;
     }
 
+    /**
+     * Resolve the Item that a row's kode_barang/nama_barang/owner cells
+     * refer to, creating it (and its vendor) on the fly when it doesn't
+     * exist yet in the items table — the id is always returned so the
+     * row can still be saved, never blocking the import.
+     *
+     * Matching is done on item_code_internal first (falling back to the
+     * item name when no code was provided). If an owner is given and the
+     * matched/created item doesn't have a vendor yet, the vendor is
+     * filled in too.
+     */
+    private function resolveItemId(?string $itemCode, ?string $itemName, ?string $itemOwner): ?int
+    {
+        if ($itemCode === null && $itemName === null) {
+            return null;
+        }
+
+        $vendorId = null;
+
+        if ($itemOwner !== null) {
+            $vendorId = Vendor::firstOrCreate(['name' => $itemOwner])->id;
+        }
+
+        $item = Item::firstOrCreate(
+            ['item_code_internal' => $itemCode],
+            [
+                'name' => $itemName ?: $itemCode,
+                'vendor_id' => $vendorId,
+                'description' => 'Dibuat otomatis dari import Staging In',
+            ]
+        );
+
+        // Item sudah ada sebelumnya tapi belum punya vendor — lengkapi
+        // dari data owner di baris import ini.
+        if ($vendorId && ! $item->vendor_id) {
+            $item->update(['vendor_id' => $vendorId]);
+        }
+
+        return $item->id;
+    }
+
     public function collection(Collection $rows)
     {
         $this->errors = [];
@@ -174,13 +217,13 @@ class StagingInImport implements ToCollection, WithHeadingRow
 
             try {
 
+                $itemId = $this->resolveItemId($itemCode, $itemName, $itemOwner);
+
                 StagingIn::create([
                     'po_number' => $poNumber,
                     'arrival_date' => $arrivalDate,
                     'supplier_origin' => $supplierOrigin,
-                    'item_owner' => $itemOwner,
-                    'item_code' => $itemCode,
-                    'item_name' => $itemName,
+                    'item_id' => $itemId,
                     'qty' => $qty,
                     'location' => $location,
                     'incoterms' => $incoterms,

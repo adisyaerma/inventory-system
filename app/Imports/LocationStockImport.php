@@ -3,13 +3,13 @@
 namespace App\Imports;
 
 use App\Models\Location;
-use App\Models\Stock;
+use App\Models\Item;
 use App\Models\Vendor;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class StockImport implements ToCollection, WithHeadingRow
+class LocationStockImport implements ToCollection, WithHeadingRow
 {
     /**
      * Human-readable messages for rows that failed to import.
@@ -53,7 +53,7 @@ class StockImport implements ToCollection, WithHeadingRow
                     }
                 }
 
-                $stock = Stock::create([
+                $item = Item::create([
                     'vendor_id' => $vendor?->id,
                     'item_code_internal' => $row['item_code_internal'],
                     'item_code_supplier' => $row['item_code_supplier'] ?? null,
@@ -92,7 +92,7 @@ class StockImport implements ToCollection, WithHeadingRow
                         ? (float) $quantities[$i]
                         : 0;
 
-                    $stock->locations()->attach($location->id, [
+                    $item->locations()->attach($location->id, [
                         'opening_balance' => $qty,
                         'quantity' => $qty,
                     ]);

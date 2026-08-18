@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('stock_mutations', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('stock_id')
-                ->constrained('stocks')
+            $table->foreignId('item_id')
+                ->constrained('items')
                 ->cascadeOnDelete();
 
             $table->foreignId('location_id')
@@ -31,7 +31,7 @@ return new class extends Migration
             $table->timestamps();
             $table->index('transaction_date');
             $table->index('transaction_number');
-            $table->index(['stock_id', 'location_id']);
+            $table->index(['item_id', 'location_id']);
         });
     }
 

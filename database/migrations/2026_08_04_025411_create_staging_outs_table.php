@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('so_number')->nullable();
             $table->string('customer')->nullable();
-            $table->string('item_code')->nullable();
+            $table->foreignId('item_id')->nullable()->constrained('items')->nullOnDelete();
             $table->string('line_item')->nullable();
             $table->integer('qty')->nullable();
             $table->date('delivery_instruction_date')->nullable();

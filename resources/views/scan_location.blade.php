@@ -141,7 +141,7 @@
 
 @push('script')
     <style>
-        .stock-scroll {
+        .item-scroll {
             max-height: 400px;
             overflow-y: auto;
             overflow-x: hidden;
@@ -172,17 +172,17 @@
 
                 const isStaging = response.type === 'staging';
 
-                let stocksHtml = '';
+                let itemsHtml = '';
 
-                for (let i = 0; i < response.stocks.length; i++) {
-                    const stock = response.stocks[i];
+                for (let i = 0; i < response.items.length; i++) {
+                    const item = response.items[i];
 
                     if (isStaging) {
 
                         // ==== ITEM DARI TABEL STAGING ====
-                        stocksHtml += `
+                        itemsHtml += `
 
-                <div class="card border border-light shadow-sm mb-3 stock-item">
+                <div class="card border border-light shadow-sm mb-3 item-card">
 
                     <div class="card-body">
 
@@ -192,22 +192,22 @@
                             <div class="flex-grow-1">
 
                                 <small class="text-muted">
-    ${stock.po_number ?? '-'} &bull; ${stock.item_code ?? '-'}
+    ${item.po_number ?? '-'} &bull; ${item.item_code ?? '-'}
 </small>
 
                                 <div class=" text-dark fw-semibold mb-1">
-                                    ${stock.name ?? '-'}
+                                    ${item.name ?? '-'}
                                 </div>
 
                                 <small class="text-muted d-block">
-                                    Supplier: ${stock.supplier_origin ?? '-'} &bull; Owner: ${stock.item_owner ?? '-'}
+                                    Supplier: ${item.supplier_origin ?? '-'} &bull; Owner: ${item.item_owner ?? '-'}
                                 </small>
 
                                 <small class="text-muted d-block">
-                                    Tgl Datang: ${stock.arrival_date ?? '-'}
+                                    Tgl Datang: ${item.arrival_date ?? '-'}
                                 </small>
 
-                                ${stock.notes ? `<small class="text-muted d-block fst-italic">Catatan: ${stock.notes}</small>` : ''}
+                                ${item.notes ? `<small class="text-muted d-block fst-italic">Catatan: ${item.notes}</small>` : ''}
 
                             </div>
 
@@ -215,7 +215,7 @@
                             <div class="text-end" width="300">
 
                                 <small class="badge bg-label-warning p-2">
-                                    Qty: ${parseInt(stock.quantity)}
+                                    Qty: ${parseInt(item.quantity)}
                                 </small>
 
                             </div>
@@ -229,10 +229,10 @@
                 `;
 
                     } else {
-                            // item dari tabel untuk stok manual
-                        stocksHtml += `
+                            // item dari tabel lokasi (input manual)
+                        itemsHtml += `
 
-                <div class="card border border-light shadow-sm mb-3 stock-item">
+                <div class="card border border-light shadow-sm mb-3 item-card">
 
                     <div class="card-body">
 
@@ -242,11 +242,11 @@
                             <div class="flex-grow-1">
 
                                 <small class="text-muted">
-    ${stock.vendor_name ?? '-'} &bull; ${stock.item_code_internal}
+    ${item.vendor_name ?? '-'} &bull; ${item.item_code_internal}
 </small>
 
                                 <div class=" text-dark fw-semibold mb-2">
-                                    ${stock.name}
+                                    ${item.name}
                                 </div>
 
                             </div>
@@ -255,7 +255,7 @@
                             <div class="text-end" width="300">
 
                                 <small class="badge bg-primary p-2">
-                                    Qty: ${parseInt(stock.quantity)}
+                                    Qty: ${parseInt(item.quantity)}
                                 </small>
 
                                 <br>
@@ -263,7 +263,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline-primary btn-sm btnMutation mt-2 d-inline-flex align-items-center gap-1"
-                                    data-stock="${stock.id}">
+                                    data-item="${item.id}">
 
                                     <i class="bx bx-history fs-6"></i>
 
@@ -280,7 +280,7 @@
                         <!-- PANEL MUTASI -->
                         <div
                             class="mutation-panel mt-3"
-                            id="mutation-${stock.id}"
+                            id="mutation-${item.id}"
                             style="display:none;">
 
                         </div>
@@ -433,7 +433,7 @@
 
             <div class="p-2 border-bottom">
                 <input type="text"
-                    id="searchStock"
+                    id="searchItem"
                     class="form-control form-control-sm"
                     placeholder="Cari barang...">
             </div>
@@ -450,8 +450,8 @@
 
             <div class="card-body p-2">
 
-                <div id="stocksContainer" class="stock-scroll">
-                    ${stocksHtml}
+                <div id="itemsContainer" class="item-scroll">
+                    ${itemsHtml}
                 </div>
 
             </div>
@@ -611,10 +611,10 @@
     </style>
 
     <script>
-        $(document).on('keyup', '#searchStock', function() {
+        $(document).on('keyup', '#searchItem', function() {
             let keyword = $(this).val().toLowerCase();
 
-            $('#stocksContainer .stock-item').each(function() {
+            $('#itemsContainer .item-card').each(function() {
                 let text = $(this).text().toLowerCase();
 
                 if (text.includes(keyword)) {
@@ -699,9 +699,9 @@
 
             let button = $(this);
 
-            let stockId = button.data('stock');
+            let itemId = button.data('item');
 
-            let panel = $("#mutation-" + stockId);
+            let panel = $("#mutation-" + itemId);
 
             if (panel.is(":visible")) {
 
@@ -741,7 +741,7 @@
                 .removeClass("bx-chevron-down")
                 .addClass("bx-chevron-up");
 
-            $.get("/stock/" + stockId + "/mutations", function(data) {
+            $.get("/item/" + itemId + "/mutations", function(data) {
 
                 let html = '';
 
@@ -773,7 +773,7 @@
 
 </div>
 
-<a href="/stock-mutation?stock=${stockId}"
+<a href="/stock-mutation?item=${itemId}"
 
 class="btn btn-sm btn-outline-primary">
 

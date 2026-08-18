@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Imports\Concerns\ParsesExcelDates;
+use App\Models\Item;
 use App\Models\StagingOut;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -75,6 +76,29 @@ class StagingOutImport implements ToCollection, WithHeadingRow
         return max(0, (int) round((float) $value));
     }
 
+    /**
+     * Resolve the Item that a row's kode_barang cell refers to, creating
+     * it on the fly when it doesn't exist yet in the items table — the
+     * id is always returned so the row can still be saved, never
+     * blocking the import. The sheet only carries a code (no separate
+     * item name column), so a newly created item's name falls back to
+     * the code itself.
+     */
+    private function resolveItemId(?string $itemCode): ?int
+    {
+        if ($itemCode === null) {
+            return null;
+        }
+
+        return Item::firstOrCreate(
+            ['item_code_internal' => $itemCode],
+            [
+                'name' => null,
+                'description' => 'Dibuat otomatis dari import Staging Out',
+            ]
+        )->id;
+    }
+
     public function collection(Collection $rows)
     {
         $this->errors = [];
@@ -101,16 +125,18 @@ class StagingOutImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            if ($doNumber === null){
+            if ($doNumber === null) {
                 continue;
             }
 
             try {
 
+                $itemId = $this->resolveItemId($itemCode);
+
                 StagingOut::create([
                     'so_number' => $soNumber,
                     'customer' => $customer,
-                    'item_code' => $itemCode,
+                    'item_id' => $itemId,
                     'line_item' => $lineItem,
                     'qty' => $qty,
                     'delivery_instruction_date' => $deliveryInstructionDate,

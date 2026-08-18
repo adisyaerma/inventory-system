@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Imports\StockMutationImport;
 use App\Models\Location;
 use App\Models\LocationStock;
-use App\Models\Stock;
+use App\Models\Item;
 use App\Models\StockMutation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -20,12 +20,12 @@ class StockMutationController extends Controller
 {
     public function data(Request $request)
     {
-        $query = StockMutation::with(['stock', 'location'])
+        $query = StockMutation::with(['item', 'location'])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id');
 
-        if ($request->filled('stock')) {
-            $query->where('stock_id', $request->stock);
+        if ($request->filled('item')) {
+            $query->where('item_id', $request->item);
         }
 
         if ($request->filled('start_date')) {
@@ -58,12 +58,12 @@ class StockMutationController extends Controller
 
             // ================= GABUNGAN KODE + NAMA BARANG =================
             ->addColumn('barang', function ($row) {
-                return '<div class="fw-bold">'.e($row->stock->item_code_internal).'</div>'
-                     .'<div class="text-muted small">'.e($row->stock->name).'</div>';
+                return '<div class="fw-bold">'.e($row->item->item_code_internal).'</div>'
+                     .'<div class="text-muted small">'.e($row->item->name).'</div>';
             })
 
             ->filterColumn('barang', function ($query, $keyword) {
-                $query->whereHas('stock', function ($q) use ($keyword) {
+                $query->whereHas('itfem', function ($q) use ($keyword) {
                     $q->where('item_code_internal', 'like', "%{$keyword}%")
                         ->orWhere('name', 'like', "%{$keyword}%");
                 });
@@ -175,10 +175,10 @@ class StockMutationController extends Controller
 
     private function deleteMutationAndRecalculate(StockMutation $stockMutation)
     {
-        $stockId = $stockMutation->stock_id;
+        $itemId = $stockMutation->item_id;
         $locationId = $stockMutation->location_id;
 
-        $nextMutation = StockMutation::where('stock_id', $stockId)
+        $nextMutation = StockMutation::where('item_id', $itemId)
             ->where('location_id', $locationId)
             ->where(function ($q) use ($stockMutation) {
                 $q->where('transaction_date', '>', $stockMutation->transaction_date)
@@ -196,18 +196,18 @@ class StockMutationController extends Controller
         if ($nextMutation) {
 
             $this->recalculateLocationStock(
-                $stockId,
+                $itemId,
                 $locationId,
                 $nextMutation->id
             );
 
         } else {
 
-            $locationStock = LocationStock::where('stock_id', $stockId)
+            $locationStock = LocationStock::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->first();
 
-            $lastBalance = StockMutation::where('stock_id', $stockId)
+            $lastBalance = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->orderByDesc('transaction_date')
                 ->orderByDesc('id')
@@ -215,7 +215,7 @@ class StockMutationController extends Controller
 
             LocationStock::updateOrCreate(
                 [
-                    'stock_id' => $stockId,
+                    'item_id' => $itemId,
                     'location_id' => $locationId,
                 ],
                 [
@@ -225,7 +225,7 @@ class StockMutationController extends Controller
         }
     }
 
-    private function recalculateLocationStock($stockId, $locationId, $startMutationId = null)
+    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null)
     {
         if ($startMutationId) {
 
@@ -235,7 +235,7 @@ class StockMutationController extends Controller
                 return;
             }
 
-            $previousMutation = StockMutation::where('stock_id', $stockId)
+            $previousMutation = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '<', $startMutation->transaction_date)
@@ -254,7 +254,7 @@ class StockMutationController extends Controller
 
             } else {
 
-                $locationStock = LocationStock::where('stock_id', $stockId)
+                $locationStock = LocationStock::where('item_id', $itemId)
                     ->where('location_id', $locationId)
                     ->first();
 
@@ -262,7 +262,7 @@ class StockMutationController extends Controller
                     ? $locationStock->opening_balance
                     : 0;
             }
-            $mutations = StockMutation::where('stock_id', $stockId)
+            $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '>', $startMutation->transaction_date)
@@ -279,7 +279,7 @@ class StockMutationController extends Controller
 
             $balance = 0;
 
-            $mutations = StockMutation::where('stock_id', $stockId)
+            $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->orderBy('transaction_date')
                 ->orderBy('id')
@@ -298,7 +298,7 @@ class StockMutationController extends Controller
 
         LocationStock::updateOrCreate(
             [
-                'stock_id' => $stockId,
+                'item_id' => $itemId,
                 'location_id' => $locationId,
             ],
             [
@@ -389,7 +389,7 @@ class StockMutationController extends Controller
     {
         $keyword = $request->q;
 
-        $stocks = Stock::query()
+        $items = Item::query()
 
             ->when($keyword, function ($query) use ($keyword) {
 
@@ -408,13 +408,13 @@ class StockMutationController extends Controller
 
         return response()->json(
 
-            $stocks->map(function ($stock) {
+            $items->map(function ($item) {
 
                 return [
 
-                    'id' => $stock->id,
+                    'id' => $item->id,
 
-                    'text' => $stock->item_code_internal.' | '.$stock->name,
+                    'text' => $item->item_code_internal.' | '.$item->name,
 
                 ];
 
@@ -427,7 +427,7 @@ class StockMutationController extends Controller
     {
         $request->validate([
 
-            'stock_id' => 'required|exists:stocks,id',
+            'item_id' => 'required|exists:items,id',
 
             'location' => 'required',
 
@@ -448,7 +448,7 @@ class StockMutationController extends Controller
 
         }
 
-        $locationStock = LocationStock::where('stock_id', $request->stock_id)
+        $locationStock = LocationStock::where('item_id', $request->item_id)
             ->where('location_id', $location->id)
             ->first();
 
@@ -463,7 +463,7 @@ class StockMutationController extends Controller
     {
         $request->validate([
             'transaction_date' => 'required|date',
-            'stock_id' => 'required|exists:stocks,id',
+            'item_id' => 'required|exists:items,id',
             'location' => 'required',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
@@ -481,7 +481,7 @@ class StockMutationController extends Controller
 
             $locationStock = LocationStock::firstOrCreate(
                 [
-                    'stock_id' => $request->stock_id,
+                    'item_id' => $request->item_id,
                     'location_id' => $location->id,
                 ],
                 [
@@ -500,7 +500,7 @@ class StockMutationController extends Controller
             }
 
             $mutation = StockMutation::create([
-                'stock_id' => $request->stock_id,
+                'item_id' => $request->item_id,
                 'location_id' => $location->id,
                 'transaction_date' => $request->transaction_date,
                 'transaction_number' => $request->transaction_number,
@@ -511,7 +511,7 @@ class StockMutationController extends Controller
             ]);
 
             $this->recalculateLocationStock(
-                $request->stock_id,
+                $request->item_id,
                 $location->id,
                 $mutation->id
             );
@@ -538,7 +538,7 @@ class StockMutationController extends Controller
     public function edit(StockMutation $mutation)
     {
         $mutation->load([
-            'stock',
+            'item',
             'location',
         ]);
 
@@ -549,9 +549,9 @@ class StockMutationController extends Controller
             'transaction_date' => Carbon::parse($mutation->transaction_date)
                 ->format('Y-m-d'),
 
-            'stock_id' => $mutation->stock_id,
+            'item_id' => $mutation->item_id,
 
-            'stock_name' => $mutation->stock->item_code_internal.' | '.$mutation->stock->name,
+            'item_name' => $mutation->item->item_code_internal.' | '.$mutation->item->name,
 
             'location' => $mutation->location->location_name,
 
@@ -584,7 +584,7 @@ class StockMutationController extends Controller
     {
         $request->validate([
             'transaction_date' => 'required|date',
-            'stock_id' => 'required|exists:stocks,id',
+            'item_id' => 'required|exists:items,id',
             'location' => 'required',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
@@ -596,7 +596,7 @@ class StockMutationController extends Controller
 
         try {
 
-            $oldStockId = $mutation->stock_id;
+            $oldItemId = $mutation->item_id;
             $oldLocationId = $mutation->location_id;
 
             $location = Location::firstOrCreate([
@@ -605,7 +605,7 @@ class StockMutationController extends Controller
 
             $locationStock = LocationStock::firstOrCreate(
                 [
-                    'stock_id' => $request->stock_id,
+                    'item_id' => $request->item_id,
                     'location_id' => $location->id,
                 ],
                 [
@@ -616,7 +616,7 @@ class StockMutationController extends Controller
             $availableQty = $locationStock->quantity;
 
             if (
-                $oldStockId == $request->stock_id &&
+                $oldItemId == $request->item_id &&
                 $oldLocationId == $location->id
             ) {
                 $availableQty = $availableQty - $mutation->qty_in + $mutation->qty_out;
@@ -635,7 +635,7 @@ class StockMutationController extends Controller
             $startMutationId = $mutation->id;
 
             $mutation->update([
-                'stock_id' => $request->stock_id,
+                'item_id' => $request->item_id,
                 'location_id' => $location->id,
                 'transaction_date' => $request->transaction_date,
                 'transaction_number' => $request->transaction_number,
@@ -645,17 +645,17 @@ class StockMutationController extends Controller
             ]);
 
             $this->recalculateLocationStock(
-                $oldStockId,
+                $oldItemId,
                 $oldLocationId,
                 $startMutationId
             );
 
             if (
-                $oldStockId != $request->stock_id ||
+                $oldItemId != $request->item_id ||
                 $oldLocationId != $location->id
             ) {
                 $this->recalculateLocationStock(
-                    $request->stock_id,
+                    $request->item_id,
                     $location->id,
                     $startMutationId
                 );
@@ -694,7 +694,7 @@ class StockMutationController extends Controller
     public function defaultLocation(Request $request)
     {
         $locationStock = LocationStock::with('location')
-            ->where('stock_id', $request->stock_id)
+            ->where('item_id', $request->item_id)
             ->orderByDesc('quantity')
             ->first();
 

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('location_stock', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('stock_id')
+            $table->foreignId('item_id')
                 ->constrained()
                 ->cascadeOnDelete();
 
@@ -26,7 +26,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['stock_id', 'location_id']);
+            $table->unique(['item_id', 'location_id']);
             $table->decimal('opening_balance', 15, 2)
                 ->default(0)
                 ->after('location_id');

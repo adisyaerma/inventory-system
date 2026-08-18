@@ -40,7 +40,7 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
     {
         $rows = [];
 
-        $query = StagingIn::query();
+        $query = StagingIn::query()->with('item.vendor');
 
         if ($this->request->filled('location')) {
             $query->where('location', $this->request->location);
@@ -55,7 +55,11 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
         }
 
         if ($this->request->filled('item_owner')) {
-            $query->where('item_owner', $this->request->item_owner);
+            $owner = $this->request->item_owner;
+
+            $query->whereHas('item.vendor', function ($q) use ($owner) {
+                $q->where('name', $owner);
+            });
         }
 
         if ($this->request->filled('supplier_origin')) {
@@ -75,15 +79,19 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
 
             $query->where(function ($q) use ($search) {
                 $q->where('po_number', 'ilike', "%{$search}%")
-                    ->orWhere('item_code', 'ilike', "%{$search}%")
-                    ->orWhere('item_name', 'ilike', "%{$search}%")
                     ->orWhere('supplier_origin', 'ilike', "%{$search}%")
-                    ->orWhere('item_owner', 'ilike', "%{$search}%")
                     ->orWhere('location', 'ilike', "%{$search}%")
                     ->orWhere('incoterms', 'ilike', "%{$search}%")
                     ->orWhere('notes', 'ilike', "%{$search}%")
                     ->orWhere('status', 'ilike', "%{$search}%")
-                    ->orWhereRaw('CAST(qty AS TEXT) ilike ?', ["%{$search}%"]);
+                    ->orWhereRaw('CAST(qty AS TEXT) ilike ?', ["%{$search}%"])
+                    ->orWhereHas('item', function ($q2) use ($search) {
+                        $q2->where('item_code_internal', 'ilike', "%{$search}%")
+                            ->orWhere('name', 'ilike', "%{$search}%")
+                            ->orWhereHas('vendor', function ($q3) use ($search) {
+                                $q3->where('name', 'ilike', "%{$search}%");
+                            });
+                    });
             });
         }
 
@@ -94,10 +102,10 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
                 $staging->po_number,
                 optional($staging->arrival_date)->format('d/m/Y'),
                 $staging->supplier_origin,
-                $staging->item_owner,
+                optional(optional($staging->item)->vendor)->name,
                 $staging->incoterms,
-                $staging->item_code,
-                $staging->item_name,
+                optional($staging->item)->item_code_internal,
+                optional($staging->item)->name,
                 $staging->qty,
                 $staging->location,
                 $staging->notes,

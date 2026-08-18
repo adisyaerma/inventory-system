@@ -4,7 +4,7 @@ namespace App\Imports;
 
 use App\Models\Location;
 use App\Models\LocationStock;
-use App\Models\Stock;
+use App\Models\Item;
 use App\Models\StockMutation;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -185,12 +185,12 @@ class StockMutationImport implements ToCollection
                 $qtyIn,
                 $qtyOut
             ) {
-                $stock = Stock::firstOrCreate(
+                $item = Item::firstOrCreate(
                     ['item_code_internal' => $itemCode],
                     ['name' => $itemName]
                 );
 
-                $locationStock = LocationStock::where('stock_id', $stock->id)
+                $locationStock = LocationStock::where('item_id', $item->id)
                     ->orderByDesc('quantity')
                     ->first();
 
@@ -201,7 +201,7 @@ class StockMutationImport implements ToCollection
 
                     $locationStock = LocationStock::firstOrCreate(
                         [
-                            'stock_id' => $stock->id,
+                            'item_id' => $item->id,
                             'location_id' => $unknownLocation->id,
                         ],
                         [
@@ -211,16 +211,16 @@ class StockMutationImport implements ToCollection
                     );
                 }
 
-                if (! array_key_exists($stock->id, $this->runningBalances)) {
-                    $this->runningBalances[$stock->id] = (float) ($locationStock->opening_balance ?? 0);
+                if (! array_key_exists($item->id, $this->runningBalances)) {
+                    $this->runningBalances[$item->id] = (float) ($locationStock->opening_balance ?? 0);
                 }
 
                 $qtyBalanceExcel = (float) ($row[7] ?? 0);
-                $computedBalance = $this->runningBalances[$stock->id] + $qtyIn - $qtyOut;
+                $computedBalance = $this->runningBalances[$item->id] + $qtyIn - $qtyOut;
 
                 if (abs($computedBalance - $qtyBalanceExcel) > self::TOLERANCE) {
                     Log::warning('Selisih stok terdeteksi saat import mutasi', [
-                        'item_code' => $stock->item_code_internal,
+                        'item_code' => $item->item_code_internal,
                         'transaction_number' => $transactionNumber,
                         'transaction_date' => $transactionDate,
                         'computed_balance' => $computedBalance,
@@ -230,7 +230,7 @@ class StockMutationImport implements ToCollection
                 }
 
                 StockMutation::create([
-                    'stock_id' => $stock->id,
+                    'item_id' => $item->id,
                     'location_id' => $locationStock->location_id,
                     'transaction_date' => $this->parseDate($transactionDate),
                     'transaction_number' => $transactionNumber,
@@ -245,7 +245,7 @@ class StockMutationImport implements ToCollection
                 ]);
 
                 // Baris berhasil disimpan -> baru sekarang running balance di-commit.
-                $this->runningBalances[$stock->id] = $computedBalance;
+                $this->runningBalances[$item->id] = $computedBalance;
             });
 
             $this->imported++;

@@ -358,8 +358,7 @@
 
                                                         <select id="addItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                                        <input type="hidden" name="item_code" id="addItemCode">
-                                                        <input type="hidden" name="item_name" id="addItemName">
+                                                        <input type="hidden" name="item_id" id="addItemId">
 
                                                     </div>
 
@@ -376,8 +375,8 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                name="item_owner" id="addItemOwner"
-                                                                placeholder="Contoh: PT. XYZ">
+                                                                id="addItemOwner" placeholder="Terisi otomatis dari data barang"
+                                                                readonly disabled>
 
                                                         </div>
 
@@ -998,8 +997,7 @@
 
                                             <select id="editItemSelect" placeholder="Cari kode / nama barang..."></select>
 
-                                            <input type="hidden" name="item_code" id="editItemCode">
-                                            <input type="hidden" name="item_name" id="editItemName">
+                                            <input type="hidden" name="item_id" id="editItemId">
 
                                         </div>
 
@@ -1016,7 +1014,7 @@
                                                 </span>
 
                                                 <input type="text" class="form-control form-control-sm"
-                                                    name="item_owner" id="editItemOwner">
+                                                    id="editItemOwner" readonly disabled>
 
                                             </div>
 
@@ -1308,7 +1306,7 @@
 
                         {{-- ================= QTY (SHARED) ================= --}}
                         <div class="row g-3 mb-1">
-                            <div class="col-md-6">
+                            <div class="col-12">
                                 <label class="form-label fw-semibold">Qty dipindah</label>
                                 <input type="number" class="form-control form-control-sm" name="qty"
                                     id="moveQty" min="1">
@@ -1320,15 +1318,15 @@
                         <div id="fieldsMasukStok" class="mt-3">
                             <div class="row g-3">
 
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Lokasi Gudang</label>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Lokasi Penyimpanan</label>
                                     <select id="moveLocationSelect" name="location"></select>
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label fw-semibold">No. Referensi</label>
+                                    <label class="form-label fw-semibold">No. Transaksi</label>
                                     <input type="text" class="form-control form-control-sm"
-                                        name="transaction_number" id="moveTransactionNumber"
+                                        name="transaction_number" id=""
                                         placeholder="Contoh: GRN-2026-0001">
                                 </div>
 
@@ -1654,8 +1652,8 @@
                     }
                 });
 
-                // ================= BARANG (TomSelect dari tabel stocks) =================
-                function initItemSelect(selectId, codeFieldId, nameFieldId, ownerFieldId) {
+                // ================= BARANG (TomSelect dari tabel items) =================
+                function initItemSelect(selectId, idFieldId, ownerFieldId) {
 
                     return new TomSelect(selectId, {
                         valueField: 'id',
@@ -1685,28 +1683,22 @@
                         onChange: function(value) {
                             let data = this.options[value];
 
-                            $(codeFieldId).val(data ? data.item_code : '');
-                            $(nameFieldId).val(data ? data.item_name : '');
+                            $(idFieldId).val(data ? data.id : '');
 
-                            // Pemilik barang otomatis terisi dari vendor stock.
-                            // Kalau stock tidak punya vendor, biarkan field
-                            // seperti apa adanya supaya bisa diisi manual.
-                            if (data && data.item_owner) {
-                                $(ownerFieldId).val(data.item_owner);
-                            }
+                            // Pemilik barang terisi otomatis dan read-only,
+                            // diambil dari vendor_id milik barang tersebut.
+                            $(ownerFieldId).val(data && data.item_owner ? data.item_owner : '');
                         }
                     });
                 }
 
-                let addItemSelect = initItemSelect('#addItemSelect', '#addItemCode',
-                    '#addItemName', '#addItemOwner');
-                let editItemSelect = initItemSelect('#editItemSelect', '#editItemCode',
-                    '#editItemName', '#editItemOwner');
+                let addItemSelect = initItemSelect('#addItemSelect', '#addItemId', '#addItemOwner');
+                let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', '#editItemOwner');
 
                 $('#addStaging').on('hidden.bs.modal', function() {
                     addItemSelect.clear();
-                    $('#addItemCode').val('');
-                    $('#addItemName').val('');
+                    $('#addItemId').val('');
+                    $('#addItemOwner').val('');
                 });
 
                 // ================= TAMBAH (AJAX) =================
@@ -1725,8 +1717,8 @@
                             $('#addStaging').modal('hide');
                             $('#formStaging')[0].reset();
                             addItemSelect.clear();
-                            $('#addItemCode').val('');
-                            $('#addItemName').val('');
+                            $('#addItemId').val('');
+                            $('#addItemOwner').val('');
 
                             table.ajax.reload(null, false);
 
@@ -1800,27 +1792,33 @@
                             $('#editStatus').val(res.status);
                             $('#editNotes').val(res.notes);
 
-                            $('#editItemCode').val(res.item_code);
-                            $('#editItemName').val(res.item_name);
+                            $('#editItemId').val(res.item_id);
 
                             editItemSelect.clear(true);
                             editItemSelect.clearOptions();
                             editItemSelect.loadedSearches = {};
 
-                            if (res.item_code || res.item_name) {
+                            // Muat ulang seluruh daftar barang di background supaya,
+                            // begitu user menghapus barang yang sedang dipilih,
+                            // pilihan lain sudah langsung tersedia (tidak perlu
+                            // mengetik dulu untuk memicu pencarian).
+                            editItemSelect.load('');
+
+                            if (res.item_id && (res.item_code || res.item_name)) {
 
                                 let label = [res.item_code, res.item_name]
                                     .filter(Boolean)
                                     .join(' | ');
 
                                 editItemSelect.addOption({
-                                    id: 'current',
+                                    id: res.item_id,
                                     text: label,
                                     item_code: res.item_code,
-                                    item_name: res.item_name
+                                    item_name: res.item_name,
+                                    item_owner: res.item_owner
                                 });
 
-                                editItemSelect.setValue('current', true);
+                                editItemSelect.setValue(res.item_id, true);
                             }
 
                         },
@@ -1918,8 +1916,8 @@
                     editItemSelect.clear();
                     editItemSelect.clearOptions();
                     editItemSelect.loadedSearches = {};
-                    $('#editItemCode').val('');
-                    $('#editItemName').val('');
+                    $('#editItemId').val('');
+                    $('#editItemOwner').val('');
                 });
 
                 // ================= PINDAHKAN ITEM =================
@@ -1985,7 +1983,7 @@
                     $('#moveQtyHelp').text('Maksimal ' + qty + ' pcs. Sisa tetap di staging in.');
 
                     // field masuk stok
-                    $('#moveTransactionNumber').val($btn.data('po') || '');
+                    $('#').val($btn.data('po') || '');
                     $('#moveTransactionDate').val(new Date().toISOString().slice(0, 10));
                     $('#moveNotes').val('');
 

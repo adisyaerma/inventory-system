@@ -13,9 +13,7 @@ class StagingIn extends Model
         'po_number',
         'arrival_date',
         'supplier_origin',
-        'item_owner',
-        'item_code',
-        'item_name',
+        'item_id',
         'qty',
         'location',
         'notes',
@@ -60,4 +58,9 @@ class StagingIn extends Model
         'FLUKE',
         'NORD-LOCK',
     ];
+
+    public function item()
+    {
+        return $this->belongsTo(Item::class);
+    }
 }

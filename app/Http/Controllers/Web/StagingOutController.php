@@ -6,6 +6,7 @@ use App\Exports\StagingOutExport;
 use App\Exports\StagingOutTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StagingOutImport;
+use App\Models\Item;
 use App\Models\StagingOut;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -42,25 +43,29 @@ class StagingOutController extends Controller
      */
     public function data(Request $request)
     {
-        $query = StagingOut::query()->orderByDesc('id');
+        $query = StagingOut::query()
+            ->select('staging_outs.*')
+            ->leftJoin('items', 'items.id', '=', 'staging_outs.item_id')
+            ->with('item')
+            ->orderByDesc('staging_outs.id');
 
         // 1. Status
         if ($request->status === 'belum_picking') {
-            $query->whereNull('picking_date');
+            $query->whereNull('staging_outs.picking_date');
 
         } elseif ($request->status === 'sudah_picking') {
-            $query->whereNotNull('picking_date');
+            $query->whereNotNull('staging_outs.picking_date');
 
         } elseif ($request->status === 'belum_dikirim') {
-            $query->whereNull('delivery_date');
+            $query->whereNull('staging_outs.delivery_date');
 
         } elseif ($request->status === 'sudah_dikirim') {
-            $query->whereNotNull('delivery_date');
+            $query->whereNotNull('staging_outs.delivery_date');
         }
 
         // 2. Customer
         if ($request->filled('customer')) {
-            $query->where('customer', $request->customer);
+            $query->where('staging_outs.customer', $request->customer);
         }
 
         // 3. Rentang tanggal — HANYA satu kolom, sesuai date_type yang dipilih
@@ -69,15 +74,15 @@ class StagingOutController extends Controller
             : 'delivery_instruction_date';
 
         if ($request->filled('start_date')) {
-            $query->whereDate($dateColumn, '>=', $request->start_date);
+            $query->whereDate('staging_outs.'.$dateColumn, '>=', $request->start_date);
         }
         if ($request->filled('end_date')) {
-            $query->whereDate($dateColumn, '<=', $request->end_date);
+            $query->whereDate('staging_outs.'.$dateColumn, '<=', $request->end_date);
         }
 
         // 4. Overdue
         if ($request->overdue == 1) {
-            $query->whereDate('delivery_instruction_date', '<', now())->whereNull('delivery_date');
+            $query->whereDate('staging_outs.delivery_instruction_date', '<', now())->whereNull('staging_outs.delivery_date');
         }
 
         return DataTables::eloquent($query)
@@ -89,25 +94,35 @@ class StagingOutController extends Controller
             })
 
             ->editColumn('item_code', function ($row) {
-                return $row->item_code ?: '-';
+                if (! $row->item) {
+                    return '-';
+                }
+
+                return '
+                <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
+                <div class="text-muted">'.e($row->item->name).'</div>
+            ';
             })
             ->filterColumn('item_code', function ($query, $keyword) {
-                $query->where('item_code', 'like', "%{$keyword}%");
+                $query->where(function ($q) use ($keyword) {
+                    $q->where('items.item_code_internal', 'like', "%{$keyword}%")
+                        ->orWhere('items.name', 'like', "%{$keyword}%");
+                });
             })
-            ->orderColumn('item_code', 'item_code $1')
+            ->orderColumn('item_code', 'items.item_code_internal $1')
             ->editColumn('line_item', function ($row) {
                 return $row->line_item ?: '-';
             })
             ->filterColumn('line_item', function ($query, $keyword) {
-                $query->where('line_item', 'like', "%{$keyword}%");
+                $query->where('staging_outs.line_item', 'like', "%{$keyword}%");
             })
-            ->orderColumn('line_item', 'line_item $1')
+            ->orderColumn('line_item', 'staging_outs.line_item $1')
 
             ->filterColumn('customer', function ($query, $keyword) {
-                $query->where('customer', 'like', "%{$keyword}%");
+                $query->where('staging_outs.customer', 'like', "%{$keyword}%");
             })
 
-            ->orderColumn('customer', 'customer $1')
+            ->orderColumn('customer', 'staging_outs.customer $1')
 
             ->editColumn('delivery_instruction_date', function ($row) {
                 return optional($row->delivery_instruction_date)->format('d M Y');
@@ -204,13 +219,44 @@ class StagingOutController extends Controller
 
             ->rawColumns([
                 'checkbox',
-                'item',
+                'item_code',
                 'picking_date',
                 'delivery_date',
                 'action',
             ])
 
             ->make(true);
+    }
+
+    /**
+     * Search the items table for the "Kode Barang" TomSelect used on the
+     * add/edit staging out forms (mirrors StagingInController::searchStock).
+     */
+    public function searchStock(Request $request)
+    {
+        $keyword = $request->q;
+
+        $items = Item::query()
+            ->when($keyword, function ($query) use ($keyword) {
+                $query->where(function ($q) use ($keyword) {
+                    $q->where('item_code_internal', 'like', "%{$keyword}%")
+                        ->orWhere('name', 'like', "%{$keyword}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+
+        return response()->json(
+            $items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'text' => $item->item_code_internal.' | '.$item->name,
+                    'item_code' => $item->item_code_internal,
+                    'item_name' => $item->name,
+                ];
+            })
+        );
     }
 
     public function template()
@@ -260,13 +306,15 @@ class StagingOutController extends Controller
         $validated = $request->validate([
             'so_number' => ['nullable', 'max:255'],
             'customer' => ['nullable', 'max:255'],
-            'item_code' => ['nullable', 'max:255'],
+            'item_id' => ['nullable', 'exists:items,id'],
             'line_item' => ['nullable', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'delivery_instruction_date' => ['nullable', 'date'],
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
             'delivery_date' => ['nullable', 'date'],
+        ], [
+            'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
         try {
@@ -290,11 +338,15 @@ class StagingOutController extends Controller
      */
     public function edit(StagingOut $stagingOut)
     {
+        $stagingOut->loadMissing('item');
+
         return response()->json([
             'id' => $stagingOut->id,
             'so_number' => $stagingOut->so_number,
             'customer' => $stagingOut->customer,
-            'item_code' => $stagingOut->item_code,
+            'item_id' => $stagingOut->item_id,
+            'item_code' => optional($stagingOut->item)->item_code_internal,
+            'item_name' => optional($stagingOut->item)->name,
             'line_item' => $stagingOut->line_item,
             'qty' => $stagingOut->qty,
             'delivery_instruction_date' => optional($stagingOut->delivery_instruction_date)->format('Y-m-d'),
@@ -312,13 +364,15 @@ class StagingOutController extends Controller
         $validated = $request->validate([
             'so_number' => ['nullable', 'max:255'],
             'customer' => ['nullable', 'max:255'],
-            'item_code' => ['nullable', 'max:255'],
+            'item_id' => ['nullable', 'exists:items,id'],
             'line_item' => ['nullable', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'delivery_instruction_date' => ['nullable', 'date'],
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
             'delivery_date' => ['nullable', 'date'],
+        ], [
+            'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
         try {
@@ -370,7 +424,7 @@ class StagingOutController extends Controller
             $count = StagingOut::whereIn('id', $request->ids)->count();
 
             StagingOut::whereIn('id', $request->ids)->delete();
-
+ 
             return response()->json([
                 'success' => true,
                 'message' => $count.' data berhasil dihapus',

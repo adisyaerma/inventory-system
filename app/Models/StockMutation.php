@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class StockMutation extends Model
 {
     protected $fillable = [
-        'stock_id',
+        'item_id',
         'location_id',
         'transaction_date',
         'transaction_type',
@@ -25,9 +25,9 @@ class StockMutation extends Model
         'transaction_date' => 'date',
     ];
 
-    public function stock()
+    public function item()
     {
-        return $this->belongsTo(Stock::class);
+        return $this->belongsTo(Item::class);
     }
 
     public function location()

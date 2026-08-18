@@ -189,7 +189,7 @@
                                                                 <i class="bi bi-box"></i>
                                                             </span>
 
-                                                            <select id="stockSelect" name="stock_id" required></select>
+                                                            <select id="itemSelect" name="item_id" required></select>
                                                         </div>
                                                     </div>
 
@@ -1033,7 +1033,7 @@
                                                     <i class="bi bi-box"></i>
                                                 </span>
 
-                                                <select id="editStock" name="stock_id" required></select>
+                                                <select id="editItem" name="item_id" required></select>
                                             </div>
                                         </div>
 
@@ -1558,11 +1558,11 @@
                 let location = $('#filterLocation').val();
                 let search = $('#customSearch').val().trim(); // trim di sini
 
-                let stock = new URLSearchParams(window.location.search).get('stock');
+                let item = new URLSearchParams(window.location.search).get('item');
 
                 let url = new URL("{{ route('mutation.export') }}");
 
-                if (stock) url.searchParams.append('stock', stock);
+                if (item) url.searchParams.append('item', item);
                 if (start) url.searchParams.append('start_date', start);
                 if (end) url.searchParams.append('end_date', end);
                 if (transaction) url.searchParams.append('transaction_type', transaction);
@@ -1665,12 +1665,12 @@
 
                         let option = new Option(
                             res.stock_name,
-                            res.stock_id,
+                            res.item_id,
                             true,
                             true
                         );
 
-                        $('#editStock')
+                        $('#editItem')
                             .empty()
                             .append(option)
                             .trigger('change');
@@ -1747,7 +1747,7 @@
 
                         transaction_date: $('#editTransactionDate').val(),
 
-                        stock_id: $('#editStock').val(),
+                        item_id: $('#editItem').val(),
 
                         location: $('#editLocation').val(),
 
@@ -1846,7 +1846,7 @@
                             d.end_date = appliedEndDate;
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
-                            d.stock = new URLSearchParams(window.location.search).get('stock');
+                            d.item = new URLSearchParams(window.location.search).get('item');
                         }
                     },
 
@@ -2397,10 +2397,10 @@
         </script>
 
         <script>
-            let stockSelect;
+            let itemSelect;
             let locationSelect;
 
-            stockSelect = new TomSelect("#stockSelect", {
+            itemSelect = new TomSelect("#itemSelect", {
 
                 valueField: "id",
 
@@ -2455,11 +2455,11 @@
 
             function loadCurrentStock() {
 
-                let stock = stockSelect.getValue();
+                let item = itemSelect.getValue();
 
                 let location = locationSelect.getValue();
 
-                if (stock == "" || location == "") {
+                if (item == "" || location == "") {
 
                     $("#currentStock").html("0");
 
@@ -2473,7 +2473,7 @@
 
                     {
 
-                        stock_id: stock,
+                        item_id: item,
 
                         location: location
 
@@ -2491,11 +2491,11 @@
 
             }
 
-            stockSelect.on("change", function() {
+            itemSelect.on("change", function() {
 
-                let stock = stockSelect.getValue();
+                let item = itemSelect.getValue();
 
-                if (!stock) {
+                if (!item) {
                     return;
                 }
 
@@ -2503,7 +2503,7 @@
                     "{{ route('stock-mutation.default-location') }}",
 
                     {
-                        stock_id: stock
+                        item_id: item
                     },
                     function(res) {
                         if (res) {
@@ -2638,7 +2638,7 @@
 
                 this.querySelector("form").reset();
 
-                stockSelect.clear();
+                itemSelect.clear();
 
                 locationSelect.clear();
 
@@ -2726,10 +2726,10 @@
         </style>
 
         <script>
-            let editStockSelect;
+            let edititemSelect;
             let editLocationSelect;
 
-            editStockSelect = new TomSelect("#editStock", {
+            edititemSelect = new TomSelect("#editItem", {
                 valueField: "id",
                 labelField: "text",
                 searchField: ["text"],
@@ -2755,7 +2755,7 @@
                 }
             });
 
-            editStockSelect.on("dropdown_open", function() {
+            edititemSelect.on("dropdown_open", function() {
                 this.load("");
             });
 
@@ -2782,16 +2782,16 @@
                         $('#edit_id').val(res.id);
                         $('#editTransactionDate').val(res.transaction_date);
 
-                        editStockSelect.clear(true);
+                        edititemSelect.clear(true);
 
                         // Jangan clearOptions()
 
-                        editStockSelect.addOption({
-                            id: res.stock_id,
-                            text: res.stock_name
+                        edititemSelect.addOption({
+                            id: res.item_id,
+                            text: res.item_name
                         });
 
-                        editStockSelect.setValue(res.stock_id, true);
+                        edititemSelect.setValue(res.item_id, true);
 
                         // LOCATION
                         if (!editLocationSelect.options[res.location]) {
@@ -2822,10 +2822,10 @@
 
             function loadCurrentStockEdit() {
 
-                let stock = editStockSelect.getValue();
+                let item = edititemSelect.getValue();
                 let location = editLocationSelect.getValue();
 
-                if (stock == "" || location == "") {
+                if (item == "" || location == "") {
 
                     $("#editCurrentStock").html("0");
                     return;
@@ -2834,7 +2834,7 @@
 
                 $.get(
                     "{{ route('stock-mutation.current-stock') }}", {
-                        stock_id: stock,
+                        item_id: item,
                         location: location
                     },
                     function(res) {
@@ -2848,7 +2848,7 @@
 
             }
 
-            editStockSelect.on("change", function() {
+            edititemSelect.on("change", function() {
                 loadCurrentStockEdit();
             });
 
@@ -2892,8 +2892,8 @@
 
                 this.querySelector("form").reset();
 
-                editStockSelect.clear();
-                editStockSelect.clearOptions();
+                edititemSelect.clear();
+                edititemSelect.clearOptions();
 
                 editLocationSelect.clear();
 
