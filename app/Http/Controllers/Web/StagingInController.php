@@ -769,7 +769,7 @@ class StagingInController extends Controller
     {
         $request->validate([
             'ids' => 'required|array|min:1',
-            'ids.*' => 'integer|exists:stagings,id',
+            'ids.*' => 'integer|exists:staging_ins,id',
         ]);
 
         try {

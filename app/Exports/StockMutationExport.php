@@ -44,7 +44,7 @@ class StockMutationExport implements FromArray, WithEvents, WithHeadings
         $query = StockMutation::with([
             'item:id,item_code_internal,name',
             'location:id,location_name',
-        ]);
+        ]);    
         if ($this->request->filled('item')) {
             $query->where('item_id', $this->request->item);
         }

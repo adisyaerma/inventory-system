@@ -63,7 +63,7 @@ class StockMutationController extends Controller
             })
 
             ->filterColumn('barang', function ($query, $keyword) {
-                $query->whereHas('itfem', function ($q) use ($keyword) {
+                $query->whereHas('item', function ($q) use ($keyword) {
                     $q->where('item_code_internal', 'like', "%{$keyword}%")
                         ->orWhere('name', 'like', "%{$keyword}%");
                 });

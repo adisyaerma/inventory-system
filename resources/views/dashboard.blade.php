@@ -59,7 +59,7 @@
                 class="btn btn-icon btn-outline-secondary rounded-circle position-relative"
                 style="width:44px;height:44px;"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                title="Staging > 7 hari">
+                title="Staging In > 7 hari">
                 <i class="bx bx-bell fs-4"></i>
                 @if ($followUpCount > 0)
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
@@ -78,12 +78,14 @@
                 </div>
 
                 @forelse ($followUpStagingIn->take(10) as $row)
-                    <a href="{{ route('stagings-in.index') }}" class="dropdown-item px-3 py-2 border-bottom white-space-normal">
+                    <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="dropdown-item px-3 py-2 border-bottom white-space-normal">
                         <div class="fw-semibold small">
                             {{ optional($row->item)->item_code_internal ?? 'Kode tidak diketahui' }}
+                            <span class="text-muted fw-normal">— {{ optional($row->item)->name }}</span>
                         </div>
                         <small class="text-muted">
-                           Tgl Datang {{ optional($row->arrival_date)->format('d M Y') }}
+                            PO {{ $row->po_number ?: '-' }}
+                            &middot; Tgl Datang {{ optional($row->arrival_date)->format('d M Y') }}
                             &middot; {{ $row->days_waiting }} hari
                         </small>
                     </a>
@@ -95,7 +97,7 @@
                 @endforelse
 
                 @if ($followUpCount > 10)
-                    <a href="{{ route('stagings-in.index') }}" class="dropdown-item text-center small text-primary py-2">
+                    <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="dropdown-item text-center small text-primary py-2">
                         Lihat {{ $followUpCount - 10 }} item lainnya
                     </a>
                 @endif
@@ -207,7 +209,7 @@
                     </div>
                 </div>
                 <div class="card-body pt-2">
-                    <div id="chartActivity"></div>
+                    <canvas id="chartActivity" height="130"></canvas>
                 </div>
             </div>
         </div>
@@ -219,21 +221,29 @@
                 </div>
                 <div class="card-body d-flex flex-column align-items-center">
 
-                    <div id="chartIncotermsDonut" style="max-width: 260px;"></div>
+                    <div class="position-relative" style="width: 240px; height: 240px;">
+                        <canvas id="chartIncotermsDonut" width="240" height="240"></canvas>
+                    </div>
 
-                    <div class="w-100 mt-3">
+                    <div class="w-100 mt-4">
                         @foreach ($stagingInByIncoterms as $row)
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>
-                                    <span class="status-dot me-2" style="background: {{ ['#696cff','#71dd37','#ffab00','#8592a3','#03c3ec','#ff3e1d','#a3a3a3'][$loop->index % 7] }};"></span>
-                                    {{ $row->incoterms }}
-                                </span>
-                                <span class="fw-semibold">
-                                    {{ number_format($row->total, 0, ',', '.') }}
-                                    <small class="text-muted">
-                                        ({{ $incotermsTotal > 0 ? round($row->total / $incotermsTotal * 100, 1) : 0 }}%)
-                                    </small>
-                                </span>
+                            @php $pct = $incotermsTotal > 0 ? round($row->total / $incotermsTotal * 100, 1) : 0; @endphp
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="d-flex align-items-center">
+                                        <span class="status-dot me-2" style="background: {{ ['#696cff','#03c3ec','#71dd37','#ffab00','#ff3e6c','#7367f0','#20c997'][$loop->index % 7] }};"></span>
+                                        {{ $row->incoterms }}
+                                    </span>
+                                    <span class="fw-semibold">
+                                        {{ number_format($row->total, 0, ',', '.') }}
+                                        <small class="text-muted">({{ $pct }}%)</small>
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 6px; border-radius: 4px; background:#f1f1f3;">
+                                    <div class="progress-bar" role="progressbar"
+                                        style="width: {{ $pct }}%; background: {{ ['#696cff','#03c3ec','#71dd37','#ffab00','#ff3e6c','#7367f0','#20c997'][$loop->index % 7] }}; border-radius: 4px;">
+                                    </div>
+                                </div>
                             </div>
                         @endforeach
 
@@ -509,7 +519,7 @@
                         <h5 class="fw-bold mt-2 mb-0">{{ $alerts['staging_in_menunggu']['overdue_count'] }} Item</h5>
                         <small class="text-muted d-block mb-2">Staging In Menunggu</small>
                         <small class="text-muted d-block mb-2">{{ $alerts['staging_in_menunggu']['detail'] }}</small>
-                        <a href="{{ route('stagings-in.index') }}" class="small text-decoration-none">Lihat daftar</a>
+                        <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="small text-decoration-none">Lihat daftar</a>
                     </div>
                 </div>
 
@@ -519,7 +529,7 @@
                         <h5 class="fw-bold mt-2 mb-0">{{ $alerts['staging_out_terlambat'] }} Item</h5>
                         <small class="text-muted d-block mb-2">Staging Out Terlambat</small>
                         <small class="text-muted d-block mb-2">Melewati tanggal kirim yang sudah ditentukan</small>
-                        <a href="{{ route('stagings-out.index') }}" class="small text-decoration-none">Lihat daftar</a>
+                        <a href="{{ route('stagings-out.index', ['status' => 'terlambat']) }}" class="small text-decoration-none">Lihat daftar</a>
                     </div>
                 </div>
 
@@ -529,7 +539,7 @@
                         <h5 class="fw-bold mt-2 mb-0">{{ $alerts['stok_rendah'] }} Item</h5>
                         <small class="text-muted d-block mb-2">Stok Rendah</small>
                         <small class="text-muted d-block mb-2">Stok di bawah 10 unit</small>
-                        <a href="{{ route('location-stock.index') }}" class="small text-decoration-none">Lihat daftar</a>
+                        <a href="{{ route('location-stock.index', ['filter' => 'low_stock']) }}" class="small text-decoration-none">Lihat daftar</a>
                     </div>
                 </div>
 
@@ -539,7 +549,7 @@
                         <h5 class="fw-bold mt-2 mb-0">{{ $alerts['item_belum_picking'] }} Item</h5>
                         <small class="text-muted d-block mb-2">Belum Picking</small>
                         <small class="text-muted d-block mb-2">Staging Out yang belum mulai proses picking</small>
-                        <a href="{{ route('stagings-out.index') }}" class="small text-decoration-none">Lihat daftar</a>
+                        <a href="{{ route('stagings-out.index', ['status' => 'menunggu_picking']) }}" class="small text-decoration-none">Lihat daftar</a>
                     </div>
                 </div>
 
@@ -548,169 +558,245 @@
     </div>
 
     @push('script')
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
         <script>
             $(function() {
 
-                // ================= AREA CHART: AKTIVITAS 7 HARI =================
-                new ApexCharts(document.querySelector('#chartActivity'), {
-                    chart: {
-                        type: 'area',
-                        height: 320,
-                        fontFamily: 'inherit',
-                        toolbar: {
-                            show: false
-                        },
-                        zoom: {
-                            enabled: false
-                        },
-                        dropShadow: {
-                            enabled: true,
-                            top: 6,
-                            left: 0,
-                            blur: 6,
-                            color: '#696cff',
-                            opacity: 0.08
-                        }
-                    },
-                    series: [{
-                            name: 'Staging In',
-                            data: @json($stagingInSeries)
-                        },
-                        {
-                            name: 'Staging Out',
-                            data: @json($stagingOutSeries)
-                        },
-                        {
-                            name: 'Mutasi ke Stok',
-                            data: @json($mutationSeries)
-                        }
-                    ],
-                    colors: ['#696cff', '#03c3ec', '#ffab00'],
-                    fill: {
-                        type: 'gradient',
-                        gradient: {
-                            shadeIntensity: 1,
-                            opacityFrom: 0.35,
-                            opacityTo: 0.02,
-                            stops: [0, 90, 100]
-                        }
-                    },
-                    stroke: {
-                        curve: 'smooth',
-                        width: 3,
-                        lineCap: 'round'
-                    },
-                    markers: {
-                        size: 0,
-                        hover: {
-                            size: 6
-                        },
-                        strokeWidth: 3,
-                        strokeColors: '#fff'
-                    },
-                    dataLabels: {
-                        enabled: false
-                    },
-                    xaxis: {
-                        categories: @json($chartLabels),
-                        axisBorder: {
-                            show: false
-                        },
-                        axisTicks: {
-                            show: false
-                        },
-                        labels: {
-                            style: {
-                                colors: '#8592a3',
-                                fontSize: '12px'
-                            }
-                        }
-                    },
-                    yaxis: {
-                        labels: {
-                            style: {
-                                colors: '#8592a3',
-                                fontSize: '12px'
-                            },
-                            formatter: function(val) {
-                                return Math.round(val);
-                            }
-                        }
-                    },
-                    legend: {
-                        position: 'top',
-                        horizontalAlign: 'left',
-                        offsetY: 4,
-                        markers: {
-                            radius: 12
-                        },
-                        itemMargin: {
-                            horizontal: 12
-                        }
-                    },
-                    grid: {
-                        borderColor: '#f1f1f3',
-                        strokeDashArray: 4,
-                        padding: {
-                            top: -10,
-                            left: 4,
-                            right: 4
-                        },
-                        xaxis: {
-                            lines: {
-                                show: false
-                            }
-                        }
-                    },
-                    tooltip: {
-                        shared: true,
-                        intersect: false,
-                        y: {
-                            formatter: function(val) {
-                                return val + ' aktivitas';
-                            }
-                        }
+                // ================= COMBO CHART: AKTIVITAS 7 HARI =================
+                // ================= CHART.JS: AKTIVITAS 7 HARI =================
+                (function() {
+                    const ctx = document.getElementById('chartActivity').getContext('2d');
+
+                    // Gradient vertikal untuk tiap batang, dari warna pekat ke transparan
+                    function barGradient(ctx, colorTop, colorBottom) {
+                        const g = ctx.createLinearGradient(0, 0, 0, 300);
+                        g.addColorStop(0, colorTop);
+                        g.addColorStop(1, colorBottom);
+                        return g;
                     }
-                }).render();
 
-                // ================= DONUT CHART: STAGING IN PER INCOTERMS =================
-                let donutLabels = @json($stagingInByIncoterms->pluck('incoterms')->values());
-                let donutSeries = @json($stagingInByIncoterms->pluck('total')->values());
+                    const gradIn = barGradient(ctx, '#8385ff', 'rgba(105,108,255,0.15)');
+                    const gradOut = barGradient(ctx, '#3fd7f5', 'rgba(3,195,236,0.15)');
 
-                new ApexCharts(document.querySelector('#chartIncotermsDonut'), {
-                    chart: {
-                        type: 'donut',
-                        height: 260
-                    },
-                    series: donutSeries,
-                    labels: donutLabels,
-                    colors: ['#696cff', '#71dd37', '#ffab00', '#8592a3', '#03c3ec', '#ff3e1d', '#a3a3a3'],
-                    legend: {
-                        show: false
-                    },
-                    dataLabels: {
-                        enabled: false
-                    },
-                    plotOptions: {
-                        pie: {
-                            donut: {
-                                labels: {
-                                    show: true,
-                                    total: {
-                                        show: true,
-                                        label: 'Total',
-                                        formatter: function(w) {
-                                            return w.globals.seriesTotals
-                                                .reduce((a, b) => a + b, 0)
-                                                .toLocaleString('id-ID');
+                    // Plugin custom: glow lembut di belakang garis Mutasi ke Stok
+                    const glowLinePlugin = {
+                        id: 'glowLine',
+                        beforeDatasetsDraw(chart) {
+                            const {
+                                ctx
+                            } = chart;
+                            ctx.save();
+                            ctx.shadowColor = 'rgba(255,171,0,0.55)';
+                            ctx.shadowBlur = 12;
+                            ctx.shadowOffsetY = 4;
+                        },
+                        afterDatasetsDraw(chart) {
+                            chart.ctx.restore();
+                        }
+                    };
+
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: @json($chartLabels),
+                            datasets: [{
+                                    label: 'Staging In',
+                                    data: @json($stagingInSeries),
+                                    backgroundColor: gradIn,
+                                    borderRadius: {
+                                        topLeft: 10,
+                                        topRight: 10
+                                    },
+                                    borderSkipped: false,
+                                    maxBarThickness: 22,
+                                    order: 2
+                                },
+                                {
+                                    label: 'Staging Out',
+                                    data: @json($stagingOutSeries),
+                                    backgroundColor: gradOut,
+                                    borderRadius: {
+                                        topLeft: 10,
+                                        topRight: 10
+                                    },
+                                    borderSkipped: false,
+                                    maxBarThickness: 22,
+                                    order: 2
+                                },
+                                {
+                                    label: 'Mutasi ke Stok',
+                                    data: @json($mutationSeries),
+                                    type: 'line',
+                                    borderColor: '#ffab00',
+                                    backgroundColor: '#ffab00',
+                                    borderWidth: 3,
+                                    tension: 0.45,
+                                    fill: false,
+                                    pointRadius: 5,
+                                    pointBackgroundColor: '#fff',
+                                    pointBorderColor: '#ffab00',
+                                    pointBorderWidth: 3,
+                                    pointHoverRadius: 7,
+                                    order: 1
+                                }
+                            ]
+                        },
+                        plugins: [glowLinePlugin],
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            animation: {
+                                duration: 900,
+                                easing: 'easeOutQuart'
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    align: 'start',
+                                    labels: {
+                                        usePointStyle: true,
+                                        pointStyle: 'circle',
+                                        boxWidth: 8,
+                                        padding: 18,
+                                        font: {
+                                            size: 12
+                                        },
+                                        color: '#697a8d'
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: '#2b2c40',
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    titleFont: {
+                                        weight: '600'
+                                    },
+                                    callbacks: {
+                                        label: function(item) {
+                                            return ' ' + item.dataset.label + ': ' + item.formattedValue + ' aktivitas';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: false,
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        color: '#8592a3',
+                                        font: {
+                                            size: 12
+                                        }
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: '#f1f1f3',
+                                        borderDash: [4, 4],
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        color: '#8592a3',
+                                        font: {
+                                            size: 12
+                                        },
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                })();
+
+                // ================= CHART.JS: STAGING IN PER INCOTERMS =================
+                (function() {
+                    const donutLabels = @json($stagingInByIncoterms->pluck('incoterms')->values());
+                    const donutSeries = @json($stagingInByIncoterms->pluck('total')->values());
+                    const donutColors = ['#696cff', '#03c3ec', '#71dd37', '#ffab00', '#ff3e6c', '#7367f0', '#20c997'];
+                    const donutTotal = donutSeries.reduce((a, b) => a + b, 0);
+
+                    // Plugin custom: tulis total besar di tengah lubang doughnut
+                    const centerTextPlugin = {
+                        id: 'centerText',
+                        beforeDraw(chart) {
+                            if (!chart.config.data.datasets.length || !donutTotal) return;
+
+                            const {
+                                ctx,
+                                chartArea: {
+                                    left,
+                                    right,
+                                    top,
+                                    bottom
+                                }
+                            } = chart;
+                            const x = (left + right) / 2;
+                            const y = (top + bottom) / 2;
+
+                            ctx.save();
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            ctx.font = '700 22px inherit, sans-serif';
+                            ctx.fillStyle = '#2b2c40';
+                            ctx.fillText(donutTotal.toLocaleString('id-ID'), x, y - 8);
+
+                            ctx.font = '500 12px inherit, sans-serif';
+                            ctx.fillStyle = '#8592a3';
+                            ctx.fillText('Total', x, y + 14);
+
+                            ctx.restore();
+                        }
+                    };
+
+                    new Chart(document.getElementById('chartIncotermsDonut').getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: donutLabels,
+                            datasets: [{
+                                data: donutSeries,
+                                backgroundColor: donutColors,
+                                hoverBackgroundColor: donutColors,
+                                borderColor: '#fff',
+                                borderWidth: 3,
+                                borderRadius: 6,
+                                spacing: 3,
+                                hoverOffset: 10
+                            }]
+                        },
+                        plugins: [centerTextPlugin],
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            resizeDelay: 0,
+                            cutout: '72%',
+                            animation: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: '#2b2c40',
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    callbacks: {
+                                        label: function(item) {
+                                            const pct = donutTotal > 0 ? ((item.raw / donutTotal) * 100).toFixed(1) : 0;
+                                            return ' ' + item.label + ': ' + item.formattedValue + ' (' + pct + '%)';
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }).render();
+                    });
+                })();
 
             });
         </script>
