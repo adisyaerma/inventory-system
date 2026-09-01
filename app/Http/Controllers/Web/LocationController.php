@@ -16,14 +16,127 @@ class LocationController extends Controller
     }
 
     /**
+     * Kategori lokasi ditentukan dari huruf/karakter awal location_code:
+     * - diawali angka  => Rak
+     * - diawali "F"    => Flat Indoor
+     * - diawali "H"    => H-Room Storage
+     * - diawali "O"    => Outdoor
+     * - diawali "B"    => Backside
+     * - selain itu     => Lain-lain (supaya tidak ada lokasi yang hilang
+     *   dari tampilan hanya karena tidak cocok pola manapun)
+     * (semua tetap berasal dari satu tabel `locations` yang sama).
+     */
+    private function applyCategoryFilter($query, ?string $category)
+    {
+        switch ($category) {
+            case 'rak':
+                // PostgreSQL: '~' adalah operator regex (setara REGEXP di MySQL)
+                $query->whereRaw("location_name ~ '^[0-9]'");
+                break;
+
+            case 'flat_indoor':
+                // ILIKE = LIKE case-insensitive di PostgreSQL
+                $query->where('location_name', 'ILIKE', 'F%');
+                break;
+
+            case 'h_room':
+                $query->where('location_name', 'ILIKE', 'H%');
+                break;
+
+            case 'outdoor':
+                $query->where('location_name', 'ILIKE', 'O%');
+                break;
+
+            case 'backside':
+                $query->where('location_name', 'ILIKE', 'B%');
+                break;
+
+            case 'lain_lain':
+                // Kebalikan dari semua pola kategori di atas — supaya
+                // lokasi yang tidak diawali angka/F/H/O/B tetap kelihatan,
+                // bukan hilang begitu saja dari daftar.
+                $query->whereRaw("location_name !~ '^[0-9]'")
+                    ->where('location_name', 'NOT ILIKE', 'F%')
+                    ->where('location_name', 'NOT ILIKE', 'H%')
+                    ->where('location_name', 'NOT ILIKE', 'O%')
+                    ->where('location_name', 'NOT ILIKE', 'B%');
+                break;
+        }
+
+        return $query;
+    }
+
+    /**
+     * Ringkasan jumlah + 3 data teratas per kategori, dipakai oleh
+     * tab "Semua Lokasi" (kartu ringkasan & daftar per kategori).
+     */
+    public function preview(Request $request)
+    {
+        $categories = [
+            'rak'         => 'Rak',
+            'flat_indoor' => 'Flat Indoor',
+            'h_room'      => 'H-Room Storage',
+            'outdoor'     => 'Outdoor',
+            'backside'    => 'Backside',
+            'lain_lain'   => 'Lain-lain',
+        ];
+
+        $baseQuery = function () use ($request) {
+            $query = Location::query();
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('location_name', 'ilike', "%{$search}%")
+                        ->orWhere('location_code', 'ilike', "%{$search}%");
+                });
+            }
+
+            return $query;
+        };
+
+        $grandTotal = $baseQuery()->count();
+        $result = [];
+
+        foreach ($categories as $key => $label) {
+            $query = $this->applyCategoryFilter($baseQuery(), $key);
+            $total = (clone $query)->count();
+
+            $items = (clone $query)->latest()->limit(3)->get([
+                'id', 'location_name', 'location_code', 'status', 'description',
+            ]);
+
+            $result[$key] = [
+                'label'      => $label,
+                'total'      => $total,
+                'percentage' => $grandTotal > 0 ? round($total / $grandTotal * 100, 1) : 0,
+                'items'      => $items,
+            ];
+        }
+
+        return response()->json([
+            'grand_total' => $grandTotal,
+            'categories'  => $result,
+        ]);
+    }
+
+    /**
      * Server-side DataTables source.
      */
-    public function data(Request $request)
+    public function data(Request $request)  
     {
         $query = Location::query()->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        if ($request->filled('category')) {
+            $this->applyCategoryFilter($query, $request->category);
         }
 
         return DataTables::eloquent($query)

@@ -1,15 +1,16 @@
 <?php
 
+use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\ItemController;
 use App\Http\Controllers\Web\LocationController;
 use App\Http\Controllers\Web\LocationStockController;
 use App\Http\Controllers\Web\ScanBarcodeController;
 use App\Http\Controllers\Web\StagingInController;
 use App\Http\Controllers\Web\StagingOutController;
-use App\Http\Controllers\Web\StockController;
 use App\Http\Controllers\Web\StockMutationController;
-use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\VendorController;
+use App\Http\Controllers\Web\StagingInHistoryController;
+use App\Http\Controllers\Web\StagingOutHistoryController;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/location', [LocationController::class, 'index'])
     ->name('locations.index');
+
+Route::get('locations/preview', [LocationController::class, 'preview'])->name('locations.preview');
 
 Route::post('/location', [LocationController::class, 'store'])
     ->name('locations.store');
@@ -242,5 +245,16 @@ Route::get('stagings-out/export', [StagingOutController::class, 'export'])->name
 
 Route::get('stagings-out/search-stock', [StagingOutController::class, 'searchStock'])->name('stagings-out.search-stock');
 
-
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+Route::get('stagings-in-history', [StagingInHistoryController::class, 'index'])->name('stagings-in-history.index');
+Route::get('stagings-in-history/data', [StagingInHistoryController::class, 'data'])->name('stagings-in-history.data');
+Route::get('stagings-in-history/{history}/detail', [StagingInHistoryController::class, 'detail'])->name('stagings-in-history.detail');
+Route::get('stagings-in-history/export', [StagingInHistoryController::class, 'export'])->name('stagings-in-history.export'); // opsional, lihat poin 3
+
+Route::prefix('stagings-out-history')->name('stagings-out-history.')->group(function () {
+    Route::get('/', [StagingOutHistoryController::class, 'index'])->name('index');
+    Route::get('/data', [StagingOutHistoryController::class, 'data'])->name('data');
+    Route::get('/export', [StagingOutHistoryController::class, 'export'])->name('export');
+    Route::get('/{history}/detail', [StagingOutHistoryController::class, 'detail'])->name('detail');
+});

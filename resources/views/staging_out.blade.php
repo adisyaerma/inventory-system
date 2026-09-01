@@ -729,6 +729,26 @@
                     }
                 </style>
 
+                @if ($activeFilter === 'today' || in_array($activeStatus, ['terlambat', 'menunggu_picking', 'siap_kirim', 'selesai']))
+                    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3" id="activeFilterBanner">
+                        <span>
+                            <i class="bx bx-error me-1"></i>
+                            @if ($activeFilter === 'today')
+                                Menampilkan pengirimaan yang dijadwalkan hari ini.
+                            @elseif ($activeStatus === 'terlambat')
+                                Menampilkan staging out yang melewati tanggal kirim.
+                            @elseif ($activeStatus === 'menunggu_picking')
+                                Menampilkan staging out yang belum mulai proses picking.
+                            @elseif ($activeStatus === 'siap_kirim')
+                                Menampilkan staging out yang siap dikirim.
+                            @elseif ($activeStatus === 'selesai')
+                                Menampilkan staging out yang sudah selesai dikirim.
+                            @endif
+                        </span>
+                        <button type="button" class="btn-close" id="clearActiveFilterBtn" aria-label="Hapus filter"></button>
+                    </div>
+                @endif
+
                 <div class="filter-toolbar-card">
 
                     <div class="filter-toolbar-eyebrow">
@@ -1567,6 +1587,13 @@
             let table;
             let appliedStartDate = '';
             let appliedEndDate = '';
+            // Filter/status yang datang dari URL (mis. link notifikasi
+            // dashboard ?filter=today atau ?status=terlambat). Nilainya
+            // dipakai sampai dropdown status diubah manual atau filter
+            // direset, supaya link dari dashboard benar-benar memfilter
+            // tabel ini, bukan cuma nyasar ke halaman tanpa filter.
+            let activeUrlFilter = new URLSearchParams(window.location.search).get('filter') || '';
+            let activeUrlStatus = new URLSearchParams(window.location.search).get('status') || '';
         </script>
 
         <script>
@@ -1584,10 +1611,11 @@
                         data: function(d) {
                             d.start_date = appliedStartDate;
                             d.end_date = appliedEndDate;
-                            d.status = $('#filterStatus').val();
+                            d.status = $('#filterStatus').val() || activeUrlStatus;
                             d.customer = $('#filterCustomer').val();
                             d.date_type = $('#filterDateType').val();
                             d.overdue = $('#filterOverdue').is(':checked') ? 1 : 0;
+                            d.filter = activeUrlFilter;
                         }
                     },
 
@@ -1698,6 +1726,7 @@
                 });
 
                 $('#filterStatus').on('change', function() {
+                    activeUrlStatus = '';
                     setActiveStatCard($(this).val());
                     table.ajax.reload();
                     updateExportUrl();
@@ -1759,8 +1788,21 @@
                     appliedStartDate = '';
                     appliedEndDate = '';
 
+                    activeUrlFilter = '';
+                    activeUrlStatus = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
+
                     table.search('').draw();
                     updateExportUrl();
+                    table.ajax.reload();
+                });
+
+                $('#clearActiveFilterBtn').on('click', function() {
+                    activeUrlFilter = '';
+                    activeUrlStatus = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
                     table.ajax.reload();
                 });
 

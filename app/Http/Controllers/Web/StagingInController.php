@@ -13,6 +13,7 @@ use App\Models\StagingIn;
 use App\Models\StagingOut;
 use App\Models\StockMutation;
 use App\Models\Vendor;
+use App\Services\StagingInHistoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,18 @@ use Yajra\DataTables\Facades\DataTables;
 
 class StagingInController extends Controller
 {
-    public function index()
+    /**
+     * Ambang umur (hari) staging in dianggap overdue / perlu follow up.
+     * Nilainya disamakan dengan DashboardController::FOLLOW_UP_DAYS —
+     * kalau salah satu diubah, ubah juga yang satunya.
+     */
+    private const FOLLOW_UP_DAYS = 7;
+
+    public function __construct(private StagingInHistoryService $history)
+    {
+    }
+
+    public function index(Request $request)
     {
         $totalEntry = StagingIn::count();
 
@@ -67,7 +79,7 @@ class StagingInController extends Controller
             'statusOptions',
             'ownerOptions',
             'supplierOptions'
-        ));
+        ))->with('activeFilter', $request->query('filter'));
     }
 
     private function agingBadge(?Carbon $arrivalDate): string
@@ -128,6 +140,14 @@ class StagingInController extends Controller
 
         if ($request->filled('end_date')) {
             $query->whereDate('staging_ins.arrival_date', '<=', $request->end_date);
+        }
+
+        // Filter khusus dari kartu/notifikasi dashboard: barang yang sudah
+        // berada di staging in lebih dari FOLLOW_UP_DAYS hari sejak
+        // arrival_date.
+        if ($request->query('filter') === 'overdue') {
+            $query->whereNotNull('staging_ins.arrival_date')
+                ->where('staging_ins.arrival_date', '<=', now()->subDays(self::FOLLOW_UP_DAYS));
         }
 
         return DataTables::eloquent($query)
@@ -333,11 +353,17 @@ class StagingInController extends Controller
 
         try {
 
+            // Catat dulu seluruh data lama ke history SEBELUM di-truncate —
+            // truncate() menghapus baris secara langsung di database tanpa
+            // lewat Eloquent, jadi kalau tidak disnapshot dulu, perubahan
+            // ini tidak akan pernah tercatat di mana pun.
+            $this->history->logResetByImport(StagingIn::all());
+
             // Hapus semua data lama secara eksplisit sebelum import,
             // tidak lagi bergantung pada event BeforeImport.
             StagingIn::query()->truncate();
 
-            Excel::import(new StagingInImport, $request->file('file'));
+            Excel::import(app(StagingInImport::class), $request->file('file'));
         } catch (\Exception $e) {
             return redirect()
                 ->route('stagings-in.index')
@@ -369,14 +395,22 @@ class StagingInController extends Controller
             'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
+        DB::beginTransaction();
+
         try {
-            StagingIn::create($validated);
+            $staging = StagingIn::create($validated);
+
+            $this->history->logCreated($staging);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Data berhasil disimpan',
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -429,14 +463,24 @@ class StagingInController extends Controller
             'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
+        DB::beginTransaction();
+
         try {
+            $changes = $this->history->diff($staging, $validated);
+
             $staging->update($validated);
+
+            $this->history->logUpdated($staging, $changes);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Staging berhasil diperbarui.',
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -449,14 +493,22 @@ class StagingInController extends Controller
      */
     public function destroy(StagingIn $staging)
     {
+        DB::beginTransaction();
+
         try {
+            $this->history->logDeleted($staging);
+
             $staging->delete();
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Data berhasil dihapus',
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -562,6 +614,14 @@ class StagingInController extends Controller
 
             $remaining = $staging->qty - $validated['qty'];
 
+            $this->history->logMovedToStock($staging, $validated['qty'], max($remaining, 0), [
+                'location' => $location->location_name,
+                'transaction_date' => $validated['transaction_date'],
+                'transaction_number' => $mutation->transaction_number,
+                'stock_mutation_id' => $mutation->id,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
             if ($remaining > 0) {
                 $staging->update(['qty' => $remaining]);
             } else {
@@ -622,10 +682,7 @@ class StagingInController extends Controller
         DB::beginTransaction();
 
         try {
-            \DB::listen(function ($query) {
-                \Log::info('SQL QUERY', ['sql' => $query->sql, 'bindings' => $query->bindings]);
-            });
-            StagingOut::create([
+            $stagingOut = StagingOut::create([
                 'so_number' => $validated['so_number'],
                 'customer' => $validated['customer'],
                 'item_id' => $staging->item_id,
@@ -635,6 +692,14 @@ class StagingInController extends Controller
             ]);
 
             $remaining = $staging->qty - $validated['qty'];
+
+            $this->history->logMovedToStagingOut($staging, $validated['qty'], max($remaining, 0), [
+                'so_number' => $validated['so_number'],
+                'customer' => $validated['customer'],
+                'line_item' => $validated['line_item'],
+                'delivery_instruction_date' => $validated['delivery_instruction_date'],
+                'staging_out_id' => $stagingOut->id,
+            ]);
 
             if ($remaining > 0) {
                 $staging->update(['qty' => $remaining]);
@@ -772,16 +837,26 @@ class StagingInController extends Controller
             'ids.*' => 'integer|exists:staging_ins,id',
         ]);
 
+        DB::beginTransaction();
+
         try {
-            $count = StagingIn::whereIn('id', $request->ids)->count();
+            // Ambil datanya dulu SEBELUM dihapus — setelah delete, data
+            // ini sudah tidak bisa diambil lagi untuk disnapshot ke history.
+            $stagings = StagingIn::whereIn('id', $request->ids)->get();
+
+            $this->history->logBulkDeleted($stagings);
 
             StagingIn::whereIn('id', $request->ids)->delete();
 
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => $count.' data berhasil dihapus',
+                'message' => $stagings->count().' data berhasil dihapus',
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),

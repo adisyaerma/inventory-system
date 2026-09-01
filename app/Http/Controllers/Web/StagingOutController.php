@@ -8,13 +8,19 @@ use App\Http\Controllers\Controller;
 use App\Imports\StagingOutImport;
 use App\Models\Item;
 use App\Models\StagingOut;
+use App\Services\StagingOutHistoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
 class StagingOutController extends Controller
 {
-    public function index()
+    public function __construct(protected StagingOutHistoryService $history)
+    {
+    }
+
+    public function index(Request $request)
     {
         $totalEntry = StagingOut::count();
 
@@ -35,7 +41,10 @@ class StagingOutController extends Controller
             'sudahPicking',
             'sudahDikirim',
             'customers'
-        ));
+        ))->with([
+            'activeFilter' => $request->query('filter'),
+            'activeStatus' => $request->query('status'),
+        ]);
     }
 
     /**
@@ -50,17 +59,30 @@ class StagingOutController extends Controller
             ->orderByDesc('staging_outs.id');
 
         // 1. Status
-        if ($request->status === 'belum_picking') {
+        //    Menerima dua "kosakata": yang lama (belum_picking / sudah_picking
+        //    / belum_dikirim / sudah_dikirim) dan istilah Indonesia yang
+        //    dipakai kartu status & notifikasi di dashboard (menunggu_picking
+        //    / siap_kirim / terlambat / selesai), supaya link dari dashboard
+        //    benar-benar memfilter data, bukan cuma nyasar ke halaman kosong.
+        if (in_array($request->status, ['belum_picking', 'menunggu_picking'])) {
             $query->whereNull('staging_outs.picking_date');
 
         } elseif ($request->status === 'sudah_picking') {
             $query->whereNotNull('staging_outs.picking_date');
 
+        } elseif ($request->status === 'siap_kirim') {
+            $query->whereNotNull('staging_outs.picking_date')
+                ->whereNull('staging_outs.delivery_date');
+
         } elseif ($request->status === 'belum_dikirim') {
             $query->whereNull('staging_outs.delivery_date');
 
-        } elseif ($request->status === 'sudah_dikirim') {
+        } elseif (in_array($request->status, ['sudah_dikirim', 'selesai'])) {
             $query->whereNotNull('staging_outs.delivery_date');
+
+        } elseif ($request->status === 'terlambat') {
+            $query->whereDate('staging_outs.delivery_instruction_date', '<', now())
+                ->whereNull('staging_outs.delivery_date');
         }
 
         // 2. Customer
@@ -83,6 +105,12 @@ class StagingOutController extends Controller
         // 4. Overdue
         if ($request->overdue == 1) {
             $query->whereDate('staging_outs.delivery_instruction_date', '<', now())->whereNull('staging_outs.delivery_date');
+        }
+
+        // 5. Pengiriman dijadwalkan hari ini (dipakai notifikasi dashboard)
+        if ($request->query('filter') === 'today') {
+            $query->whereDate('staging_outs.delivery_instruction_date', now()->toDateString())
+                ->whereNull('staging_outs.delivery_date');
         }
 
         return DataTables::eloquent($query)
@@ -284,9 +312,19 @@ class StagingOutController extends Controller
         ]);
 
         try {
+            // Catat semua baris yang akan hilang SEBELUM di-truncate, supaya
+            // history-nya kebentuk dari data yang masih ada.
+            $existing = StagingOut::all();
+
+            DB::transaction(function () use ($existing) {
+                $this->history->logResetByImport($existing);
+            });
+
+            // TRUNCATE memicu implicit commit di MySQL, jadi sengaja
+            // dijalankan di luar transaction di atas.
             StagingOut::query()->truncate();
 
-            Excel::import(new StagingOutImport, $request->file('file'));
+            Excel::import(app(StagingOutImport::class), $request->file('file'));
         } catch (\Exception $e) {
             return redirect()
                 ->route('stagings-out.index')
@@ -318,7 +356,11 @@ class StagingOutController extends Controller
         ]);
 
         try {
-            StagingOut::create($validated);
+            DB::transaction(function () use ($validated) {
+                $staging = StagingOut::create($validated);
+
+                $this->history->logCreated($staging);
+            });
 
             return response()->json([
                 'success' => true,
@@ -376,11 +418,39 @@ class StagingOutController extends Controller
         ]);
 
         try {
-            $stagingOut->update($validated);
+            $justDelivered = DB::transaction(function () use ($validated, $stagingOut) {
+                // Hitung perubahan SEBELUM update() — setelah update(),
+                // getOriginal() sudah ikut ter-sync ke nilai baru.
+                $changes = $this->history->diff($stagingOut, $validated);
+
+                // Tangkap kondisi "baru saja dikirim": tanggal kirim yang
+                // tadinya kosong, sekarang diisi lewat update ini — juga
+                // harus dicek SEBELUM update() menimpa nilai aslinya.
+                $justDelivered = is_null($stagingOut->delivery_date)
+                    && array_key_exists('delivery_date', $validated)
+                    && ! is_null($validated['delivery_date']);
+
+                $stagingOut->update($validated);
+
+                $this->history->logUpdated($stagingOut, $changes);
+
+                // Begitu tanggal kirim terisi, data tidak lagi relevan di
+                // tabel aktif staging out — cukup riwayatnya saja yang
+                // disimpan (log dulu baru dihapus, supaya history tetap utuh).
+                if ($justDelivered) {
+                    $this->history->logDeleted($stagingOut);
+
+                    $stagingOut->delete();
+                }
+
+                return $justDelivered;
+            });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data berhasil diperbarui.',
+                'message' => $justDelivered
+                    ? 'Tanggal kirim berhasil dikonfirmasi. Data dipindahkan ke history.'
+                    : 'Data berhasil diperbarui.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -396,7 +466,12 @@ class StagingOutController extends Controller
     public function destroy(StagingOut $stagingOut)
     {
         try {
-            $stagingOut->delete();
+            DB::transaction(function () use ($stagingOut) {
+                // Catat history SEBELUM baris aslinya benar-benar hilang.
+                $this->history->logDeleted($stagingOut);
+
+                $stagingOut->delete();
+            });
 
             return response()->json([
                 'success' => true,
@@ -421,10 +496,18 @@ class StagingOutController extends Controller
         ]);
 
         try {
-            $count = StagingOut::whereIn('id', $request->ids)->count();
+            $count = DB::transaction(function () use ($request) {
+                // Load dulu baris-barisnya SEBELUM dihapus — logBulkDeleted()
+                // butuh data aslinya (qty, dst), bukan cuma ID.
+                $stagings = StagingOut::whereIn('id', $request->ids)->get();
 
-            StagingOut::whereIn('id', $request->ids)->delete();
- 
+                $this->history->logBulkDeleted($stagings);
+
+                StagingOut::whereIn('id', $request->ids)->delete();
+
+                return $stagings->count();
+            });
+
             return response()->json([
                 'success' => true,
                 'message' => $count.' data berhasil dihapus',

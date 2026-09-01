@@ -46,6 +46,100 @@
             padding: 1.1rem;
             height: 100%;
         }
+
+        .notif-dropdown {
+            border-radius: .9rem;
+            overflow: hidden;
+        }
+
+        .notif-item {
+            transition: background-color .15s ease;
+            color: inherit;
+        }
+
+        .notif-item:hover {
+            background-color: #f8f9fb;
+        }
+
+        .notif-item:last-of-type {
+            border-bottom: none !important;
+        }
+
+        .notif-item-highlight {
+            background-color: rgba(255, 62, 108, .06);
+        }
+
+        .notif-item-highlight:hover {
+            background-color: rgba(255, 62, 108, .1);
+        }
+
+        .notif-item .status-dot {
+            margin-top: .3rem;
+        }
+
+        .period-filter-btn {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .period-filter-btn-sm {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .8rem;
+            flex-shrink: 0;
+        }
+
+        .summary-card-body {
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+         {
+            position: absolute;
+            top: .65rem;
+            right: .65rem;
+        }
+
+        .summary-mutation {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+            margin-top: 1rem;
+            padding-top: .85rem;
+            border-top: 1px dashed #eceef1;
+        }
+
+        .summary-mutation-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: .5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: .8rem;
+        }
+
+        .summary-mutation-value {
+            font-weight: 700;
+            font-size: .82rem;
+            white-space: nowrap;
+        }
+
+        .period-filter-menu .dropdown-item.active,
+        .period-filter-menu .dropdown-item:active {
+            background-color: #696cff;
+            color: #fff;
+        }
     </style>
 
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
@@ -59,129 +153,462 @@
                 class="btn btn-icon btn-outline-secondary rounded-circle position-relative"
                 style="width:44px;height:44px;"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                title="Staging In > 7 hari">
+                title="Notifikasi">
                 <i class="bx bx-bell fs-4"></i>
-                @if ($followUpCount > 0)
+                @if ($notifCount > 0)
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                         style="font-size:.65rem;">
-                        {{ $followUpCount > 99 ? '99+' : $followUpCount }}
+                        {{ $notifCount > 99 ? '99+' : $notifCount }}
                     </span>
                 @endif
             </button>
 
-            <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="width: 340px; max-height: 420px; overflow-y: auto;">
-                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-                    <span class="fw-semibold">Staging In &gt; 7 Hari</span>
-                    @if ($followUpCount > 0)
-                        <span class="badge bg-danger rounded-pill">{{ $followUpCount }}</span>
-                    @endif
+            <div class="dropdown-menu dropdown-menu-end p-0 shadow notif-dropdown" style="width: 380px; max-height: 480px; overflow-y: auto;">
+                <div class="d-flex align-items-center justify-content-between px-3 py-3 border-bottom">
+                    <span class="fw-bold">Notifikasi</span>
+                    {{-- <a href="#" class="small text-decoration-none" onclick="event.preventDefault();">
+                        Tandai semua dibaca
+                    </a> --}}
                 </div>
 
-                @forelse ($followUpStagingIn->take(10) as $row)
-                    <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="dropdown-item px-3 py-2 border-bottom white-space-normal">
-                        <div class="fw-semibold small">
-                            {{ optional($row->item)->item_code_internal ?? 'Kode tidak diketahui' }}
-                            <span class="text-muted fw-normal">— {{ optional($row->item)->name }}</span>
+                @forelse ($notifications as $notif)
+                    <a href="{{ $notif['url'] }}"
+                        class="notif-item d-flex align-items-start gap-3 px-3 py-3 border-bottom text-decoration-none {{ $notif['highlight'] ? 'notif-item-highlight' : '' }}">
+                        <div class="icon-box {{ $notif['icon_bg'] }} {{ $notif['icon_color'] }}" style="width:44px;height:44px;">
+                            <i class="{{ $notif['icon'] }} fs-5"></i>
                         </div>
-                        <small class="text-muted">
-                            PO {{ $row->po_number ?: '-' }}
-                            &middot; Tgl Datang {{ optional($row->arrival_date)->format('d M Y') }}
-                            &middot; {{ $row->days_waiting }} hari
-                        </small>
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div class="fw-semibold text-dark small mb-1">{{ $notif['title'] }}</div>
+                            <div class="text-muted small mb-1">{{ $notif['message'] }}</div>
+                            <div class="text-muted" style="font-size:.72rem;">{{ $notif['time'] ?? '-' }}</div>
+                        </div>
+                        <span class="status-dot {{ $notif['dot'] }} flex-shrink-0"></span>
                     </a>
                 @empty
                     <div class="text-center text-muted py-4 small">
                         <i class="bx bx-check-circle text-success fs-4 d-block mb-1"></i>
-                        Tidak ada staging in yang lebih dari 7 hari.
+                        Tidak ada notifikasi baru.
                     </div>
                 @endforelse
 
-                @if ($followUpCount > 10)
-                    <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="dropdown-item text-center small text-primary py-2">
-                        Lihat {{ $followUpCount - 10 }} item lainnya
-                    </a>
-                @endif
+                {{-- <a href="{{ route('stagings-in.index', ['filter' => 'overdue']) }}" class="dropdown-item text-center small text-primary py-3">
+                    Lihat semua notifikasi <i class="bx bx-chevron-right"></i>
+                </a> --}}
             </div>
         </div>
     </div>
 
     {{-- ================= KARTU RINGKASAN ================= --}}
+    {{-- Setiap kartu punya filter periode sendiri (dropdown titik-tiga
+         di pojok kanan atas kartu), lewat query string terpisah:
+         staging_in_period, staging_out_period, stock_period,
+         location_period. Klik filter di satu kartu tidak mempengaruhi
+         kartu lain. Di bawah angka total, ada strip "mutasi" yang
+         menampilkan jumlah riil yang bertambah pada periode terpilih —
+         supaya filternya benar-benar kelihatan efeknya, bukan cuma
+         mengubah angka persentase. --}}
+
     <div class="row g-4 mb-4">
 
-        <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="icon-box bg-primary-subtle text-primary me-3">
-                        <i class="bx bx-package fs-4"></i>
+    <!-- ================= STAGING IN ================= -->
+    <div class="col-md-6 col-xl-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+
+                <!-- HEADER: ISI KIRI + DROPDOWN KANAN -->
+                <div class="d-flex align-items-start justify-content-between">
+
+                    <!-- KONTEN KIRI -->
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-primary-subtle text-primary me-3">
+                            <i class="bx bx-package fs-4"></i>
+                        </div>
+
+                        <div>
+                            <small class="text-muted d-block">
+                                Staging In
+                            </small>
+
+                            <small class="text-muted d-block"
+                                style="font-size:.7rem;">
+                                Total Item
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                {{ number_format($stagingInQty, 0, ',', '.') }}
+                            </h4>
+
+                            <small class="{{ $stagingInGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                <i class="bx {{ $stagingInGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
+                                {{ $stagingInGrowth }}%
+                            </small>
+                        </div>
                     </div>
-                    <div>
-                        <small class="text-muted d-block">Staging In</small>
-                        <small class="text-muted d-block" style="font-size:.7rem;">Total Item</small>
-                        <h4 class="fw-bold mb-1">{{ number_format($stagingInQty, 0, ',', '.') }}</h4>
-                        <small class="{{ $stagingInGrowth >= 0 ? 'text-success' : 'text-danger' }}">
-                            <i class="bx {{ $stagingInGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
-                            {{ $stagingInGrowth }}% dari kemarin
+
+                    <!-- DROPDOWN KANAN -->
+                    <div class="dropdown">
+                        <button
+                            type="button"
+                            class="btn p-0"
+                            id="cardOptStagingIn"
+                            data-bs-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Filter periode Staging In">
+
+                            <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu"
+                            aria-labelledby="cardOptStagingIn">
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingInPeriod === 'today' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_in_period' => 'today']) }}">
+                                    Hari Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingInPeriod === 'week' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_in_period' => 'week']) }}">
+                                    Minggu Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingInPeriod === 'month' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_in_period' => 'month']) }}">
+                                    Bulan Ini
+                                </a>
+                            </li>
+
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- RINGKASAN BAWAH -->
+                <div class="summary-mutation">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="summary-mutation-icon bg-primary-subtle text-primary">
+                            <i class="bx bx-log-in-circle"></i>
+                        </span>
+
+                        <small class="text-muted" style="font-size:.72rem;">
+                            Masuk {{ $stagingInPeriodCaption }}
                         </small>
                     </div>
+
+                    <span class="summary-mutation-value text-primary">
+                        +{{ number_format($stagingInAddedInPeriod, 0, ',', '.') }}
+                    </span>
                 </div>
+
             </div>
         </div>
-
-        <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="icon-box bg-success-subtle text-success me-3">
-                        <i class="bx bx-cart-alt fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Staging Out</small>
-                        <small class="text-muted d-block" style="font-size:.7rem;">Total Item</small>
-                        <h4 class="fw-bold mb-1">{{ number_format($stagingOutQty, 0, ',', '.') }}</h4>
-                        <small class="{{ $stagingOutGrowth >= 0 ? 'text-success' : 'text-danger' }}">
-                            <i class="bx {{ $stagingOutGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
-                            {{ $stagingOutGrowth }}% dari kemarin
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="icon-box bg-info-subtle text-info me-3">
-                        <i class="bx bx-cube fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Stok Tersedia</small>
-                        <small class="text-muted d-block" style="font-size:.7rem;">Total Item</small>
-                        <h4 class="fw-bold mb-1">{{ number_format($stockTotal, 0, ',', '.') }}</h4>
-                        <small class="{{ $stockGrowth >= 0 ? 'text-success' : 'text-danger' }}">
-                            <i class="bx {{ $stockGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
-                            {{ $stockGrowth }}% dari kemarin
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center">
-                    <div class="icon-box bg-warning-subtle text-warning me-3">
-                        <i class="bx bx-map fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">Total Lokasi</small>
-                        <small class="text-muted d-block" style="font-size:.7rem;">Lokasi Aktif</small>
-                        <h4 class="fw-bold mb-1">{{ number_format($activeLocations, 0, ',', '.') }}</h4>
-                        <small class="text-muted">dari {{ $totalLocations }} lokasi</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
+
+
+    <!-- ================= STAGING OUT ================= -->
+    <div class="col-md-6 col-xl-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+
+                <!-- HEADER: ISI KIRI + DROPDOWN KANAN -->
+                <div class="d-flex align-items-start justify-content-between">
+
+                    <!-- KONTEN KIRI -->
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-success-subtle text-success me-3">
+                            <i class="bx bx-cart-alt fs-4"></i>
+                        </div>
+
+                        <div>
+                            <small class="text-muted d-block">
+                                Staging Out
+                            </small>
+
+                            <small class="text-muted d-block"
+                                style="font-size:.7rem;">
+                                Total Item
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                {{ number_format($stagingOutQty, 0, ',', '.') }}
+                            </h4>
+
+                            <small class="{{ $stagingOutGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                <i class="bx {{ $stagingOutGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
+                                {{ $stagingOutGrowth }}%
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- DROPDOWN KANAN -->
+                    <div class="dropdown">
+                        <button
+                            type="button"
+                            class="btn p-0"
+                            id="cardOptStagingOut"
+                            data-bs-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Filter periode Staging Out">
+
+                            <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu"
+                            aria-labelledby="cardOptStagingOut">
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingOutPeriod === 'today' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_out_period' => 'today']) }}">
+                                    Hari Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingOutPeriod === 'week' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_out_period' => 'week']) }}">
+                                    Minggu Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stagingOutPeriod === 'month' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['staging_out_period' => 'month']) }}">
+                                    Bulan Ini
+                                </a>
+                            </li>
+
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- RINGKASAN BAWAH -->
+                <div class="summary-mutation">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="summary-mutation-icon bg-success-subtle text-success">
+                            <i class="bx bx-log-out-circle"></i>
+                        </span>
+
+                        <small class="text-muted" style="font-size:.72rem;">
+                            Keluar {{ $stagingOutPeriodCaption }}
+                        </small>
+                    </div>
+
+                    <span class="summary-mutation-value text-success">
+                        +{{ number_format($stagingOutAddedInPeriod, 0, ',', '.') }}
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= STOK TERSEDIA ================= -->
+    <div class="col-md-6 col-xl-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+
+                <!-- HEADER: ISI KIRI + DROPDOWN KANAN -->
+                <div class="d-flex align-items-start justify-content-between">
+
+                    <!-- KONTEN KIRI -->
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-info-subtle text-info me-3">
+                            <i class="bx bx-cube fs-4"></i>
+                        </div>
+
+                        <div>
+                            <small class="text-muted d-block">
+                                Stok Tersedia
+                            </small>
+
+                            <small class="text-muted d-block"
+                                style="font-size:.7rem;">
+                                Total Item
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                {{ number_format($stockTotal, 0, ',', '.') }}
+                            </h4>
+
+                            <small class="{{ $stockGrowth >= 0 ? 'text-success' : 'text-danger' }}">
+                                <i class="bx {{ $stockGrowth >= 0 ? 'bx-up-arrow-alt' : 'bx-down-arrow-alt' }}"></i>
+                                {{ $stockGrowth }}%
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- DROPDOWN KANAN -->
+                    <div class="dropdown">
+                        <button
+                            type="button"
+                            class="btn p-0"
+                            id="cardOptStock"
+                            data-bs-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Filter periode Stok Tersedia">
+
+                            <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu"
+                            aria-labelledby="cardOptStock">
+
+                            <li>
+                                <a class="dropdown-item {{ $stockPeriod === 'today' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['stock_period' => 'today']) }}">
+                                    Hari Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stockPeriod === 'week' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['stock_period' => 'week']) }}">
+                                    Minggu Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $stockPeriod === 'month' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['stock_period' => 'month']) }}">
+                                    Bulan Ini
+                                </a>
+                            </li>
+
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- RINGKASAN BAWAH -->
+                <div class="summary-mutation">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="summary-mutation-icon bg-info-subtle text-info">
+                            <i class="bx bx-transfer"></i>
+                        </span>
+
+                        <small class="text-muted" style="font-size:.72rem;">
+                            Mutasi {{ $stockPeriodCaption }}
+                        </small>
+                    </div>
+
+                    <span class="summary-mutation-value text-info">
+                        +{{ number_format($stockAddedInPeriod, 0, ',', '.') }}
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= TOTAL LOKASI ================= -->
+    <div class="col-md-6 col-xl-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+
+                <!-- HEADER: ISI KIRI + DROPDOWN KANAN -->
+                <div class="d-flex align-items-start justify-content-between">
+
+                    <!-- KONTEN KIRI -->
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-warning-subtle text-warning me-3">
+                            <i class="bx bx-map fs-4"></i>
+                        </div>
+
+                        <div>
+                            <small class="text-muted d-block">
+                                Total Lokasi
+                            </small>
+
+                            <small class="text-muted d-block"
+                                style="font-size:.7rem;">
+                                Lokasi Aktif
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                {{ number_format($activeLocations, 0, ',', '.') }}
+                            </h4>
+
+                            <small class="text-muted">
+                                dari {{ $totalLocations }} lokasi
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- DROPDOWN KANAN -->
+                    <div class="dropdown">
+                        <button
+                            type="button"
+                            class="btn p-0"
+                            id="cardOptLocation"
+                            data-bs-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Filter periode Total Lokasi">
+
+                            <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu"
+                            aria-labelledby="cardOptLocation">
+
+                            <li>
+                                <a class="dropdown-item {{ $locationPeriod === 'today' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['location_period' => 'today']) }}">
+                                    Hari Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $locationPeriod === 'week' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['location_period' => 'week']) }}">
+                                    Minggu Ini
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item {{ $locationPeriod === 'month' ? 'active' : '' }}"
+                                    href="{{ request()->fullUrlWithQuery(['location_period' => 'month']) }}">
+                                    Bulan Ini
+                                </a>
+                            </li>
+
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- RINGKASAN BAWAH -->
+                <div class="summary-mutation">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="summary-mutation-icon bg-warning-subtle text-warning">
+                            <i class="bx bx-plus-circle"></i>
+                        </span>
+
+                        <small class="text-muted" style="font-size:.72rem;">
+                            Lokasi baru {{ $locationPeriodCaption }}
+                        </small>
+                    </div>
+
+                    <span class="summary-mutation-value text-warning">
+                        +{{ number_format($locationAddedInPeriod, 0, ',', '.') }}
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
 
     {{-- ================= GRAFIK AKTIVITAS + DISTRIBUSI STOK ================= --}}
     <div class="row g-4 mb-4">
@@ -191,20 +618,45 @@
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
                     <div>
                         <h5 class="fw-bold mb-0">Ringkasan Aktivitas</h5>
-                        <small class="text-muted">7 hari terakhir</small>
+                        <small class="text-muted">{{ $chartPeriodLabel }}</small>
                     </div>
-                    <div class="d-flex gap-4">
-                        <div class="text-end">
-                            <small class="text-muted d-block">Staging In</small>
-                            <span class="fw-bold fs-5" style="color:#696cff;">{{ number_format($stagingInSeries->sum(), 0, ',', '.') }}</span>
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="d-flex gap-4">
+                            <div class="text-end">
+                                <small class="text-muted d-block">Staging In</small>
+                                <span class="fw-bold fs-5" style="color:#696cff;">{{ number_format($stagingInSeries->sum(), 0, ',', '.') }}</span>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">Staging Out</small>
+                                <span class="fw-bold fs-5" style="color:#71dd37;">{{ number_format($stagingOutSeries->sum(), 0, ',', '.') }}</span>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">Mutasi Stok</small>
+                                <span class="fw-bold fs-5" style="color:#03c3ec;">{{ number_format($mutationSeries->sum(), 0, ',', '.') }}</span>
+                            </div>
                         </div>
-                        <div class="text-end">
-                            <small class="text-muted d-block">Staging Out</small>
-                            <span class="fw-bold fs-5" style="color:#03c3ec;">{{ number_format($stagingOutSeries->sum(), 0, ',', '.') }}</span>
-                        </div>
-                        <div class="text-end">
-                            <small class="text-muted d-block">Mutasi Stok</small>
-                            <span class="fw-bold fs-5" style="color:#ffab00;">{{ number_format($mutationSeries->sum(), 0, ',', '.') }}</span>
+
+                        <div class="dropdown">
+                            <button type="button"
+                                class="btn btn-icon btn-outline-secondary rounded-circle period-filter-btn"
+                                data-bs-toggle="dropdown" aria-expanded="false"
+                                title="Filter periode">
+                                <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary fs-5"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu">
+                                <li>
+                                    <a class="dropdown-item {{ $chartPeriod === 'today' ? 'active' : '' }}"
+                                        href="{{ request()->fullUrlWithQuery(['chart_period' => 'today']) }}">Hari Ini</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ $chartPeriod === 'week' ? 'active' : '' }}"
+                                        href="{{ request()->fullUrlWithQuery(['chart_period' => 'week']) }}">Minggu Ini</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ $chartPeriod === 'month' ? 'active' : '' }}"
+                                        href="{{ request()->fullUrlWithQuery(['chart_period' => 'month']) }}">Bulan Ini</a>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -524,12 +976,12 @@
                 </div>
 
                 <div class="col-md-6 col-xl-3">
-                    <div class="alert-card bg-danger-subtle">
-                        <i class="bx bx-time text-danger fs-4"></i>
-                        <h5 class="fw-bold mt-2 mb-0">{{ $alerts['staging_out_terlambat'] }} Item</h5>
-                        <small class="text-muted d-block mb-2">Staging Out Terlambat</small>
-                        <small class="text-muted d-block mb-2">Melewati tanggal kirim yang sudah ditentukan</small>
-                        <a href="{{ route('stagings-out.index', ['status' => 'terlambat']) }}" class="small text-decoration-none">Lihat daftar</a>
+                    <div class="alert-card bg-primary-subtle">
+                        <i class="bx bx-package text-primary fs-4"></i>
+                        <h5 class="fw-bold mt-2 mb-0">{{ $alerts['staging_out_siap_kirim'] }} Item</h5>
+                        <small class="text-muted d-block mb-2">Siap Kirim</small>
+                        <small class="text-muted d-block mb-2">Sudah picking, menunggu proses pengiriman</small>
+                        <a href="{{ route('stagings-out.index', ['status' => 'siap_kirim']) }}" class="small text-decoration-none">Lihat daftar</a>
                     </div>
                 </div>
 
@@ -562,86 +1014,98 @@
         <script>
             $(function() {
 
-                // ================= COMBO CHART: AKTIVITAS 7 HARI =================
-                // ================= CHART.JS: AKTIVITAS 7 HARI =================
+                // ================= CHART.JS: RINGKASAN AKTIVITAS (LINE) =================
+                // Semua seri berupa garis, tapi didesain supaya tetap
+                // terbaca jelas meskipun 2 seri punya nilai yang sama
+                // persis di satu titik (sehingga garisnya berhimpit):
+                // - Warna berbeda + pola garis berbeda (solid/putus-putus/
+                //   titik-titik) supaya garis yang "ketutup" tetap
+                //   kelihatan selang-selingnya.
+                // - Bentuk titik data (marker) berbeda per seri.
+                // - Area gradient tipis di bawah tiap garis supaya tren
+                //   naik/turun lebih mudah dibaca sekilas.
                 (function() {
-                    const ctx = document.getElementById('chartActivity').getContext('2d');
+                    const canvas = document.getElementById('chartActivity');
+                    const ctx = canvas.getContext('2d');
 
-                    // Gradient vertikal untuk tiap batang, dari warna pekat ke transparan
-                    function barGradient(ctx, colorTop, colorBottom) {
-                        const g = ctx.createLinearGradient(0, 0, 0, 300);
-                        g.addColorStop(0, colorTop);
-                        g.addColorStop(1, colorBottom);
+                    function hexToRgba(hex, alpha) {
+                        const r = parseInt(hex.slice(1, 3), 16);
+                        const g = parseInt(hex.slice(3, 5), 16);
+                        const b = parseInt(hex.slice(5, 7), 16);
+                        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+                    }
+
+                    function areaGradient(hex, alphaTop) {
+                        const g = ctx.createLinearGradient(0, 0, 0, 320);
+                        g.addColorStop(0, hexToRgba(hex, alphaTop));
+                        g.addColorStop(1, hexToRgba(hex, 0));
                         return g;
                     }
 
-                    const gradIn = barGradient(ctx, '#8385ff', 'rgba(105,108,255,0.15)');
-                    const gradOut = barGradient(ctx, '#3fd7f5', 'rgba(3,195,236,0.15)');
-
-                    // Plugin custom: glow lembut di belakang garis Mutasi ke Stok
-                    const glowLinePlugin = {
-                        id: 'glowLine',
-                        beforeDatasetsDraw(chart) {
-                            const {
-                                ctx
-                            } = chart;
-                            ctx.save();
-                            ctx.shadowColor = 'rgba(255,171,0,0.55)';
-                            ctx.shadowBlur = 12;
-                            ctx.shadowOffsetY = 4;
-                        },
-                        afterDatasetsDraw(chart) {
-                            chart.ctx.restore();
-                        }
-                    };
+                    const colorIn = '#696cff';
+                    const colorOut = '#71dd37';
+                    const colorMutation = '#03c3ec';
 
                     new Chart(ctx, {
-                        type: 'bar',
+                        type: 'line',
                         data: {
                             labels: @json($chartLabels),
                             datasets: [{
                                     label: 'Staging In',
                                     data: @json($stagingInSeries),
-                                    backgroundColor: gradIn,
-                                    borderRadius: {
-                                        topLeft: 10,
-                                        topRight: 10
-                                    },
-                                    borderSkipped: false,
-                                    maxBarThickness: 22,
-                                    order: 2
+                                    borderColor: colorIn,
+                                    backgroundColor: areaGradient(colorIn, 0.25),
+                                    borderWidth: 3,
+                                    borderDash: [],
+                                    pointStyle: 'circle',
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#fff',
+                                    pointBorderColor: colorIn,
+                                    pointBorderWidth: 2.5,
+                                    pointHoverRadius: 7,
+                                    pointHoverBorderWidth: 3,
+                                    tension: 0.4,
+                                    fill: 'origin',
+                                    order: 3
                                 },
                                 {
                                     label: 'Staging Out',
                                     data: @json($stagingOutSeries),
-                                    backgroundColor: gradOut,
-                                    borderRadius: {
-                                        topLeft: 10,
-                                        topRight: 10
-                                    },
-                                    borderSkipped: false,
-                                    maxBarThickness: 22,
+                                    borderColor: colorOut,
+                                    backgroundColor: areaGradient(colorOut, 0.2),
+                                    borderWidth: 3,
+                                    borderDash: [],
+                                    pointStyle: 'circle',
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#fff',
+                                    pointBorderColor: colorOut,
+                                    pointBorderWidth: 2.5,
+                                    pointHoverRadius: 7,
+                                    pointHoverBorderWidth: 3,
+                                    tension: 0.4,
+                                    fill: 'origin',
                                     order: 2
                                 },
                                 {
                                     label: 'Mutasi ke Stok',
                                     data: @json($mutationSeries),
-                                    type: 'line',
-                                    borderColor: '#ffab00',
-                                    backgroundColor: '#ffab00',
+                                    borderColor: colorMutation,
+                                    backgroundColor: areaGradient(colorMutation, 0.2),
                                     borderWidth: 3,
-                                    tension: 0.45,
-                                    fill: false,
+                                    borderDash: [],
+                                    pointStyle: 'circle',
                                     pointRadius: 5,
                                     pointBackgroundColor: '#fff',
-                                    pointBorderColor: '#ffab00',
-                                    pointBorderWidth: 3,
-                                    pointHoverRadius: 7,
+                                    pointBorderColor: colorMutation,
+                                    pointBorderWidth: 2.5,
+                                    pointHoverRadius: 8,
+                                    pointHoverBorderWidth: 3,
+                                    tension: 0.4,
+                                    fill: 'origin',
                                     order: 1
                                 }
                             ]
                         },
-                        plugins: [glowLinePlugin],
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -659,8 +1123,8 @@
                                     align: 'start',
                                     labels: {
                                         usePointStyle: true,
-                                        pointStyle: 'circle',
                                         boxWidth: 8,
+                                        boxHeight: 8,
                                         padding: 18,
                                         font: {
                                             size: 12
@@ -672,6 +1136,8 @@
                                     backgroundColor: '#2b2c40',
                                     padding: 12,
                                     cornerRadius: 8,
+                                    usePointStyle: true,
+                                    boxPadding: 4,
                                     titleFont: {
                                         weight: '600'
                                     },
@@ -684,7 +1150,6 @@
                             },
                             scales: {
                                 x: {
-                                    stacked: false,
                                     grid: {
                                         display: false
                                     },

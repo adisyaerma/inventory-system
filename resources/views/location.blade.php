@@ -2,288 +2,649 @@
 @section('title', 'Lokasi')
 @section('content')
     <div class="card">
-        <div class="card-header">
-            <div class="float-start">
-                <h4 class="mb-0">Lokasi Rak</h4>
-                <small class="text-muted">Kelola data lokasi rak penyimpanan barang</small>
-            </div>
-            <div class="float-end mt-3">
+        <div class="card-body">
 
-                <button id="btnResetFilter" type="button"
-                    class="btn btn-sm btn-outline-secondary ">
+            {{-- ================= TAB KATEGORI LOKASI ================= --}}
+            <ul class="nav nav-tabs mb-4" id="locationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-semua" data-bs-toggle="tab"
+                        data-bs-target="#pane-semua" type="button" role="tab">
+                        <i class="bi bi-grid-fill me-1"></i> Semua Lokasi
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-rak" data-bs-toggle="tab" data-bs-target="#pane-rak"
+                        type="button" role="tab">
+                        <i class="bi bi-diagram-3 me-1"></i> Rak
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-flat" data-bs-toggle="tab" data-bs-target="#pane-flat"
+                        type="button" role="tab">
+                        <i class="bi bi-archive me-1"></i> Flat Indoor
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-hroom" data-bs-toggle="tab" data-bs-target="#pane-hroom"
+                        type="button" role="tab">
+                        <i class="bi bi-box-seam me-1"></i> H-Room
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-outdoor" data-bs-toggle="tab" data-bs-target="#pane-outdoor"
+                        type="button" role="tab">
+                        <i class="bi bi-sun me-1"></i> Outdoor
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-backside" data-bs-toggle="tab" data-bs-target="#pane-backside"
+                        type="button" role="tab">
+                        <i class="bi bi-signpost-2 me-1"></i> Backside
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-lainlain" data-bs-toggle="tab" data-bs-target="#pane-lainlain"
+                        type="button" role="tab">
+                        <i class="bi bi-three-dots me-1"></i> Lain-lain
+                    </button>
+                </li>
+            </ul>
 
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21" class="me-1">
+            <div class="tab-content" id="locationTabsContent">
 
-                        <path d="M0 0h21v21H0z" fill="none" />
+                {{-- ============ TAB: SEMUA LOKASI (ringkasan + preview per kategori) ============ --}}
+                <div class="tab-pane fade show active" id="pane-semua" role="tabpanel">
 
-                        <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                            stroke-linejoin="round">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap" style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="summarySearch" class="form-control border-start-0"
+                                placeholder="Cari lokasi...">
+                        </div>
 
-                            <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                            <path d="M7.5 6.5h-4v-4" />
+                        <select id="summaryStatus" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
 
-                        </g>
+                        <button type="button" id="btnResetSummary" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                        </button>
 
-                    </svg>
 
-                    Reset
+                        
+                    </div>
 
-                </button>
-                <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
-                    class="btn btn-primary btn-sm">
-                    <svg class="me-1" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                        viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="currentColor" d="M19 12.998h-6v6h-2v-6H5v-2h6v-6h2v6h6z" />
-                    </svg>
-                    Tambah
-                </button>
-                <div class="modal fade" id="addLocationModal" data-bs-backdrop="static" data-bs-keyboard="false"
-                    tabindex="-1">
+                    <h6 class="fw-bold mb-3">Ringkasan Lokasi</h6>
+                    <div class="row g-3 mb-4" id="summaryCards">
+                        {{-- diisi oleh JS --}}
+                    </div>
 
-                    <div class="modal-dialog modal-md modal-dialog-centered">
-                        <div class="modal-content">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Daftar Lokasi per Kategori</h6>
+                    </div>
 
-                            <form id="formLocation">
+                    <div id="categoryPreview">
+                        {{-- diisi oleh JS: 3 blok (Rak, Flat Indoor, H-Room Storage) --}}
+                    </div>
 
-                                @csrf
+                </div>
 
-                                <div class="modal-header">
-                                    <h5 class="modal-title fw-bold">
-                                        Tambah Lokasi Rak <br>
-                                        <small class="fw-light">Tambahkan lokasi rak baru untuk penyimpanan barang</small>
-                                    </h5>
+                {{-- ============ TAB: RAK ============ --}}
+                <div class="tab-pane fade" id="pane-rak" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-diagram-3 me-1 text-success"></i> Lokasi Rak</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetRak" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
 
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal">
-                                    </button>
-                                </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchRak" class="form-control border-start-0"
+                                placeholder="Cari lokasi rak...">
+                        </div>
+                        <select id="statusRak" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
 
-                                <div class="modal-body">
+                    <div id="bulkActionBarRak"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="rak">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
 
-                                    {{-- Nama Rak --}}
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">
-                                            Nama Rak
-                                        </label>
-
-                                        <input type="text" name="location_name" class="form-control"
-                                            placeholder="Contoh: Rak A1" required>
-                                    </div>
-
-                                    {{-- Barcode --}}
-                                    <div class="mb-3">
-
-                                        <label class="form-label fw-bold">
-                                            Barcode Rak
-                                        </label>
-
-                                        <div class="border rounded p-4 text-center">
-
-                                            <button type="button" id="btnScan" class="btn btn-outline-secondary rounded">
-
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
-                                                    viewBox="0 0 24 24" class="fs-4 me-2">
-                                                    <path d="M0 0h24v24H0z" fill="none" />
-                                                    <path fill="none" stroke="currentColor" stroke-linecap="round"
-                                                        stroke-linejoin="round" stroke-width="2"
-                                                        d="M7 12h10M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M17 3h2a2 2 0 0 1 2 2v2m-4 14h2a2 2 0 0 0 2-2v-2" />
-                                                </svg>
-
-                                                Scan Barcode
-
-                                            </button>
-
-                                            <div class="small text-muted mt-2">
-                                                Arahkan kamera ke barcode rak
-                                            </div>
-                                            <div class="small mt-1 fw-bold">atau</div>
-                                            <input type="text" id="location_code" name="location_code"
-                                                class="form-control form-control-sm mt-2"
-                                                placeholder="Masukkan kode barcode secara manual">
-
-                                        </div>
-
-                                    </div>
-
-                                    <div id="scanner-container" class="mb-3" style="display:none;">
-
-                                        <div id="reader"></div>
-
-                                    </div>
-
-                                    {{-- Status --}}
-                                    <div class="mb-3">
-
-                                        <label class="form-label fw-bold">
-                                            Status
-                                        </label>
-
-                                        <div class="d-flex gap-4">
-
-                                            <div class="form-check">
-
-                                                <input class="form-check-input" type="radio" name="status" value="1"
-                                                    checked>
-
-                                                <label class="form-check-label">
-                                                    Aktif
-                                                </label>
-
-                                            </div>
-
-                                            <div class="form-check">
-
-                                                <input class="form-check-input" type="radio" name="status"
-                                                    value="0">
-
-                                                <label class="form-check-label">
-                                                    Non Aktif
-                                                </label>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-                                    {{-- Description --}}
-                                    <div class="mb-3 mt-3">
-                                        <label class="form-label fw-bold">
-                                            Deskripsi
-                                        </label>
-
-                                        <textarea name="description" class="form-control" rows="3" placeholder="Opsional"></textarea>
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer">
-
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-
-                                        Batal
-
-                                    </button>
-
-                                    <button type="submit" class="btn btn-primary btnSaveLocation">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em"
-                                            height="1em" viewBox="0 0 16 16">
-                                            <path d="M0 0h16v16H0z" fill="none" />
-                                            <path fill="currentColor"
-                                                d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z" />
-                                        </svg>
-
-                                        Simpan
-
-                                    </button>
-
-                                </div>
-
-                            </form>
-
+                    <table class="table table-bordered" id="locationRak">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="rak"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerRak">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperRak">
+                            <span>Tampilkan</span>
+                            <select id="lengthRak" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="table-responsive text-nowrap">
-            <div class="container-fluid px-4">
-                <style>
-                    .filter-toolbar {
-                        --gap: 0.5rem;
-                    }
-
-                    .filter-toolbar #customSearch {
-                        padding-left: 0.5rem !important;
-                    }
-
-                    .filter-toolbar>* {
-                        flex: 1 1 calc(25% - var(--gap));
-                        max-width: 260px;
-                        min-width: 150px;
-                    }
-
-                    .filter-toolbar .btn-reset-wrapper {
-                        flex: 0 0 auto;
-                    }
-
-                    @media (max-width: 991.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 calc(50% - var(--gap));
-                            max-width: 320px;
-                        }
-                    }
-
-                    @media (max-width: 575.98px) {
-                        .filter-toolbar>* {
-                            flex: 1 1 calc(50% - var(--gap));
-                            max-width: 100%;
-                        }
-
-                        .filter-toolbar #resetFilter {
-                            width: 100%;
-                            justify-content: center;
-                        }
-                    }
-                </style>
-
-                <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
-
-                    <!-- Search -->
-                    <div class="input-group input-group-sm shadow-sm flex-nowrap">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="bi bi-search text-muted"></i>
-                        </span>
-                        <input type="text" id="customSearch" class="form-control border-start-0"
-                            placeholder="Cari...">
+                {{-- ============ TAB: FLAT INDOOR ============ --}}
+                <div class="tab-pane fade" id="pane-flat" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-archive me-1 text-primary"></i> Lokasi Flat Indoor</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetFlat" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
                     </div>
 
-                    <select id="filterStatus" class="form-select form-select-sm" style="width:180px;">
-                        <option value="">Semua Status</option>
-                        <option value="1">Aktif</option>
-                        <option value="0">Non Aktif</option>
-                    </select>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchFlat" class="form-control border-start-0"
+                                placeholder="Cari lokasi flat indoor...">
+                        </div>
+                        <select id="statusFlat" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
 
+                    <div id="bulkActionBarFlat"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="flat_indoor">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
+
+                    <table class="table table-bordered" id="locationFlat">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="flat_indoor"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerFlat">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperFlat">
+                            <span>Tampilkan</span>
+                            <select id="lengthFlat" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div id="bulkActionBar"
-                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
-                <span><span id="selectedCount">0</span> data dipilih</span>
-                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
-                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
-                </button>
-            </div>
+                {{-- ============ TAB: H-ROOM STORAGE ============ --}}
+                <div class="tab-pane fade" id="pane-hroom" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-box-seam me-1" style="color:#8b5cf6;"></i> Lokasi H-Room
+                            Storage</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetHroom" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
 
-            <table class="table table-bordered" id="location">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="checkAll"></th>
-                        <th>No</th>
-                        <th>Nama Rak</th>
-                        <th>Barcode Rak</th>
-                        <th>Status</th>
-                        <th>Deskripsi</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="table-border-bottom-0"></tbody>
-            </table>
-            <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
-                id="tableFooter">
-                <div class="d-flex align-items-center gap-2" id="lengthWrapper">
-                    <span>Tampilkan</span>
-                    <select id="customLength" class="fonrm-select form-select-sm" style="width:80px">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                    <span>data</span>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchHroom" class="form-control border-start-0"
+                                placeholder="Cari lokasi h-room storage...">
+                        </div>
+                        <select id="statusHroom" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
+
+                    <div id="bulkActionBarHroom"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="h_room">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
+
+                    <table class="table table-bordered" id="locationHroom">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="h_room"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerHroom">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperHroom">
+                            <span>Tampilkan</span>
+                            <select id="lengthHroom" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+                    </div>
                 </div>
+
+                {{-- ============ TAB: OUTDOOR ============ --}}
+                <div class="tab-pane fade" id="pane-outdoor" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-sun me-1 text-warning"></i> Lokasi Outdoor</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetOutdoor" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchOutdoor" class="form-control border-start-0"
+                                placeholder="Cari lokasi outdoor...">
+                        </div>
+                        <select id="statusOutdoor" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
+
+                    <div id="bulkActionBarOutdoor"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="outdoor">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
+
+                    <table class="table table-bordered" id="locationOutdoor">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="outdoor"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerOutdoor">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperOutdoor">
+                            <span>Tampilkan</span>
+                            <select id="lengthOutdoor" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ============ TAB: BACKSIDE ============ --}}
+                <div class="tab-pane fade" id="pane-backside" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-signpost-2 me-1 text-dark"></i> Lokasi Backside</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetBackside" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchBackside" class="form-control border-start-0"
+                                placeholder="Cari lokasi backside...">
+                        </div>
+                        <select id="statusBackside" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
+
+                    <div id="bulkActionBarBackside"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="backside">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
+
+                    <table class="table table-bordered" id="locationBackside">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="backside"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerBackside">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperBackside">
+                            <span>Tampilkan</span>
+                            <select id="lengthBackside" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ============ TAB: LAIN-LAIN (lokasi yang tidak cocok kategori manapun) ============ --}}
+                <div class="tab-pane fade" id="pane-lainlain" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0"><i class="bi bi-three-dots me-1 text-secondary"></i> Lokasi Lain-lain</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="resetLainlain" type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                            <button data-bs-toggle="modal" data-bs-target="#addLocationModal" type="button"
+                                class="btn btn-primary btn-sm btnOpenAdd">
+                                <i class="bi bi-plus-lg me-1"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" id="searchLainlain" class="form-control border-start-0"
+                                placeholder="Cari lokasi lain-lain...">
+                        </div>
+                        <select id="statusLainlain" class="form-select form-select-sm" style="width:180px;">
+                            <option value="">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="0">Non Aktif</option>
+                        </select>
+                    </div>
+
+                    <div id="bulkActionBarLainlain"
+                        class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
+                        <span><span class="selectedCount">0</span> data dipilih</span>
+                        <button type="button" class="btn btn-sm btn-danger btnBulkDelete" data-category="lain_lain">
+                            <i class="bi bi-trash me-1"></i> Hapus Terpilih
+                        </button>
+                    </div>
+
+                    <table class="table table-bordered" id="locationLainlain">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkAll" data-category="lain_lain"></th>
+                                <th>No</th>
+                                <th>Nama Lokasi</th>
+                                <th>Kode Lokasi</th>
+                                <th>Status</th>
+                                <th>Deskripsi</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0"></tbody>
+                    </table>
+                    <div class="mb-3 ms-4 d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2"
+                        id="footerLainlain">
+                        <div class="d-flex align-items-center gap-2" id="lengthWrapperLainlain">
+                            <span>Tampilkan</span>
+                            <select id="lengthLainlain" class="form-select form-select-sm" style="width:80px">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+
+    {{-- ================= MODAL TAMBAH (dipakai bersama oleh semua tab) ================= --}}
+    <div class="modal fade" id="addLocationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+
+                <form id="formLocation">
+
+                    @csrf
+
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">
+                            Tambah Lokasi <br>
+                        </h5>
+
+                        <button type="button" class="btn-close" data-bs-dismiss="modal">
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+
+                        {{-- Nama Lokasi --}}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                Nama Lokasi
+                            </label>
+
+                            <input type="text" name="location_name" class="form-control"
+                                placeholder="Contoh: 7-1-1 / F01-01 / H3P01L2" required>
+                        </div>
+
+                        {{-- Barcode --}}
+                        <div class="mb-3">
+
+                            <label class="form-label fw-bold">
+                                Kode Lokasi
+                            </label>
+
+                            <div class="border rounded p-4 text-center">
+
+                                <button type="button" id="btnScan" class="btn btn-outline-secondary rounded">
+
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                                        viewBox="0 0 24 24" class="fs-4 me-2">
+                                        <path d="M0 0h24v24H0z" fill="none" />
+                                        <path fill="none" stroke="currentColor" stroke-linecap="round"
+                                            stroke-linejoin="round" stroke-width="2"
+                                            d="M7 12h10M3 7V5a2 2 0 0 1 2-2h2M3 17v2a2 2 0 0 0 2 2h2M17 3h2a2 2 0 0 1 2 2v2m-4 14h2a2 2 0 0 0 2-2v-2" />
+                                    </svg>
+
+                                    Scan Barcode
+
+                                </button>
+
+                                <div class="small text-muted mt-2">
+                                    Arahkan kamera ke barcode lokasi
+                                </div>
+                                <div class="small mt-1 fw-bold">atau</div>
+                                <input type="text" id="location_code" name="location_code"
+                                    class="form-control form-control-sm mt-2"
+                                    placeholder="Masukkan kode lokasi secara manual">
+
+                            </div>
+
+                        </div>
+
+                        <div id="scanner-container" class="mb-3" style="display:none;">
+
+                            <div id="reader"></div>
+
+                        </div>
+
+                        {{-- Status --}}
+                        <div class="mb-3">
+
+                            <label class="form-label fw-bold">
+                                Status
+                            </label>
+
+                            <div class="d-flex gap-4">
+
+                                <div class="form-check">
+
+                                    <input class="form-check-input" type="radio" name="status" value="1"
+                                        checked>
+
+                                    <label class="form-check-label">
+                                        Aktif
+                                    </label>
+
+                                </div>
+
+                                <div class="form-check">
+
+                                    <input class="form-check-input" type="radio" name="status"
+                                        value="0">
+
+                                    <label class="form-check-label">
+                                        Non Aktif
+                                    </label>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                        {{-- Description --}}
+                        <div class="mb-3 mt-3">
+                            <label class="form-label fw-bold">
+                                Deskripsi
+                            </label>
+
+                            <textarea name="description" class="form-control" rows="3" placeholder="Opsional"></textarea>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+
+                            Batal
+
+                        </button>
+
+                        <button type="submit" class="btn btn-primary btnSaveLocation">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="me-2" width="1em" height="1em"
+                                viewBox="0 0 16 16">
+                                <path d="M0 0h16v16H0z" fill="none" />
+                                <path fill="currentColor"
+                                    d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z" />
+                            </svg>
+
+                            Simpan
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+
 
     {{-- ================= MODAL EDIT (tunggal, diisi via AJAX) ================= --}}
     <div class="modal fade" id="editLocationModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
@@ -299,8 +660,8 @@
 
                     <div class="modal-header">
                         <h5 class="modal-title fw-bold">
-                            Edit Lokasi Rak <br>
-                            <small class="fw-light">Ubah data lokasi rak penyimpanan barang</small>
+                            Edit Lokasi <br>
+                            <small class="fw-light">Ubah data lokasi penyimpanan barang</small>
                         </h5>
 
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -309,14 +670,14 @@
                     <div class="modal-body">
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Nama Rak</label>
+                            <label class="form-label fw-bold">Nama Lokasi</label>
                             <input type="text" name="location_name" id="editLocationName" class="form-control"
-                                placeholder="Contoh: Rak A1" required>
+                                placeholder="Contoh: 7-1-1 / F01-01 / H3P01L2" required>
                         </div>
 
                         <div class="mb-3">
 
-                            <label class="form-label fw-bold">Barcode Rak</label>
+                            <label class="form-label fw-bold">Kode Lokasi</label>
 
                             <div class="border rounded p-4 text-center">
 
@@ -335,14 +696,14 @@
                                 </button>
 
                                 <div class="small text-muted mt-2">
-                                    Arahkan kamera ke barcode rak
+                                    Arahkan kamera ke barcode lokasi
                                 </div>
 
                                 <div class="small mt-1 fw-bold">atau</div>
 
                                 <input type="text" name="location_code" id="editLocationCode"
                                     class="form-control form-control-sm mt-2"
-                                    placeholder="Masukkan kode barcode secara manual">
+                                    placeholder="Masukkan kode lokasi secara manual">
 
                             </div>
 
@@ -406,7 +767,7 @@
 
     @push('script')
         <style>
-            #location_wrapper {
+            .dataTables_wrapper {
                 padding: 1rem;
             }
 
@@ -446,8 +807,11 @@
                 box-shadow: none;
             }
 
-            #customSearch {
-                padding-left: 42px;
+            #summarySearch,
+            #searchRak,
+            #searchFlat,
+            #searchHroom {
+                padding-left: 4px;
                 border-radius: 4px !important;
             }
 
@@ -483,120 +847,582 @@
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         <script>
-            // ============ VARIABEL GLOBAL ============
-            let table;
+            // ============ KONFIGURASI KATEGORI ============
+            const categoryConfig = {
+                rak: {
+                    table: 'locationRak',
+                    search: 'searchRak',
+                    status: 'statusRak',
+                    length: 'lengthRak',
+                    reset: 'resetRak',
+                    lengthWrapper: 'lengthWrapperRak',
+                    footer: 'footerRak',
+                    bulkBar: 'bulkActionBarRak',
+                    label: 'Rak'
+                },
+                flat_indoor: {
+                    table: 'locationFlat',
+                    search: 'searchFlat',
+                    status: 'statusFlat',
+                    length: 'lengthFlat',
+                    reset: 'resetFlat',
+                    lengthWrapper: 'lengthWrapperFlat',
+                    footer: 'footerFlat',
+                    bulkBar: 'bulkActionBarFlat',
+                    label: 'Flat Indoor'
+                },
+                h_room: {
+                    table: 'locationHroom',
+                    search: 'searchHroom',
+                    status: 'statusHroom',
+                    length: 'lengthHroom',
+                    reset: 'resetHroom',
+                    lengthWrapper: 'lengthWrapperHroom',
+                    footer: 'footerHroom',
+                    bulkBar: 'bulkActionBarHroom',
+                    label: 'H-Room Storage'
+                },
+                outdoor: {
+                    table: 'locationOutdoor',
+                    search: 'searchOutdoor',
+                    status: 'statusOutdoor',
+                    length: 'lengthOutdoor',
+                    reset: 'resetOutdoor',
+                    lengthWrapper: 'lengthWrapperOutdoor',
+                    footer: 'footerOutdoor',
+                    bulkBar: 'bulkActionBarOutdoor',
+                    label: 'Outdoor'
+                },
+                backside: {
+                    table: 'locationBackside',
+                    search: 'searchBackside',
+                    status: 'statusBackside',
+                    length: 'lengthBackside',
+                    reset: 'resetBackside',
+                    lengthWrapper: 'lengthWrapperBackside',
+                    footer: 'footerBackside',
+                    bulkBar: 'bulkActionBarBackside',
+                    label: 'Backside'
+                },
+                lain_lain: {
+                    table: 'locationLainlain',
+                    search: 'searchLainlain',
+                    status: 'statusLainlain',
+                    length: 'lengthLainlain',
+                    reset: 'resetLainlain',
+                    lengthWrapper: 'lengthWrapperLainlain',
+                    footer: 'footerLainlain',
+                    bulkBar: 'bulkActionBarLainlain',
+                    label: 'Lain-lain'
+                }
+            };
+
+            const categoryMeta = {
+                rak: {
+                    color: 'success',
+                    icon: 'bi-diagram-3'
+                },
+                flat_indoor: {
+                    color: 'primary',
+                    icon: 'bi-archive'
+                },
+                h_room: {
+                    color: 'purple',
+                    icon: 'bi-box-seam'
+                },
+                outdoor: {
+                    color: 'warning',
+                    icon: 'bi-sun'
+                },
+                backside: {
+                    color: 'dark',
+                    icon: 'bi-signpost-2'
+                },
+                lain_lain: {
+                    color: 'secondary',
+                    icon: 'bi-three-dots'
+                }
+            };
+
+            // tables[kategori]  -> instance DataTable
+            // selections[kategori] -> Set id yang dicentang untuk bulk delete
+            const tables = {};
+            const selections = {
+                rak: new Set(),
+                flat_indoor: new Set(),
+                h_room: new Set(),
+                outdoor: new Set(),
+                backside: new Set(),
+                lain_lain: new Set()
+            };
         </script>
 
         <script>
             $(document).ready(function() {
 
-                table = $('#location').DataTable({
-
-                    dom: 'rtip',
-                    processing: true,
-                    serverSide: true,
-                    order: [],
-
-                    ajax: {
-                        url: "{{ route('locations.data') }}",
-                        data: function(d) {
-                            d.status = $('#filterStatus').val();
-                        }
-                    },
-
-                    columns: [{
-                            data: 'checkbox',
-                            searchable: false,
-                            orderable: false
-                        },
-                        {
-                            data: 'DT_RowIndex',
-                            name: 'DT_RowIndex',
-                            searchable: false,
-                            orderable: false
-                        },
-                        {
-                            data: 'location_name',
-                            name: 'location_name'
-                        },
-                        {
-                            data: 'location_code',
-                            name: 'location_code'
-                        },
-                        {
-                            data: 'status',
-                            name: 'status'
-                        },
-                        {
-                            data: 'description',
-                            name: 'description'
-                        },
-                        {
-                            data: 'action',
-                            name: 'action',
-                            searchable: false,
-                            orderable: false
-                        }
-                    ],
-
-                    scrollX: true,
-                    autoWidth: false,
-
-                    columnDefs: [{
-                            targets: [2, 5],
-                            className: "text-wrap",
-                            width: "220px"
-                        },
-                        {
-                            targets: 1,
-                            width: "80px"
-                        },
-                        {
-                            targets: [4, 6],
-                            className: "text-center"
-                        }
-                    ],
-
-                    initComplete: function() {
-                        moveDataTablesElements();
-                    },
-
-                    drawCallback: function() {
-                        moveDataTablesElements();
+                // ============ INIT 3 TABEL (RAK / FLAT INDOOR / H-ROOM STORAGE) ============
+                function moveDataTablesElements(tableId, lengthWrapperId, footerId) {
+                    const $info = $('#' + tableId + '_info');
+                    if ($info.length && !$('#' + lengthWrapperId).find('.dataTables_info').length) {
+                        $info.addClass('text-muted small ms-2').appendTo('#' + lengthWrapperId);
                     }
 
-                });
-
-                function moveDataTablesElements() {
-                    const $info = $('#location_info');
-                    if ($info.length && !$('#lengthWrapper').find('.dataTables_info').length) {
-                        $info.addClass('text-muted small ms-2').appendTo('#lengthWrapper');
-                    }
-
-                    const $paginate = $('#location_paginate');
-                    if ($paginate.length && !$('#tableFooter').find('.dataTables_paginate').length) {
-                        $paginate.appendTo('#tableFooter');
+                    const $paginate = $('#' + tableId + '_paginate');
+                    if ($paginate.length && !$('#' + footerId).find('.dataTables_paginate').length) {
+                        $paginate.appendTo('#' + footerId);
                     }
                 }
 
-                $('#customSearch').on('input', function() {
-                    table.search(this.value).draw();
+                function toggleBulkActionBar(category) {
+                    const cfg = categoryConfig[category];
+                    const size = selections[category].size;
+
+                    $('#' + cfg.bulkBar).find('.selectedCount').text(size);
+                    $('#' + cfg.bulkBar).toggleClass('d-none', size === 0);
+                }
+
+                function resetSelection(category) {
+                    selections[category].clear();
+                    $('.checkAll[data-category="' + category + '"]').prop('checked', false);
+                    toggleBulkActionBar(category);
+                }
+
+                function initCategoryTable(category) {
+                    const cfg = categoryConfig[category];
+
+                    const tbl = $('#' + cfg.table).DataTable({
+
+                        dom: 'rtip',
+                        processing: true,
+                        serverSide: true,
+                        order: [],
+
+                        ajax: {
+                            url: "{{ route('locations.data') }}",
+                            data: function(d) {
+                                d.category = category;
+                                d.status = $('#' + cfg.status).val();
+                            }
+                        },
+
+                        columns: [{
+                                data: 'checkbox',
+                                searchable: false,
+                                orderable: false
+                            },
+                            {
+                                data: 'DT_RowIndex',
+                                name: 'DT_RowIndex',
+                                searchable: false,
+                                orderable: false
+                            },
+                            {
+                                data: 'location_name',
+                                name: 'location_name'
+                            },
+                            {
+                                data: 'location_code',
+                                name: 'location_code'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status'
+                            },
+                            {
+                                data: 'description',
+                                name: 'description'
+                            },
+                            {
+                                data: 'action',
+                                name: 'action',
+                                searchable: false,
+                                orderable: false
+                            }
+                        ],
+
+                        scrollX: true,
+                        autoWidth: false,
+
+                        columnDefs: [{
+                                targets: [2, 5],
+                                className: "text-wrap",
+                                width: "220px"
+                            },
+                            {
+                                targets: 1,
+                                width: "80px"
+                            },
+                            {
+                                targets: [4, 6],
+                                className: "text-center"
+                            }
+                        ],
+
+                        initComplete: function() {
+                            moveDataTablesElements(cfg.table, cfg.lengthWrapper, cfg.footer);
+                        },
+
+                        drawCallback: function() {
+                            moveDataTablesElements(cfg.table, cfg.lengthWrapper, cfg.footer);
+                        }
+
+                    });
+
+                    tbl.on('draw.dt', function() {
+                        resetSelection(category);
+                    });
+
+                    $('#' + cfg.search).on('input', function() {
+                        tbl.search(this.value).draw();
+                    });
+
+                    $('#' + cfg.length).on('change', function() {
+                        tbl.page.len($(this).val()).draw();
+                    });
+
+                    $('#' + cfg.status).on('change', function() {
+                        tbl.ajax.reload();
+                    });
+
+                    $('#' + cfg.reset).on('click', function() {
+                        $('#' + cfg.status).val('');
+                        $('#' + cfg.search).val('');
+                        tbl.search('').draw();
+                        tbl.ajax.reload();
+                    });
+
+                    // checkbox per baris (delegated, dibatasi ke tabel kategori ini)
+                    $('#' + cfg.table).on('change', '.row-checkbox', function() {
+                        const id = $(this).val();
+
+                        if (this.checked) {
+                            selections[category].add(id);
+                        } else {
+                            selections[category].delete(id);
+                        }
+
+                        toggleBulkActionBar(category);
+                    });
+
+                    return tbl;
+                }
+
+                tables.rak = initCategoryTable('rak');
+                tables.flat_indoor = initCategoryTable('flat_indoor');
+                tables.h_room = initCategoryTable('h_room');
+                tables.outdoor = initCategoryTable('outdoor');
+                tables.backside = initCategoryTable('backside');
+                tables.lain_lain = initCategoryTable('lain_lain');
+
+                // Perbaikan bug DataTables: kolom header salah hitung lebar
+                // karena tabel Rak/Flat Indoor/H-Room Storage berada di dalam
+                // tab yang masih tersembunyi (display:none) saat pertama kali
+                // di-init. Hitung ulang lebar kolom setiap tab dibuka.
+                $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+                    const targetSelector = $(e.target).data('bs-target');
+                    $(targetSelector).find('table.dataTable').each(function() {
+                        $(this).DataTable().columns.adjust().draw(false);
+                    });
                 });
 
-                $('#customLength').change(function() {
-                    table.page.len($(this).val()).draw();
+                function reloadAllTables() {
+                    Object.values(tables).forEach(function(t) {
+                        if (t) t.ajax.reload(null, false);
+                    });
+                    loadSummary();
+                }
+
+                // pilih semua per kategori
+                $(document).on('change', '.checkAll', function() {
+                    const category = $(this).data('category');
+                    const checked = this.checked;
+
+                    $('#' + categoryConfig[category].table + ' .row-checkbox').prop('checked', checked)
+                        .each(function() {
+                            const id = $(this).val();
+
+                            if (checked) {
+                                selections[category].add(id);
+                            } else {
+                                selections[category].delete(id);
+                            }
+                        });
+
+                    toggleBulkActionBar(category);
                 });
 
-                $('#filterStatus').on('change', function() {
-                    table.ajax.reload();
+                // ================= BULK DELETE per kategori =================
+                $(document).on('click', '.btnBulkDelete', function() {
+
+                    const category = $(this).data('category');
+                    const ids = Array.from(selections[category]);
+
+                    if (ids.length === 0) return;
+
+                    Swal.fire({
+                        title: `Hapus ${ids.length} lokasi?`,
+                        text: 'Data yang dihapus tidak dapat dikembalikan.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Ya, Hapus',
+                        cancelButtonText: 'Batal',
+                        reverseButtons: true
+                    }).then((result) => {
+
+                        if (!result.isConfirmed) return;
+
+                        $.ajax({
+                            url: "{{ route('locations.bulk-destroy') }}",
+                            type: 'DELETE',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                ids: ids
+                            },
+
+                            success: function(res) {
+
+                                resetSelection(category);
+                                reloadAllTables();
+
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: res.message,
+                                    timer: 2000,
+                                    showConfirmButton: false,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style
+                                            .zIndex = '9999999';
+                                    }
+                                });
+
+                            },
+
+                            error: function(xhr) {
+
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal',
+                                    text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                });
+
+                            }
+
+                        });
+
+                    });
+
                 });
 
-                $('#btnResetFilter').on('click', function() {
-                    $('#filterStatus').val('');
-                    $('#customSearch').val('');
-                    table.search('').draw();
-                    table.ajax.reload();
+                // ============ RINGKASAN & DAFTAR PER KATEGORI (tab "Semua Lokasi") ============
+
+                function statusBadge(status) {
+                    return status ?
+                        '<span class="badge bg-label-success rounded-pill">Aktif</span>' :
+                        '<span class="badge bg-label-secondary rounded-pill">Non Aktif</span>';
+                }
+
+                function codeCell(code) {
+                    if (!code) {
+                        return '<span class="badge border border-warning text-warning bg-transparent" style="font-size:10px;">⚠ No Code</span>';
+                    }
+                    return '<span><i class="bi bi-upc-scan me-1"></i>' + $('<div>').text(code).html() +
+                        '</span>';
+                }
+
+                function actionCell(id) {
+                    return `
+                        <div class="d-flex align-items-center gap-1 justify-content-center">
+                            <button class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
+                                type="button" data-id="${id}" data-bs-toggle="modal" data-bs-target="#editLocationModal">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="{{ url('locations') }}/${id}" method="POST" class="form-hapus m-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button type="submit" class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>`;
+                }
+
+                let lastSummaryResponse = null;
+                let summaryDebounce = null;
+
+                function loadSummary() {
+                    $.get("{{ route('locations.preview') }}", {
+                        search: $('#summarySearch').val(),
+                        status: $('#summaryStatus').val()
+                    }, function(res) {
+                        lastSummaryResponse = res;
+                        renderSummaryCards(res);
+                        renderCategoryPreview(res);
+                    });
+                }
+
+                function renderSummaryCards(res) {
+                    const order = ['rak', 'flat_indoor', 'h_room', 'outdoor', 'backside', 'lain_lain'];
+                    let html = '';
+
+                    order.forEach(function(key) {
+                        const cat = res.categories[key];
+                        const meta = categoryMeta[key];
+
+                        html += `
+                            <div class="col-md-4">
+                                <div class="card border-start border-4 border-${meta.color} h-100">
+                                    <div class="card-body">
+                                        <div class="text-${meta.color} fw-semibold mb-2">
+                                            <i class="bi ${meta.icon} me-1"></i> ${cat.label}
+                                        </div>
+                                        <div class="fs-3 fw-bold">${cat.total}
+                                            <span class="fs-6 fw-normal text-muted">lokasi</span>
+                                        </div>
+                                        <div class="small text-muted">${cat.percentage}% dari total</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+
+                    $('#summaryCards').html(html);
+                }
+
+                function renderCategoryPreview(res) {
+                    const order = [{
+                            key: 'rak',
+                            tab: 'tab-rak'
+                        },
+                        {
+                            key: 'flat_indoor',
+                            tab: 'tab-flat'
+                        },
+                        {
+                            key: 'h_room',
+                            tab: 'tab-hroom'
+                        },
+                        {
+                            key: 'outdoor',
+                            tab: 'tab-outdoor'
+                        },
+                        {
+                            key: 'backside',
+                            tab: 'tab-backside'
+                        },
+                        {
+                            key: 'lain_lain',
+                            tab: 'tab-lainlain'
+                        }
+                    ];
+
+                    let html = '';
+
+                    order.forEach(function(entry) {
+                        const cat = res.categories[entry.key];
+                        const meta = categoryMeta[entry.key];
+
+                        let rows = '';
+
+                        if (cat.items.length === 0) {
+                            rows =
+                                '<tr><td colspan="7" class="text-center text-muted py-3">Belum ada data</td></tr>';
+                        } else {
+                            cat.items.forEach(function(item, idx) {
+                                rows += `
+                                    <tr>
+                                        <td>${idx + 1}</td>
+                                        <td>${$('<div>').text(item.location_name).html()}</td>
+                                        <td>${codeCell(item.location_code)}</td>
+                                        <td class="text-center">${statusBadge(item.status)}</td>
+                                        <td>${item.description ? $('<div>').text(item.description).html() : '-'}</td>
+                                        <td class="text-center">${actionCell(item.id)}</td>
+                                    </tr>`;
+                            });
+                        }
+
+                        html += `
+                            <div class="mb-4 pb-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="bi ${meta.icon} text-${meta.color}"></i>
+                                    <strong>${cat.label} (${cat.total} lokasi)</strong>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered mb-1">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:50px">No</th>
+                                                <th>Nama Lokasi</th>
+                                                <th>Kode Lokasi</th>
+                                                <th class="text-center">Status</th>
+                                                <th>Deskripsi</th>
+                                                <th class="text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${rows}</tbody>
+                                    </table>
+                                </div>
+                                <div class="text-end">
+                                    <a href="#" class="btn-goto-tab small" data-target="${entry.tab}">
+                                        Lihat semua ${cat.total} lokasi ${cat.label.toLowerCase()} &rarr;
+                                    </a>
+                                </div>
+                            </div>`;
+                    });
+
+                    $('#categoryPreview').html(html);
+                }
+
+                $(document).on('click', '.btn-goto-tab', function(e) {
+                    e.preventDefault();
+                    const target = $(this).data('target');
+                    $('#' + target).tab('show');
                 });
+
+                $('#summarySearch, #summaryStatus').on('input change', function() {
+                    clearTimeout(summaryDebounce);
+                    summaryDebounce = setTimeout(loadSummary, 300);
+                });
+
+                $('#btnResetSummary').on('click', function() {
+                    $('#summarySearch').val('');
+                    $('#summaryStatus').val('');
+                    loadSummary();
+                });
+
+                $('#btnExportSummary').on('click', function() {
+                    if (!lastSummaryResponse) return;
+
+                    let csv = 'Kategori,Nama Lokasi,Kode Lokasi,Status,Deskripsi\n';
+
+                    Object.values(lastSummaryResponse.categories).forEach(function(cat) {
+                        cat.items.forEach(function(item) {
+                            const row = [
+                                cat.label,
+                                item.location_name,
+                                item.location_code || '',
+                                item.status ? 'Aktif' : 'Non Aktif',
+                                item.description || ''
+                            ].map(function(v) {
+                                return '"' + String(v).replace(/"/g, '""') + '"';
+                            }).join(',');
+
+                            csv += row + '\n';
+                        });
+                    });
+
+                    const blob = new Blob([csv], {
+                        type: 'text/csv;charset=utf-8;'
+                    });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'ringkasan-lokasi.csv';
+                    link.click();
+                });
+
+                loadSummary();
 
                 // ================= TAMBAH (AJAX) =================
                 $(document).on('submit', '#formLocation', function(e) {
@@ -620,7 +1446,7 @@
                             $('#addLocationModal').modal('hide');
                             $('#formLocation')[0].reset();
 
-                            table.ajax.reload(null, false);
+                            reloadAllTables();
 
                             Swal.fire({
                                 toast: true,
@@ -732,7 +1558,7 @@
 
                             $('#editLocationModal').modal('hide');
 
-                            table.ajax.reload(null, false);
+                            reloadAllTables();
 
                             Swal.fire({
                                 toast: true,
@@ -784,7 +1610,7 @@
 
                 });
 
-                // ================= HAPUS (AJAX) =================
+                // ================= HAPUS satuan (AJAX) =================
                 $(document).on('submit', '.form-hapus', function(e) {
 
                     e.preventDefault();
@@ -812,7 +1638,7 @@
 
                             success: function(res) {
 
-                                table.ajax.reload(null, false);
+                                reloadAllTables();
 
                                 Swal.fire({
                                     toast: true,
@@ -853,116 +1679,6 @@
 
                 $('#editLocationModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
-                });
-
-            });
-        </script>
-
-        {{-- ================= BULK DELETE (AJAX) ================= --}}
-        <script>
-            let selectedLocationIds = new Set();
-
-            function toggleBulkActionBar() {
-                $('#selectedCount').text(selectedLocationIds.size);
-                $('#bulkActionBar').toggleClass('d-none', selectedLocationIds.size === 0);
-            }
-
-            function resetLocationSelection() {
-                selectedLocationIds.clear();
-                $('#checkAll').prop('checked', false);
-                toggleBulkActionBar();
-            }
-
-            $(document).on('change', '.row-checkbox', function() {
-                let id = $(this).val();
-
-                if (this.checked) {
-                    selectedLocationIds.add(id);
-                } else {
-                    selectedLocationIds.delete(id);
-                }
-
-                toggleBulkActionBar();
-            });
-
-            $(document).on('change', '#checkAll', function() {
-                let checked = this.checked;
-
-                $('.row-checkbox').prop('checked', checked).each(function() {
-                    let id = $(this).val();
-
-                    if (checked) {
-                        selectedLocationIds.add(id);
-                    } else {
-                        selectedLocationIds.delete(id);
-                    }
-                });
-
-                toggleBulkActionBar();
-            });
-
-            $('#location').on('draw.dt', function() {
-                resetLocationSelection();
-            });
-
-            $('#btnBulkDelete').on('click', function() {
-
-                if (selectedLocationIds.size === 0) return;
-
-                Swal.fire({
-                    title: `Hapus ${selectedLocationIds.size} lokasi?`,
-                    text: 'Data yang dihapus tidak dapat dikembalikan.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Ya, Hapus',
-                    cancelButtonText: 'Batal',
-                    reverseButtons: true
-                }).then((result) => {
-
-                    if (!result.isConfirmed) return;
-
-                    $.ajax({
-                        url: "{{ route('locations.bulk-destroy') }}",
-                        type: 'DELETE',
-                        data: {
-                            _token: '{{ csrf_token() }}',
-                            ids: Array.from(selectedLocationIds)
-                        },
-
-                        success: function(res) {
-
-                            table.ajax.reload(null, false);
-                            resetLocationSelection();
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: res.message,
-                                timer: 2000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
-
-                        },
-
-                        error: function(xhr) {
-
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Gagal',
-                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
-                            });
-
-                        }
-
-                    });
-
                 });
 
             });

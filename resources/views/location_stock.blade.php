@@ -566,6 +566,16 @@
                 }
             </style>
 
+            @if ($activeFilter === 'low_stock')
+                <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3" id="activeFilterBanner">
+                    <span>
+                        <i class="bx bx-error me-1"></i>
+                        Menampilkan item dengan stok di bawah ambang batas.
+                    </span>
+                    <button type="button" class="btn-close" id="clearActiveFilterBtn" aria-label="Hapus filter"></button>
+                </div>
+            @endif
+
             <div class="filter-toolbar-card">
 
                 <div class="filter-toolbar-eyebrow">
@@ -879,6 +889,10 @@
         <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
         <script>
             let table;
+            // Filter yang datang dari URL (mis. link notifikasi dashboard
+            // ?filter=low_stock).
+            let activeUrlFilter = new URLSearchParams(window.location.search).get('filter') || '';
+
             $(document).ready(function() {
 
                 // Select2
@@ -906,6 +920,7 @@
                         data: function(d) {
                             d.location_id = $('#filterLocation').val();
                             d.vendor_id = $('#filterVendor').val();
+                            d.filter = activeUrlFilter;
                         }
                     },
 
@@ -983,6 +998,10 @@
 
                 $('#filterLocation').change(function() {
 
+                    activeUrlFilter = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
+
                     table.ajax.reload();
 
                     updateExportUrl();
@@ -991,10 +1010,21 @@
 
                 $('#filterVendor').change(function() {
 
+                    activeUrlFilter = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
+
                     table.ajax.reload();
 
                     updateExportUrl();
 
+                });
+
+                $('#clearActiveFilterBtn').on('click', function() {
+                    activeUrlFilter = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
+                    table.ajax.reload();
                 });
 
                 $('#customSearch').on('keyup input', updateExportUrl);

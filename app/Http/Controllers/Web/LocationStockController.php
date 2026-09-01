@@ -22,12 +22,19 @@ use Maatwebsite\Excel\Validators\ValidationException;
 
 class LocationStockController extends Controller
 {
-    public function index()
+    /**
+     * Ambang batas "stok rendah". Disamakan dengan
+     * DashboardController::LOW_STOCK_THRESHOLD.
+     */
+    private const LOW_STOCK_THRESHOLD = 10;
+
+    public function index(Request $request)
     {
         $locations = Location::orderBy('location_name')->get();
         $vendors = Vendor::orderBy('name')->get();
 
-        return view('location_stock', compact('locations', 'vendors'));
+        return view('location_stock', compact('locations', 'vendors'))
+            ->with('activeFilter', $request->query('filter'));
     }
 
     /**
@@ -72,6 +79,18 @@ class LocationStockController extends Controller
         if ($request->filled('vendor_id')) {
 
             $query->where('vendor_id', $request->vendor_id);
+
+        }
+
+        // Filter dari kartu/notifikasi dashboard: item yang punya stok di
+        // salah satu lokasi kurang dari LOW_STOCK_THRESHOLD (tapi masih > 0).
+        if ($request->query('filter') === 'low_stock') {
+
+            $lowStockItemIds = LocationStock::where('quantity', '>', 0)
+                ->where('quantity', '<', self::LOW_STOCK_THRESHOLD)
+                ->pluck('item_id');
+
+            $query->whereIn('id', $lowStockItemIds);
 
         }
 

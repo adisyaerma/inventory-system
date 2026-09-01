@@ -714,6 +714,16 @@
                     }
                 </style>
 
+                @if ($activeFilter === 'overdue')
+                    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3" id="activeFilterBanner">
+                        <span>
+                            <i class="bx bx-error me-1"></i>
+                            Menampilkan barang staging in yang sudah lebih dari 7 hari.
+                        </span>
+                        <button type="button" class="btn-close" id="clearActiveFilterBtn" aria-label="Hapus filter"></button>
+                    </div>
+                @endif
+
                 <div class="filter-toolbar-card">
 
                     <div class="filter-toolbar-eyebrow">
@@ -1462,6 +1472,11 @@
             let table;
             let appliedStartDate = '';
             let appliedEndDate = '';
+            // Filter yang datang dari URL (mis. link notifikasi dashboard
+            // ?filter=overdue). Dikirim terus ke server sampai user
+            // eksplisit mereset filter, supaya link "Barang staging in > 7
+            // hari" dari dashboard benar-benar memfilter tabel ini.
+            let activeUrlFilter = new URLSearchParams(window.location.search).get('filter') || '';
         </script>
 
         <script>
@@ -1484,6 +1499,7 @@
                             d.incoterms = $('#filterIncoterms').val();
                             d.item_owner = $('#filterOwner').val();
                             d.supplier_origin = $('#filterSupplier').val();
+                            d.filter = activeUrlFilter;
                         }
                     },
 
@@ -1638,8 +1654,19 @@
                     appliedStartDate = '';
                     appliedEndDate = '';
 
+                    activeUrlFilter = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
+
                     table.search('').draw();
                     updateExportUrl();
+                    table.ajax.reload();
+                });
+
+                $('#clearActiveFilterBtn').on('click', function() {
+                    activeUrlFilter = '';
+                    window.history.replaceState({}, '', window.location.pathname);
+                    $('#activeFilterBanner').remove();
                     table.ajax.reload();
                 });
 

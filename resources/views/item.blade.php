@@ -376,7 +376,7 @@
 
             </div>
 
-            <div class="mb-2 d-none align-items-center gap-2" id="bulkActionBar">
+            <div class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3" id="bulkActionBar">
                 <span class="small text-muted">
                     <span id="selectedCount">0</span> data dipilih
                 </span>

@@ -6,6 +6,7 @@ use App\Imports\Concerns\ParsesExcelDates;
 use App\Models\Item;
 use App\Models\StagingIn;
 use App\Models\Vendor;
+use App\Services\StagingInHistoryService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -25,6 +26,10 @@ class StagingInImport implements ToCollection, WithHeadingRow
      * Count of rows saved successfully.
      */
     public int $imported = 0;
+
+    public function __construct(private StagingInHistoryService $history)
+    {
+    }
 
     /**
      * Normalize a raw cell value into a clean string or null.
@@ -171,7 +176,6 @@ class StagingInImport implements ToCollection, WithHeadingRow
             [
                 'name' => $itemName ?: $itemCode,
                 'vendor_id' => $vendorId,
-                'description' => 'Dibuat otomatis dari import Staging In',
             ]
         );
 
@@ -215,11 +219,17 @@ class StagingInImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
+            // Baris dengan lokasi "Outbound" / "Outbound Shipment" (case-insensitive)
+            // tidak boleh disimpan ke database — lewati baris ini sepenuhnya.
+            if ($rawLocation !== null && in_array(strtolower($rawLocation), ['outbound', 'outbound shipment'], true)) {
+                continue;
+            }
+
             try {
 
                 $itemId = $this->resolveItemId($itemCode, $itemName, $itemOwner);
 
-                StagingIn::create([
+                $staging = StagingIn::create([
                     'po_number' => $poNumber,
                     'arrival_date' => $arrivalDate,
                     'supplier_origin' => $supplierOrigin,
@@ -230,6 +240,8 @@ class StagingInImport implements ToCollection, WithHeadingRow
                     'status' => $status,
                     'notes' => $notes,
                 ]);
+
+                $this->history->logCreated($staging);
 
                 $this->imported++;
 

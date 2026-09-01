@@ -1,6 +1,6 @@
 <!doctype html>
 
-<html lang="en" class="layout-menu-fixed layout-compact" data-assets-path="sneat-template/assets/"
+<html lang="en" class="layout-menu-fixed layout-compact" data-assets-path="{{ asset('sneat-template/assets/') }}/"
     data-template="vertical-menu-template-free">
 
 <head>
@@ -18,7 +18,7 @@
     <link href="https://cdn.datatables.net/v/dt/dt-2.3.8/datatables.min.css" rel="stylesheet"
         integrity="sha384-1BvCnyKidMPIGQGjvMn+w+90hHBhYJtF+R7os4NX2Abe7tSxWQadHRTSH5qb559A" crossorigin="anonymous">
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="sneat-template/assets/img/favicon/favicon.ico" />
+    <link rel="icon" type="image/x-icon" href="{{ asset('sneat-template/assets/img/favicon/favicon.ico') }}" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,29 +27,29 @@
         href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
         rel="stylesheet" />
 
-    <link rel="stylesheet" href="sneat-template/assets/vendor/fonts/iconify-icons.css" />
+    <link rel="stylesheet" href="{{ asset('sneat-template/assets/vendor/fonts/iconify-icons.css') }}" />
 
     <!-- Core CSS -->
     <!-- build:css assets/vendor/css/theme.css  -->
 
-    <link rel="stylesheet" href="sneat-template/assets/vendor/css/core.css" />
-    <link rel="stylesheet" href="sneat-template/assets/css/demo.css" />
+    <link rel="stylesheet" href="{{ asset('sneat-template/assets/vendor/css/core.css') }}" />
+    <link rel="stylesheet" href="{{ asset('sneat-template/assets/css/demo.css') }}" />
 
     <!-- Vendors CSS -->
 
-    <link rel="stylesheet" href="sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+    <link rel="stylesheet" href="{{ asset('sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}" />
 
     <!-- endbuild -->
 
     <!-- Page CSS -->
 
     <!-- Helpers -->
-    <script src="sneat-template/assets/vendor/js/helpers.js"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/js/helpers.js') }}"></script>
     <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
 
     <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
 
-    <script src="sneat-template/assets/js/config.js"></script>
+    <script src="{{ asset('sneat-template/assets/js/config.js') }}"></script>
 </head>
 
 <body>
@@ -128,6 +128,7 @@
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Dashboard</div>
                         </a>
+                        
                     </li>
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Master Data</span>
                     </li>
@@ -141,6 +142,10 @@
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Barang</div>
                         </a>
+                        <a href="/vendor" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-collection"></i>
+                            <div class="text-truncate" data-i18n="Basic">Vendor</div>
+                        </a>
                     </li>
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Inventory</span>
                     </li>
@@ -150,27 +155,34 @@
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Stok</div>
                         </a>
-                    </li>
-                    <li class="menu-item">
                         <a href="/stock-mutation" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Mutasi</div>
                         </a>
-                    </li>
-                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Staging</span></li>
-
-                    <li class="menu-item">
                         <a href="/staging-in" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Staging-in</div>
                         </a>
-                    </li>
-                    <li class="menu-item">
                         <a href="/staging-out" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-collection"></i>
                             <div class="text-truncate" data-i18n="Basic">Staging-out</div>
                         </a>
                     </li>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">History</span>
+                    </li>
+
+                    <li class="menu-item">
+                        
+                        <a href="/stagings-in-history" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-collection"></i>
+                            <div class="text-truncate" data-i18n="Basic">Staging In History</div>
+                        </a>
+                        <a href="/stagings-out-history" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-collection"></i>
+                            <div class="text-truncate" data-i18n="Basic">Staging Out History</div>
+                        </a>
+                    </li>
+                    
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Tools</span></li>
 
                     <li class="menu-item">
@@ -265,14 +277,14 @@
 
     <!-- Core JS -->
 
-    <script src="sneat-template/assets/vendor/libs/jquery/jquery.js"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/libs/jquery/jquery.js') }}"></script>
 
-    <script src="sneat-template/assets/vendor/libs/popper/popper.js"></script>
-    <script src="sneat-template/assets/vendor/js/bootstrap.js"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/libs/popper/popper.js') }}"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/js/bootstrap.js') }}"></script>
 
-    <script src="sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js') }}"></script>
 
-    <script src="sneat-template/assets/vendor/js/menu.js"></script>
+    <script src="{{ asset('sneat-template/assets/vendor/js/menu.js') }}"></script>
 
     <!-- endbuild -->
 
@@ -280,7 +292,7 @@
 
     <!-- Main JS -->
 
-    <script src="sneat-template/assets/js/main.js"></script>
+    <script src="{{ asset('sneat-template/assets/js/main.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
     <!-- Page JS -->
 

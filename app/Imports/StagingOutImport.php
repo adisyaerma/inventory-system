@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Imports\Concerns\ParsesExcelDates;
 use App\Models\Item;
 use App\Models\StagingOut;
+use App\Services\StagingOutHistoryService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -24,6 +25,10 @@ class StagingOutImport implements ToCollection, WithHeadingRow
      * Count of rows saved successfully.
      */
     public int $imported = 0;
+
+    public function __construct(private StagingOutHistoryService $history)
+    {
+    }
 
     /**
      * Normalize a raw cell value into a clean string or null.
@@ -94,7 +99,6 @@ class StagingOutImport implements ToCollection, WithHeadingRow
             ['item_code_internal' => $itemCode],
             [
                 'name' => null,
-                'description' => 'Dibuat otomatis dari import Staging Out',
             ]
         )->id;
     }
@@ -133,7 +137,7 @@ class StagingOutImport implements ToCollection, WithHeadingRow
 
                 $itemId = $this->resolveItemId($itemCode);
 
-                StagingOut::create([
+                $staging = StagingOut::create([
                     'so_number' => $soNumber,
                     'customer' => $customer,
                     'item_id' => $itemId,
@@ -144,6 +148,18 @@ class StagingOutImport implements ToCollection, WithHeadingRow
                     'do_number' => $doNumber,
                     'delivery_date' => $deliveryDate,
                 ]);
+
+                $this->history->logCreated($staging);
+
+                // Baris yang tanggal kirimnya SUDAH terisi di file Excel dianggap
+                // sudah selesai/terkirim sejak awal — tidak boleh nongkrong di
+                // tabel aktif staging_outs, cukup jejaknya saja yang tersimpan
+                // di history (log dulu baru dihapus, supaya history tetap utuh).
+                if ($deliveryDate !== null) {
+                    $this->history->logDeleted($staging);
+
+                    $staging->delete();
+                }
 
                 $this->imported++;
 

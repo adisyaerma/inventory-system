@@ -42,7 +42,7 @@ return new class extends Migration
                 'rusak',
                 'tidak lengkap',
                 'salah ukuran',
-                'batal'
+                'batal',
             ])->nullable();
             $table->timestamps();
         });
