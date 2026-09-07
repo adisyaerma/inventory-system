@@ -44,6 +44,20 @@ return new class extends Migration
                 'salah ukuran',
                 'batal',
             ])->nullable();
+            $table->foreignId('warehouse_location_id')
+                ->nullable()
+                ->after('location')
+                ->constrained('locations')
+                ->nullOnDelete();
+            
+            $table->string('lot')->nullable();
+
+            $table->foreignId('stock_mutation_id')
+                ->nullable()
+                ->after('warehouse_location_id')
+                ->constrained('stock_mutations')
+                ->nullOnDelete();
+                
             $table->timestamps();
         });
     }

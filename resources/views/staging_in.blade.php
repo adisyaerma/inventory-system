@@ -356,7 +356,8 @@
                                                             Barang
                                                         </label>
 
-                                                        <select id="addItemSelect" placeholder="Cari kode / nama barang..."></select>
+                                                        <select id="addItemSelect"
+                                                            placeholder="Cari kode / nama barang..."></select>
 
                                                         <input type="hidden" name="item_id" id="addItemId">
 
@@ -375,8 +376,9 @@
                                                             </span>
 
                                                             <input type="text" class="form-control form-control-sm"
-                                                                id="addItemOwner" placeholder="Terisi otomatis dari data barang"
-                                                                readonly disabled>
+                                                                id="addItemOwner"
+                                                                placeholder="Terisi otomatis dari data barang" readonly
+                                                                disabled>
 
                                                         </div>
 
@@ -401,7 +403,7 @@
 
                                                     </div>
 
-                                                    <div class="">
+                                                    <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
                                                             Incoterms
@@ -418,6 +420,30 @@
                                                                 @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
                                                                     <option value="{{ $incoterm }}">
                                                                         {{ $incoterm }}</option>
+                                                                @endforeach
+                                                            </select>
+
+                                                        </div>
+
+                                                    </div>
+                                                     <div class="">
+
+                                                        <label class="form-label fw-semibold">
+                                                            Status
+                                                        </label>
+
+                                                        <div class="input-group">
+
+                                                            <span class="input-group-text">
+                                                                <i class="bx bx-flag"></i>
+                                                            </span>
+
+                                                            <select name="status" class="form-select form-select-sm">
+                                                                <option value="" selected>Pilih status
+                                                                </option>
+                                                                @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                                    <option value="{{ $statusItem }}">
+                                                                        {{ $statusItem }}</option>
                                                                 @endforeach
                                                             </select>
 
@@ -517,27 +543,37 @@
                                                     <div class="mb-3">
 
                                                         <label class="form-label fw-semibold">
-                                                            Status
+                                                            Lokasi Gudang Asal
+                                                        </label>
+
+                                                        <select id="addWarehouseLocationSelect"
+                                                            name="warehouse_location"></select>
+
+                                                        <small class="text-muted d-block mt-1"
+                                                            id="addWarehouseLocationStock"></small>
+
+
+                                                    </div>
+
+                                                    {{-- Lot: hanya muncul kalau barang di lokasi terpilih
+                                                        memang punya pelacakan lot --}}
+                                                    <div class="mb-3" id="addLotWrapper" style="display:none;">
+
+                                                        <label class="form-label fw-semibold">
+                                                            Lot
                                                         </label>
 
                                                         <div class="input-group">
-
                                                             <span class="input-group-text">
-                                                                <i class="bx bx-flag"></i>
+                                                                <i class="bx bx-purchase-tag"></i>
                                                             </span>
 
-                                                            <select name="status" class="form-select form-select-sm">
-                                                                <option value="" selected>Pilih status
-                                                                </option>
-                                                                @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
-                                                                    <option value="{{ $statusItem }}">
-                                                                        {{ $statusItem }}</option>
-                                                                @endforeach
-                                                            </select>
-
+                                                            <select id="addLotSelect" name="lot"></select>
                                                         </div>
 
                                                     </div>
+
+                                                   
 
                                                     <div>
 
@@ -715,12 +751,14 @@
                 </style>
 
                 @if ($activeFilter === 'overdue')
-                    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3" id="activeFilterBanner">
+                    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3"
+                        id="activeFilterBanner">
                         <span>
                             <i class="bx bx-error me-1"></i>
                             Menampilkan barang staging in yang sudah lebih dari 7 hari.
                         </span>
-                        <button type="button" class="btn-close" id="clearActiveFilterBtn" aria-label="Hapus filter"></button>
+                        <button type="button" class="btn-close" id="clearActiveFilterBtn"
+                            aria-label="Hapus filter"></button>
                     </div>
                 @endif
 
@@ -1049,7 +1087,7 @@
 
                                         </div>
 
-                                        <div class="">
+                                        <div class="mb-3">
 
                                             <label class="form-label fw-semibold">
                                                 Incoterms
@@ -1068,6 +1106,31 @@
                                                         <option value="{{ $incoterm }}">
                                                             {{ $incoterm }}
                                                         </option>
+                                                    @endforeach
+                                                </select>
+
+                                            </div>
+
+                                        </div>
+
+                                        <div class="">
+
+                                            <label class="form-label fw-semibold">
+                                                Status
+                                            </label>
+
+                                            <div class="input-group">
+
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-flag"></i>
+                                                </span>
+
+                                                <select name="status" class="form-select form-select-sm">
+                                                    <option value="" selected>Pilih status
+                                                    </option>
+                                                    @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                        <option value="{{ $statusItem }}">
+                                                            {{ $statusItem }}</option>
                                                     @endforeach
                                                 </select>
 
@@ -1160,6 +1223,37 @@
                                                     @endforeach
                                                 </select>
 
+                                            </div>
+
+                                        </div>
+
+                                        <div class="mb-3">
+
+                                            <label class="form-label fw-semibold">
+                                                Lokasi Gudang Asal
+                                            </label>
+
+                                            <select id="editWarehouseLocationSelect" name="warehouse_location"></select>
+
+                                            <small class="text-muted d-block mt-1"
+                                                id="editWarehouseLocationStock"></small>
+
+                                        </div>
+
+                                        {{-- Lot: hanya muncul kalau barang di lokasi terpilih
+                                            memang punya pelacakan lot --}}
+                                        <div class="mb-3" id="editLotWrapper" style="display:none;">
+
+                                            <label class="form-label fw-semibold">
+                                                Lot
+                                            </label>
+
+                                            <div class="input-group">
+                                                <span class="input-group-text">
+                                                    <i class="bx bx-purchase-tag"></i>
+                                                </span>
+
+                                                <select id="editLotSelect" name="lot"></select>
                                             </div>
 
                                         </div>
@@ -1274,9 +1368,11 @@
                                     <small class="text-muted d-block mt-1" id="moveItemMeta"></small>
 
                                     <div class="mt-2">
-                                        <span class="badge bg-secondary-subtle text-secondary" id="moveFromLocation"></span>
+                                        <span class="badge bg-secondary-subtle text-secondary"
+                                            id="moveFromLocation"></span>
                                         <i class="bi bi-arrow-right mx-1 text-muted"></i>
-                                        <span class="badge bg-primary-subtle text-primary" id="moveToLocationLabel">Masuk Stok</span>
+                                        <span class="badge bg-primary-subtle text-primary" id="moveToLocationLabel">Masuk
+                                            Stok</span>
                                     </div>
                                 </div>
 
@@ -1318,8 +1414,8 @@
                         <div class="row g-3 mb-1">
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Qty dipindah</label>
-                                <input type="number" class="form-control form-control-sm" name="qty"
-                                    id="moveQty" min="1">
+                                <input type="number" class="form-control form-control-sm" name="qty" id="moveQty"
+                                    min="1">
                                 <small class="text-muted" id="moveQtyHelp"></small>
                             </div>
                         </div>
@@ -1335,21 +1431,19 @@
 
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">No. Transaksi</label>
-                                    <input type="text" class="form-control form-control-sm"
-                                        name="transaction_number" id=""
-                                        placeholder="Contoh: GRN-2026-0001">
+                                    <input type="text" class="form-control form-control-sm" name="transaction_number"
+                                        id="" placeholder="Contoh: GRN-2026-0001">
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Tanggal Masuk</label>
-                                    <input type="date" class="form-control form-control-sm"
-                                        name="transaction_date" id="moveTransactionDate">
+                                    <input type="date" class="form-control form-control-sm" name="transaction_date"
+                                        id="moveTransactionDate">
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label fw-semibold">Catatan</label>
-                                    <textarea rows="3" class="form-control form-control-sm" name="notes"
-                                        id="moveNotes" placeholder="Opsional"></textarea>
+                                    <textarea rows="3" class="form-control form-control-sm" name="notes" id="moveNotes" placeholder="Opsional"></textarea>
                                 </div>
 
                             </div>
@@ -1361,20 +1455,20 @@
 
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">No. SO</label>
-                                    <input type="text" class="form-control form-control-sm"
-                                        name="so_number" id="moveSoNumber" placeholder="SO-2026-0001">
+                                    <input type="text" class="form-control form-control-sm" name="so_number"
+                                        id="moveSoNumber" placeholder="SO-2026-0001">
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Customer</label>
-                                    <input type="text" class="form-control form-control-sm"
-                                        name="customer" id="moveCustomer" placeholder="Nama customer">
+                                    <input type="text" class="form-control form-control-sm" name="customer"
+                                        id="moveCustomer" placeholder="Nama customer">
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Line Item</label>
-                                    <input type="text" class="form-control form-control-sm"
-                                        name="line_item" id="moveLineItem" placeholder="Nama/keterangan barang">
+                                    <input type="text" class="form-control form-control-sm" name="line_item"
+                                        id="moveLineItem" placeholder="Nama/keterangan barang">
                                 </div>
 
                                 <div class="col-md-6">
@@ -1679,8 +1773,223 @@
                     }
                 });
 
+                // ================= LOKASI GUDANG ASAL (sumber penarikan stok) =================
+                // Dipakai untuk tahu lokasi gudang mana yang stoknya harus
+                // dikurangi & dicatat sebagai mutasi keluar saat staging in
+                // ditambahkan/diedit. Pilihannya dibatasi hanya lokasi yang
+                // saat ini punya stok untuk barang yang sedang dipilih —
+                // diisi otomatis lewat loadItemLocations() setiap kali
+                // barangnya berganti.
+                function initWarehouseLocationSelect(selectId, stockLabelSelector, itemIdFieldSelector,
+                    lotSelectInstance, lotWrapperSelector) {
+                    return new TomSelect(selectId, {
+                        create: false,
+                        placeholder: 'Pilih barang terlebih dahulu...',
+                        valueField: 'value',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        options: [],
+
+                        onChange: function(value) {
+                            let data = this.options[value];
+                            let qty = data ? data.quantity : null;
+
+                            $(stockLabelSelector).text(
+                                (qty !== null && qty !== undefined) ?
+                                'Stok tersedia di lokasi ini: ' + qty + ' pcs' :
+                                ''
+                            );
+
+                            // Setiap kali lokasi gudang asalnya berganti (dipilih
+                            // manual oleh user), muat ulang pilihan lot untuk
+                            // kombinasi barang + lokasi ini.
+                            let itemId = $(itemIdFieldSelector).val();
+                            loadLots(itemId, value, lotSelectInstance, lotWrapperSelector, null);
+                        }
+                    });
+                }
+
+                // ================= LOT (tidak semua barang punya lot) =================
+                function initLotSelect(selectId) {
+                    return new TomSelect(selectId, {
+                        valueField: 'id',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        placeholder: 'Pilih lot...',
+                        create: false,
+                        allowEmptyOption: true
+                    });
+                }
+
+                let addLotSelect = initLotSelect('#addLotSelect');
+                let editLotSelect = initLotSelect('#editLotSelect');
+
+                let addWarehouseLocationSelect = initWarehouseLocationSelect(
+                    '#addWarehouseLocationSelect', '#addWarehouseLocationStock', '#addItemId',
+                    addLotSelect, '#addLotWrapper');
+                let editWarehouseLocationSelect = initWarehouseLocationSelect(
+                    '#editWarehouseLocationSelect', '#editWarehouseLocationStock', '#editItemId',
+                    editLotSelect, '#editLotWrapper');
+
+                // Ambil daftar lot untuk kombinasi barang + lokasi gudang asal
+                // yang sedang dipilih. Kalau barang ini tidak punya pelacakan
+                // lot di lokasi tersebut (atau cuma ada satu lot), field lot
+                // langsung disembunyikan / diisi otomatis. Kalau lebih dari
+                // satu, user wajib memilih sendiri. `presetLot` dipakai saat
+                // modal Edit dibuka supaya lot yang sudah tersimpan langsung
+                // terpilih.
+                function loadLots(itemId, locationName, lotSelectInstance, lotWrapperSelector, presetLot,
+                    callback) {
+
+                    lotSelectInstance.clear(true);
+                    lotSelectInstance.clearOptions();
+
+                    if (!itemId || !locationName) {
+                        $(lotWrapperSelector).hide();
+                        if (callback) callback();
+                        return;
+                    }
+
+                    $.ajax({
+                        url: "{{ route('stagings-in.lots') }}",
+                        type: 'GET',
+                        data: {
+                            item_id: itemId,
+                            location: locationName
+                        },
+
+                        success: function(res) {
+
+                            res.forEach(function(opt) {
+                                lotSelectInstance.addOption(opt);
+                            });
+
+                            if (res.length === 0) {
+
+                                // Barang tanpa pelacakan lot di lokasi ini.
+                                $(lotWrapperSelector).hide();
+                                lotSelectInstance.setValue('', true);
+
+                            } else if (res.length === 1) {
+
+                                $(lotWrapperSelector).show();
+                                lotSelectInstance.setValue(res[0].id, true);
+
+                            } else {
+
+                                $(lotWrapperSelector).show();
+
+                                if (presetLot !== undefined && presetLot !== null && presetLot !== '') {
+                                    lotSelectInstance.setValue(presetLot, true);
+                                }
+                                // Lebih dari satu lot & tidak ada preset: jangan
+                                // auto-pilih, biarkan user yang menentukan.
+                            }
+
+                            if (callback) callback();
+                        },
+
+                        error: function() {
+                            $(lotWrapperSelector).hide();
+                            if (callback) callback();
+                        }
+                    });
+                }
+
+                // Ambil lokasi gudang (+ stoknya) yang dimiliki sebuah barang,
+                // lalu isikan sebagai pilihan di TomSelect lokasi gudang asal.
+                // `preselectLocationName` dipakai saat modal Edit dibuka, supaya
+                // lokasi yang sudah tersimpan langsung terpilih (dan tetap
+                // ditampilkan meski stoknya kebetulan sudah 0 saat ini).
+                function loadItemLocations(itemId, tomSelectInstance, stockLabelSelector, preselectLocationName,
+                    lotSelectInstance, lotWrapperSelector, presetLot) {
+
+                    tomSelectInstance.clear(true);
+                    tomSelectInstance.clearOptions();
+                    $(stockLabelSelector).text('');
+                    lotSelectInstance.clear(true);
+                    lotSelectInstance.clearOptions();
+                    $(lotWrapperSelector).hide();
+
+                    if (!itemId) {
+                        return;
+                    }
+
+                    $.ajax({
+                        url: "{{ route('stagings-in.item-locations') }}",
+                        type: 'GET',
+                        data: {
+                            item_id: itemId
+                        },
+
+                        success: function(res) {
+
+                            let list = res || [];
+                            let hasPreselect = false;
+
+                            list.forEach(function(loc) {
+
+                                tomSelectInstance.addOption({
+                                    value: loc.name,
+                                    text: loc.name + ' (stok: ' + loc.quantity + ')',
+                                    quantity: loc.quantity
+                                });
+
+                                if (preselectLocationName && loc.name === preselectLocationName) {
+                                    hasPreselect = true;
+                                }
+                            });
+
+                            // Lokasi yang tersimpan di data staging (saat edit)
+                            // tetap ditampilkan sebagai opsi walau sudah tidak
+                            // ada di daftar stok saat ini (misal stoknya 0),
+                            // supaya nilai lama tidak hilang begitu saja.
+                            if (preselectLocationName && !hasPreselect) {
+                                tomSelectInstance.addOption({
+                                    value: preselectLocationName,
+                                    text: preselectLocationName + ' (stok: 0)',
+                                    quantity: 0
+                                });
+                            }
+
+                            tomSelectInstance.refreshOptions(false);
+
+                            if (preselectLocationName) {
+
+                                tomSelectInstance.setValue(preselectLocationName, true);
+
+                                let opt = tomSelectInstance.options[preselectLocationName];
+
+                                if (opt && opt.quantity !== null && opt.quantity !== undefined) {
+                                    $(stockLabelSelector).text('Stok tersedia di lokasi ini: ' + opt
+                                        .quantity + ' pcs');
+                                }
+
+                                loadLots(itemId, preselectLocationName, lotSelectInstance,
+                                    lotWrapperSelector, presetLot);
+
+                            } else if (list.length === 1) {
+
+                                // Kalau barang cuma ada stok di 1 lokasi,
+                                // langsung pilihkan lokasi itu.
+                                tomSelectInstance.setValue(list[0].name, true);
+                                $(stockLabelSelector).text('Stok tersedia di lokasi ini: ' + list[0]
+                                    .quantity + ' pcs');
+
+                                loadLots(itemId, list[0].name, lotSelectInstance, lotWrapperSelector,
+                                    null);
+                            }
+                        },
+
+                        error: function() {
+                            tomSelectInstance.refreshOptions(false);
+                        }
+                    });
+                }
+
                 // ================= BARANG (TomSelect dari tabel items) =================
-                function initItemSelect(selectId, idFieldId, ownerFieldId) {
+                function initItemSelect(selectId, idFieldId, ownerFieldId, warehouseSelect, stockLabelSelector,
+                    lotSelectInstance, lotWrapperSelector) {
 
                     return new TomSelect(selectId, {
                         valueField: 'id',
@@ -1715,17 +2024,37 @@
                             // Pemilik barang terisi otomatis dan read-only,
                             // diambil dari vendor_id milik barang tersebut.
                             $(ownerFieldId).val(data && data.item_owner ? data.item_owner : '');
+
+                            // Setiap kali barangnya berganti, muat ulang pilihan
+                            // lokasi gudang asal (dan cascading lot-nya) sesuai
+                            // lokasi yang benar-benar punya stok barang ini
+                            // sekarang.
+                            loadItemLocations(data ? data.id : null, warehouseSelect, stockLabelSelector,
+                                null, lotSelectInstance, lotWrapperSelector, null);
                         }
                     });
                 }
 
-                let addItemSelect = initItemSelect('#addItemSelect', '#addItemId', '#addItemOwner');
-                let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', '#editItemOwner');
+                let addItemSelect = initItemSelect(
+                    '#addItemSelect', '#addItemId', '#addItemOwner',
+                    addWarehouseLocationSelect, '#addWarehouseLocationStock',
+                    addLotSelect, '#addLotWrapper');
+
+                let editItemSelect = initItemSelect(
+                    '#editItemSelect', '#editItemId', '#editItemOwner',
+                    editWarehouseLocationSelect, '#editWarehouseLocationStock',
+                    editLotSelect, '#editLotWrapper');
 
                 $('#addStaging').on('hidden.bs.modal', function() {
                     addItemSelect.clear();
                     $('#addItemId').val('');
                     $('#addItemOwner').val('');
+                    addWarehouseLocationSelect.clear(true);
+                    addWarehouseLocationSelect.clearOptions();
+                    $('#addWarehouseLocationStock').text('');
+                    addLotSelect.clear(true);
+                    addLotSelect.clearOptions();
+                    $('#addLotWrapper').hide();
                 });
 
                 // ================= TAMBAH (AJAX) =================
@@ -1733,6 +2062,22 @@
 
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Kalau field lot sedang tampil (lebih dari satu lot untuk
+                    // barang + lokasi ini) tapi belum dipilih, jangan submit.
+                    if ($('#addLotWrapper').is(':visible') &&
+                        addLotSelect.options && Object.keys(addLotSelect.options).length > 1 &&
+                        !addLotSelect.getValue()) {
+
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Silakan pilih lot terlebih dahulu',
+                            timer: 2500,
+                            showConfirmButton: false
+                        });
+
+                        return;
+                    }
 
                     $.ajax({
                         url: "{{ route('stagings-in.store') }}",
@@ -1819,6 +2164,10 @@
                             $('#editStatus').val(res.status);
                             $('#editNotes').val(res.notes);
 
+                            loadItemLocations(res.item_id, editWarehouseLocationSelect,
+                                '#editWarehouseLocationStock', res.warehouse_location,
+                                editLotSelect, '#editLotWrapper', res.lot);
+
                             $('#editItemId').val(res.item_id);
 
                             editItemSelect.clear(true);
@@ -1867,6 +2216,22 @@
 
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Kalau field lot sedang tampil (lebih dari satu lot untuk
+                    // barang + lokasi ini) tapi belum dipilih, jangan submit.
+                    if ($('#editLotWrapper').is(':visible') &&
+                        editLotSelect.options && Object.keys(editLotSelect.options).length > 1 &&
+                        !editLotSelect.getValue()) {
+
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Silakan pilih lot terlebih dahulu',
+                            timer: 2500,
+                            showConfirmButton: false
+                        });
+
+                        return;
+                    }
 
                     let id = $('#editId').val();
 
@@ -1945,6 +2310,12 @@
                     editItemSelect.loadedSearches = {};
                     $('#editItemId').val('');
                     $('#editItemOwner').val('');
+                    editWarehouseLocationSelect.clear(true);
+                    editWarehouseLocationSelect.clearOptions();
+                    $('#editWarehouseLocationStock').text('');
+                    editLotSelect.clear(true);
+                    editLotSelect.clearOptions();
+                    $('#editLotWrapper').hide();
                 });
 
                 // ================= PINDAHKAN ITEM =================

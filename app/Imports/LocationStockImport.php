@@ -27,32 +27,51 @@ class LocationStockImport implements ToCollection, WithHeadingRow
         $this->errors = [];
         $this->imported = 0;
 
-        // Kolom Item Code Internal, Item Code Supplier, Item Code Customer, dan
-        // Name di-merge di Excel untuk barang dengan banyak lokasi. Saat dibaca,
-        // baris "lanjutan" (bukan baris pertama merge) akan tampil kosong pada
-        // kolom-kolom tersebut. Di sini kita kelompokkan dulu baris-baris Excel
-        // menjadi grup per barang: satu grup = satu barang + semua baris lokasi
-        // miliknya (baik dari merge maupun dari tanda "/" pada satu baris).
+        /*
+         * Kolom Item Code Internal, Item Code Supplier, Item Code Customer,
+         * Name, dan Lot bisa di-merge di Excel untuk barang dengan banyak lokasi.
+         *
+         * Baris lanjutan hasil merge akan kosong pada kolom tersebut.
+         *
+         * Kita kelompokkan terlebih dahulu berdasarkan barang.
+         */
         $groups = $this->groupRowsByItem($rows);
 
         foreach ($groups as $group) {
 
             $firstRow = $group['rows'][0];
+
             $excelRowLabel = $group['excel_row_start'] === $group['excel_row_end']
                 ? (string) $group['excel_row_start']
-                : $group['excel_row_start'].' s.d. '.$group['excel_row_end'];
+                : $group['excel_row_start'] . ' s.d. ' . $group['excel_row_end'];
 
             try {
 
                 DB::transaction(function () use ($group, $firstRow) {
 
-                    if (empty($firstRow['item_code_internal']) || empty($firstRow['name'])) {
-                        throw new \Exception('Kode barang internal dan nama barang wajib diisi.');
+                    /*
+                     * ==========================================
+                     * VALIDASI DATA BARANG
+                     * ==========================================
+                     */
+                    if (
+                        empty($firstRow['item_code_internal']) ||
+                        empty($firstRow['name'])
+                    ) {
+                        throw new \Exception(
+                            'Kode barang internal dan nama barang wajib diisi.'
+                        );
                     }
 
+                    /*
+                     * ==========================================
+                     * VENDOR
+                     * ==========================================
+                     */
                     $vendor = null;
 
-                    if (! empty($firstRow['vendor'])) {
+                    if (!empty($firstRow['vendor'])) {
+
                         $vendorName = trim($firstRow['vendor']);
 
                         $vendor = Vendor::whereRaw(
@@ -60,28 +79,59 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                             [strtolower($vendorName)]
                         )->first();
 
-                        if (! $vendor) {
+                        if (!$vendor) {
                             $vendor = Vendor::create([
                                 'name' => $vendorName,
                             ]);
                         }
                     }
 
+                    /*
+                     * ==========================================
+                     * CREATE ITEM
+                     * ==========================================
+                     */
                     $item = Item::create([
                         'vendor_id' => $vendor?->id,
-                        'item_code_internal' => $firstRow['item_code_internal'],
-                        'item_code_supplier' => $firstRow['item_code_supplier'] ?? null,
-                        'item_code_customer' => $firstRow['item_code_customer'] ?? null,
-                        'name' => $firstRow['name'],
-                        'description' => $firstRow['description'] ?? null,
+                        'item_code_internal' => trim(
+                            $firstRow['item_code_internal']
+                        ),
+                        'item_code_supplier' => !empty($firstRow['item_code_supplier'])
+                            ? trim($firstRow['item_code_supplier'])
+                            : null,
+                        'item_code_customer' => !empty($firstRow['item_code_customer'])
+                            ? trim($firstRow['item_code_customer'])
+                            : null,
+                        'name' => trim($firstRow['name']),
+                        'description' => !empty($firstRow['description'])
+                            ? trim($firstRow['description'])
+                            : null,
                     ]);
 
-                    // Kumpulkan semua pasangan lokasi => qty untuk barang ini.
-                    // Satu baris Excel bisa menghasilkan lebih dari satu lokasi
-                    // jika kolom Location mengandung tanda "/".
-                    $locationQuantities = [];
+                    /*
+                     * ==========================================
+                     * KUMPULKAN LOCATION + LOT + QUANTITY
+                     * ==========================================
+                     *
+                     * Satu barang bisa mempunyai banyak lokasi, dan tiap
+                     * baris bisa punya lot yang berbeda-beda. Lot dibaca
+                     * per baris (bukan cuma dari baris pertama grup),
+                     * dan dikelompokkan bersama lokasi-nya supaya lokasi
+                     * yang sama dengan lot berbeda tidak tertimpa/
+                     * tercampur jadi satu baris.
+                     */
+                    $locationLotQuantities = [];
 
                     foreach ($group['rows'] as $row) {
+
+                        $rowLot = null;
+
+                        if (
+                            isset($row['lot']) &&
+                            trim((string) $row['lot']) !== ''
+                        ) {
+                            $rowLot = trim((string) $row['lot']);
+                        }
 
                         $entries = $this->expandLocationsForRow(
                             $row['location'] ?? null,
@@ -89,27 +139,65 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                         );
 
                         foreach ($entries as $entry) {
-                            $name = $entry['location'];
 
-                            $locationQuantities[$name] =
-                                ($locationQuantities[$name] ?? 0) + $entry['quantity'];
+                            $locationName = $entry['location'];
+                            $quantity = $entry['quantity'];
+
+                            // Kunci unik per kombinasi lokasi + lot.
+                            $key = $locationName . '|||' . ($rowLot ?? '');
+
+                            if (!isset($locationLotQuantities[$key])) {
+                                $locationLotQuantities[$key] = [
+                                    'location' => $locationName,
+                                    'lot' => $rowLot,
+                                    'quantity' => 0,
+                                ];
+                            }
+
+                            $locationLotQuantities[$key]['quantity'] += $quantity;
                         }
                     }
 
-                    if (empty($locationQuantities)) {
-                        $locationQuantities['Unlocated'] = 0;
+                    /*
+                     * Jika tidak ada lokasi
+                     */
+                    if (empty($locationLotQuantities)) {
+                        $locationLotQuantities['Unlocated|||'] = [
+                            'location' => 'Unlocated',
+                            'lot' => null,
+                            'quantity' => 0,
+                        ];
                     }
 
-                    foreach ($locationQuantities as $locationName => $qty) {
+                    /*
+                     * ==========================================
+                     * SIMPAN LOCATION STOCK
+                     * ==========================================
+                     */
+                    foreach ($locationLotQuantities as $entry) {
 
                         $location = Location::firstOrCreate(
-                            ['location_name' => $locationName],
-                            ['location_code' => null]
+                            [
+                                'location_name' => $entry['location'],
+                            ],
+                            [
+                                'location_code' => null,
+                            ]
                         );
 
+                        /*
+                         * location_stock:
+                         *
+                         * item_id
+                         * location_id
+                         * lot
+                         * opening_balance
+                         * quantity
+                         */
                         $item->locations()->attach($location->id, [
-                            'opening_balance' => $qty,
-                            'quantity' => $qty,
+                            'lot' => $entry['lot'],
+                            'opening_balance' => $entry['quantity'],
+                            'quantity' => $entry['quantity'],
                         ]);
                     }
                 });
@@ -118,47 +206,65 @@ class LocationStockImport implements ToCollection, WithHeadingRow
 
             } catch (\Throwable $e) {
 
-                // Hanya barang ini yang gagal, barang lain tetap lanjut diproses.
+                /*
+                 * Hanya barang ini yang gagal.
+                 * Barang lain tetap diproses.
+                 */
                 $this->errors[] =
-                    "Baris Excel {$excelRowLabel} gagal.\n".
-                    'Vendor    : '.($firstRow['vendor'] ?? '-')."\n".
-                    'Item Code : '.($firstRow['item_code_internal'] ?? '-')."\n".
-                    'Nama      : '.($firstRow['name'] ?? '-')."\n".
-                    'Location  : '.($firstRow['location'] ?? '-')."\n".
-                    'Quantity  : '.($firstRow['quantity'] ?? '-')."\n".
-                    'Error     : '.$e->getMessage();
-
+                    "Baris Excel {$excelRowLabel} gagal.\n" .
+                    'Vendor    : ' . ($firstRow['vendor'] ?? '-') . "\n" .
+                    'Item Code : ' . ($firstRow['item_code_internal'] ?? '-') . "\n" .
+                    'Nama      : ' . ($firstRow['name'] ?? '-') . "\n" .
+                    'Lot       : ' . ($firstRow['lot'] ?? '-') . "\n" .
+                    'Location  : ' . ($firstRow['location'] ?? '-') . "\n" .
+                    'Quantity  : ' . ($firstRow['quantity'] ?? '-') . "\n" .
+                    'Error     : ' . $e->getMessage();
             }
         }
 
-        // Barang yang valid tetap tersimpan meski ada barang lain yang gagal.
-        if (! empty($this->errors)) {
+        /*
+         * Barang yang valid tetap tersimpan meskipun ada
+         * barang lain yang gagal.
+         */
+        if (!empty($this->errors)) {
+
             throw new \Exception(
                 "Import selesai: {$this->imported} barang berhasil disimpan, "
-                .count($this->errors).' barang gagal.'.
-                "\n\n".implode("\n\n", $this->errors)
+                . count($this->errors) . ' barang gagal.'
+                . "\n\n"
+                . implode("\n\n", $this->errors)
             );
         }
     }
 
     /**
-     * Kelompokkan baris-baris Excel menjadi grup per barang.
+     * Kelompokkan baris Excel menjadi grup per barang.
      *
-     * Baris dianggap baris "baru" (awal barang) jika kolom item_code_internal
-     * atau name terisi. Baris yang keduanya kosong dianggap baris lanjutan
-     * (hasil merge cell) dari barang yang sedang berjalan, dan hanya berisi
-     * lokasi + quantity tambahan untuk barang tersebut.
+     * Baris dianggap barang baru jika:
+     * - item_code_internal terisi
+     * ATAU
+     * - name terisi
+     *
+     * Baris berikutnya yang kosong dianggap sebagai lanjutan
+     * dari barang sebelumnya.
      */
     private function groupRowsByItem(Collection $rows): array
     {
         $groups = [];
+
         $currentIndex = -1;
 
         foreach ($rows as $index => $row) {
 
+            /*
+             * WithHeadingRow:
+             * row pertama data Excel dianggap nomor 2.
+             */
             $excelRow = $index + 2;
 
-            $hasItemData = ! empty($row['item_code_internal']) || ! empty($row['name']);
+            $hasItemData =
+                !empty($row['item_code_internal']) ||
+                !empty($row['name']);
 
             if ($hasItemData || $currentIndex === -1) {
 
@@ -173,8 +279,8 @@ class LocationStockImport implements ToCollection, WithHeadingRow
             } else {
 
                 $groups[$currentIndex]['rows'][] = $row;
-                $groups[$currentIndex]['excel_row_end'] = $excelRow;
 
+                $groups[$currentIndex]['excel_row_end'] = $excelRow;
             }
         }
 
@@ -182,34 +288,86 @@ class LocationStockImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Ubah satu baris Excel (location + quantity) menjadi satu atau lebih
-     * pasangan lokasi => qty.
+     * Ubah satu baris Excel:
      *
-     * - Location kosong atau "-" => lokasi "Unlocated".
-     * - Location tanpa "/" => satu lokasi, qty apa adanya.
-     * - Location mengandung "/" => dianggap 2 (atau lebih) lokasi sekaligus,
-     *   dan quantity-nya dibagi rata (tidak harus persis sama, tanpa desimal).
+     * location + quantity
+     *
+     * menjadi satu atau beberapa pasangan:
+     *
+     * location => quantity
+     *
+     * Contoh:
+     *
+     * 7-11-1 + 25
+     * => 7-11-1 : 25
+     *
+     * 7-11/12-1 + 25
+     * => 7-11-1 : 13
+     * => 7-12-1 : 12
      */
-    private function expandLocationsForRow($locationRaw, $qtyRaw): array
-    {
+    private function expandLocationsForRow(
+        $locationRaw,
+        $qtyRaw
+    ): array {
+
         $locationRaw = trim((string) ($locationRaw ?? ''));
-        $qty = is_numeric($qtyRaw) ? (float) $qtyRaw : (float) str_replace(',', '.', trim((string) $qtyRaw));
 
+        /*
+         * Konversi quantity
+         */
+        if (is_numeric($qtyRaw)) {
+
+            $qty = (float) $qtyRaw;
+
+        } else {
+
+            $qty = (float) str_replace(
+                ',',
+                '.',
+                trim((string) $qtyRaw)
+            );
+        }
+
+        /*
+         * Location kosong atau "-"
+         */
         if ($locationRaw === '' || $locationRaw === '-') {
-            return [['location' => 'Unlocated', 'quantity' => $qty]];
+
+            return [
+                [
+                    'location' => 'Unlocated',
+                    'quantity' => $qty,
+                ]
+            ];
         }
 
-        if (! str_contains($locationRaw, '/')) {
-            return [['location' => $locationRaw, 'quantity' => $qty]];
+        /*
+         * Tidak ada "/"
+         */
+        if (!str_contains($locationRaw, '/')) {
+
+            return [
+                [
+                    'location' => $locationRaw,
+                    'quantity' => $qty,
+                ]
+            ];
         }
 
+        /*
+         * Ada "/"
+         */
         $locationNames = $this->expandSlashLocation($locationRaw);
 
-        $shares = $this->splitQuantity($qty, count($locationNames));
+        $shares = $this->splitQuantity(
+            $qty,
+            count($locationNames)
+        );
 
         $result = [];
 
         foreach ($locationNames as $i => $name) {
+
             $result[] = [
                 'location' => $name,
                 'quantity' => $shares[$i],
@@ -220,25 +378,51 @@ class LocationStockImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Pecah satu string lokasi yang mengandung "/" menjadi beberapa nama
-     * lokasi lengkap. Mendukung dua gaya penulisan yang dipakai di template:
+     * Pecah string lokasi yang mengandung "/".
      *
-     * 1. Bentuk lengkap di kedua sisi, mis. "6-11-1/6-12-1"
-     *    => ["6-11-1", "6-12-1"]
-     * 2. Bentuk singkat, hanya satu segmen yang berbeda, mis. "7-11/12-1"
-     *    (artinya "7-11-1" dan "7-12-1") atau "6-14/15-1"
-     *    (artinya "6-14-1" dan "6-15-1")
+     * Contoh:
+     *
+     * 6-11-1/6-12-1
+     * =>
+     * [
+     *     6-11-1,
+     *     6-12-1
+     * ]
+     *
+     * 7-11/12-1
+     * =>
+     * [
+     *     7-11-1,
+     *     7-12-1
+     * ]
+     *
+     * 6-14/15-1
+     * =>
+     * [
+     *     6-14-1,
+     *     6-15-1
+     * ]
      */
     private function expandSlashLocation(string $location): array
     {
-        $parts = array_map('trim', explode('/', $location));
+        $parts = array_map(
+            'trim',
+            explode('/', $location)
+        );
 
-        // Kalau setiap bagian sudah terlihat seperti kode lokasi lengkap
-        // (punya minimal 2 tanda "-"), pakai langsung apa adanya.
+        /*
+         * Kalau setiap bagian sudah terlihat seperti
+         * kode lokasi lengkap (minimal 2 "-"),
+         * gunakan langsung.
+         */
         $looksComplete = true;
+
         foreach ($parts as $part) {
+
             if (substr_count($part, '-') < 2) {
+
                 $looksComplete = false;
+
                 break;
             }
         }
@@ -247,56 +431,96 @@ class LocationStockImport implements ToCollection, WithHeadingRow
             return $parts;
         }
 
-        // Bentuk singkat: cari segmen (dipisah "-") yang mengandung "/",
-        // lalu jadikan kode lokasi lengkap untuk tiap alternatifnya.
+        /*
+         * Bentuk singkat.
+         *
+         * Contoh:
+         * 7-11/12-1
+         */
         $segments = explode('-', $location);
 
         $slashSegmentIndex = null;
 
         foreach ($segments as $i => $segment) {
+
             if (str_contains($segment, '/')) {
+
                 $slashSegmentIndex = $i;
+
                 break;
             }
         }
 
+        /*
+         * Fallback
+         */
         if ($slashSegmentIndex === null) {
-            // Fallback: tidak sesuai pola yang dikenali, pakai hasil split "/" apa adanya.
             return $parts;
         }
 
-        $alternatives = explode('/', $segments[$slashSegmentIndex]);
+        /*
+         * Pecah alternatif lokasi
+         */
+        $alternatives = explode(
+            '/',
+            $segments[$slashSegmentIndex]
+        );
 
         $expanded = [];
 
         foreach ($alternatives as $alternative) {
+
             $newSegments = $segments;
-            $newSegments[$slashSegmentIndex] = trim($alternative);
-            $expanded[] = implode('-', $newSegments);
+
+            $newSegments[$slashSegmentIndex] =
+                trim($alternative);
+
+            $expanded[] = implode(
+                '-',
+                $newSegments
+            );
         }
 
         return $expanded;
     }
 
     /**
-     * Bagi quantity ke $count lokasi sedekat mungkin sama rata, tanpa
-     * memaksakan hasil desimal. Sisa pembagian dibagikan satu-satu ke
-     * lokasi pertama. Contoh: 25 dibagi 2 => [13, 12].
+     * Bagi quantity ke beberapa lokasi sedekat mungkin sama rata.
+     *
+     * Contoh:
+     *
+     * 25 / 2
+     * => [13, 12]
+     *
+     * 25 / 3
+     * => [9, 8, 8]
      */
-    private function splitQuantity(float $qty, int $count): array
-    {
+    private function splitQuantity(
+        float $qty,
+        int $count
+    ): array {
+
         if ($count <= 1) {
             return [$qty];
         }
 
         $qtyInt = (int) round($qty);
-        $base = intdiv($qtyInt, $count);
-        $remainder = $qtyInt - ($base * $count);
+
+        $base = intdiv(
+            $qtyInt,
+            $count
+        );
+
+        $remainder =
+            $qtyInt - ($base * $count);
 
         $parts = [];
 
         for ($i = 0; $i < $count; $i++) {
-            $parts[] = $base + ($i < $remainder ? 1 : 0);
+
+            $parts[] =
+                $base +
+                ($i < $remainder ? 1 : 0);
         }
 
         return $parts;

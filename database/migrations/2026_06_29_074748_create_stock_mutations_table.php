@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_mutations', function (Blueprint $table) {
+
             $table->id();
 
             $table->foreignId('item_id')
@@ -22,16 +23,29 @@ return new class extends Migration
                 ->constrained('locations')
                 ->cascadeOnDelete();
 
+            $table->string('lot')->nullable();
+
             $table->date('transaction_date')->nullable();
+
             $table->string('transaction_number')->nullable();
+
             $table->text('description')->nullable();
+
             $table->decimal('qty_in', 15, 2)->default(0);
+
             $table->decimal('qty_out', 15, 2)->default(0);
+
             $table->decimal('qty_balance', 15, 2)->default(0);
+
             $table->timestamps();
+
             $table->index('transaction_date');
+
             $table->index('transaction_number');
+
             $table->index(['item_id', 'location_id']);
+
+            $table->index(['item_id', 'location_id', 'lot']);
         });
     }
 

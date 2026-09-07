@@ -39,6 +39,7 @@ class ScanBarcodeController extends Controller
                     'name' => $item->name,
                     'description' => $item->description,
                     'quantity' => $item->pivot->quantity,
+                    'lot' => $item->pivot->lot ?? null,
                     'vendor_name' => $item->vendor->name ?? null,
                 ];
             });

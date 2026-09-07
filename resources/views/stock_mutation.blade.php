@@ -213,6 +213,19 @@
                                                         </div>
                                                     </div>
 
+                                                    {{-- Lot --}}
+                                                    <div class="mb-3" id="lotWrapper" style="display:none;">
+                                                        <label class="form-label fw-semibold">Lot</label>
+
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">
+                                                                <i class="bi bi-tag"></i>
+                                                            </span>
+
+                                                            <select id="lotSelect" name="lot"></select>
+                                                        </div>
+                                                    </div>
+
                                                     {{-- Stock --}}
                                                     <div class="mb-3">
 
@@ -931,7 +944,7 @@
                             <th>No</th>
                             <th>Tanggal</th>
                             <th>Barang</th>
-                            <th>Lokasi</th>
+                            <th>Lokasi & Lot</th>
                             <th>No. Transaksi</th>
                             <th>Qty Masuk</th>
                             <th>Qty Keluar</th>
@@ -1054,6 +1067,19 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
+                                            </div>
+                                        </div>
+
+                                        {{-- Lot --}}
+                                        <div class="mb-3" id="editLotWrapper" style="display:none;">
+                                            <label class="form-label fw-semibold">Lot</label>
+
+                                            <div class="input-group">
+                                                <span class="input-group-text">
+                                                    <i class="bi bi-tag"></i>
+                                                </span>
+
+                                                <select id="editLot" name="lot"></select>
                                             </div>
                                         </div>
 
@@ -1618,69 +1644,6 @@
             });
         </script>
         <script>
-            $(document).on('click', '.btnEdit', function() {
-
-                let id = $(this).data('id');
-
-                $.ajax({
-
-                    url: '/stock-mutation/' + id + '/edit',
-
-                    type: 'GET',
-
-                    success: function(res) {
-                        console.log(res.transaction_date);
-                        $('#edit_id').val(res.id);
-
-                        $('#editTransactionDate').val(res.transaction_date);
-
-                        $('#editLocation').val(res.location).trigger('change');
-
-                        $('#editTransactionType').val(res.transaction_type);
-
-                        $('#editTransactionNumber').val(res.transaction_number);
-
-                        $('#editWarehouse').val(res.warehouse);
-
-                        $('#editReference').val(res.reference);
-
-                        $('#editValue').val(res.value);
-                        $('#editValueDisplay').val(
-                            new Intl.NumberFormat('id-ID', {
-                                style: 'currency',
-                                currency: 'IDR',
-                                minimumFractionDigits: 0
-                            }).format(res.value)
-                        );
-
-                        $('#editDescription').val(res.description);
-
-                        $('#editQtyType').val(res.qty_type);
-
-                        $('#editQty').val(parseInt(res.qty));
-
-                        $('#editQtyIn').val(res.qty_in);
-
-                        $('#editQtyOut').val(res.qty_out);
-
-                        let option = new Option(
-                            res.stock_name,
-                            res.item_id,
-                            true,
-                            true
-                        );
-
-                        $('#editItem')
-                            .empty()
-                            .append(option)
-                            .trigger('change');
-
-                    }
-
-                });
-
-            });
-
             $('#editQtyType').on('change', function() {
 
                 let qty = $('#editQty').val();
@@ -1725,6 +1688,25 @@
 
                 e.preventDefault();
 
+                if ($('#editLotWrapper').is(':visible') &&
+                    editLotSelect.options && Object.keys(editLotSelect.options).length > 1 &&
+                    !editLotSelect.getValue()) {
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: 'Silakan pilih lot terlebih dahulu',
+                        showConfirmButton: false,
+                        timer: 2500,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    });
+
+                    return false;
+                }
+
                 let id = $('#edit_id').val();
                 console.log({
                     qtyType: $('#editQtyType').val(),
@@ -1750,6 +1732,8 @@
                         item_id: $('#editItem').val(),
 
                         location: $('#editLocation').val(),
+
+                        lot: $('#editLot').val(),
 
                         transaction_type: $('#editTransactionType').val(),
 
@@ -2399,6 +2383,7 @@
         <script>
             let itemSelect;
             let locationSelect;
+            let lotSelect;
 
             itemSelect = new TomSelect("#itemSelect", {
 
@@ -2453,11 +2438,22 @@
                 items: []
             });
 
+            lotSelect = new TomSelect("#lotSelect", {
+                valueField: "id",
+                labelField: "text",
+                searchField: ["text"],
+                placeholder: "Pilih lot...",
+                create: false,
+                allowEmptyOption: true
+            });
+
             function loadCurrentStock() {
 
                 let item = itemSelect.getValue();
 
                 let location = locationSelect.getValue();
+
+                let lot = lotSelect.getValue();
 
                 if (item == "" || location == "") {
 
@@ -2475,7 +2471,9 @@
 
                         item_id: item,
 
-                        location: location
+                        location: location,
+
+                        lot: lot
 
                     },
 
@@ -2484,6 +2482,69 @@
                         $("#currentStock").html(parseInt(res.qty));
 
                         validateQty();
+
+                    }
+
+                );
+
+            }
+
+            // Ambil daftar lot untuk kombinasi barang + lokasi yang sedang
+            // dipilih. Kalau cuma ada satu lot (atau tidak ada lot sama
+            // sekali), field lot langsung diisi otomatis / disembunyikan.
+            // Kalau lebih dari satu, user wajib pilih sendiri.
+            function loadLots(callback) {
+
+                let item = itemSelect.getValue();
+                let location = locationSelect.getValue();
+
+                lotSelect.clear(true);
+                lotSelect.clearOptions();
+
+                if (item == "" || location == "") {
+                    $("#lotWrapper").hide();
+                    loadCurrentStock();
+                    if (callback) callback();
+                    return;
+                }
+
+                $.get(
+
+                    "{{ route('stock-mutation.lots') }}",
+
+                    {
+                        item_id: item,
+                        location: location
+                    },
+
+                    function(res) {
+
+                        res.forEach(function(opt) {
+                            lotSelect.addOption(opt);
+                        });
+
+                        if (res.length === 0) {
+
+                            // Barang tanpa pelacakan lot di lokasi ini.
+                            $("#lotWrapper").hide();
+                            lotSelect.setValue("", true);
+
+                        } else if (res.length === 1) {
+
+                            $("#lotWrapper").show();
+                            lotSelect.setValue(res[0].id, true);
+
+                        } else {
+
+                            $("#lotWrapper").show();
+                            // Lebih dari satu lot: jangan auto-pilih,
+                            // biarkan user yang menentukan.
+
+                        }
+
+                        loadCurrentStock();
+
+                        if (callback) callback();
 
                     }
 
@@ -2515,7 +2576,7 @@
                             locationSelect.setValue(res.id, true)
                         }
 
-                        loadCurrentStock();
+                        loadLots();
                     }
                 )
 
@@ -2523,9 +2584,16 @@
 
             locationSelect.on("change", function() {
 
+                loadLots();
+
+            });
+
+            lotSelect.on("change", function() {
+
                 loadCurrentStock();
 
             });
+
             $("#qtyType").on("change", function() {
 
                 updateQty();
@@ -2632,6 +2700,29 @@
                     return false;
                 }
 
+                // Kalau field lot sedang tampil (lebih dari satu lot untuk
+                // barang + lokasi ini) tapi belum dipilih, wajibkan dulu.
+                if ($("#lotWrapper").is(":visible") &&
+                    lotSelect.options && Object.keys(lotSelect.options).length > 1 &&
+                    !lotSelect.getValue()) {
+
+                    e.preventDefault();
+
+                    Swal.fire({
+                        toast: true,
+                        position: "top-end",
+                        icon: "error",
+                        title: "Silakan pilih lot terlebih dahulu",
+                        showConfirmButton: false,
+                        timer: 2500,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    });
+
+                    return false;
+                }
+
             });
 
             $("#addMutationModal").on("hidden.bs.modal", function() {
@@ -2641,6 +2732,10 @@
                 itemSelect.clear();
 
                 locationSelect.clear();
+
+                lotSelect.clear(true);
+                lotSelect.clearOptions();
+                $("#lotWrapper").hide();
 
                 $("#currentStock").html("0");
 
@@ -2728,6 +2823,7 @@
         <script>
             let edititemSelect;
             let editLocationSelect;
+            let editLotSelect;
 
             edititemSelect = new TomSelect("#editItem", {
                 valueField: "id",
@@ -2768,6 +2864,79 @@
                 items: []
             });
 
+            editLotSelect = new TomSelect("#editLot", {
+                valueField: "id",
+                labelField: "text",
+                searchField: ["text"],
+                placeholder: "Pilih lot...",
+                create: false,
+                allowEmptyOption: true
+            });
+
+            // Ambil daftar lot untuk kombinasi barang + lokasi yang sedang
+            // dipilih di modal edit. presetLot (opsional) dipakai saat
+            // membuka data mutasi lama, supaya lot yang sudah tersimpan
+            // langsung terpilih.
+            function editLoadLots(presetLot, callback) {
+
+                let item = edititemSelect.getValue();
+                let location = editLocationSelect.getValue();
+
+                editLotSelect.clear(true);
+                editLotSelect.clearOptions();
+
+                if (item == "" || location == "") {
+                    $("#editLotWrapper").hide();
+                    loadCurrentStockEdit();
+                    if (callback) callback();
+                    return;
+                }
+
+                $.get(
+
+                    "{{ route('stock-mutation.lots') }}",
+
+                    {
+                        item_id: item,
+                        location: location
+                    },
+
+                    function(res) {
+
+                        res.forEach(function(opt) {
+                            editLotSelect.addOption(opt);
+                        });
+
+                        if (res.length === 0) {
+
+                            $("#editLotWrapper").hide();
+                            editLotSelect.setValue("", true);
+
+                        } else if (res.length === 1) {
+
+                            $("#editLotWrapper").show();
+                            editLotSelect.setValue(res[0].id, true);
+
+                        } else {
+
+                            $("#editLotWrapper").show();
+
+                            if (presetLot !== undefined && presetLot !== null && presetLot !== "") {
+                                editLotSelect.setValue(presetLot, true);
+                            }
+
+                        }
+
+                        loadCurrentStockEdit();
+
+                        if (callback) callback();
+
+                    }
+
+                );
+
+            }
+
             $(document).on('click', '.btnEdit', function() {
 
                 let id = $(this).data('id');
@@ -2781,39 +2950,39 @@
 
                         $('#edit_id').val(res.id);
                         $('#editTransactionDate').val(res.transaction_date);
+                        $('#editTransactionNumber').val(res.transaction_number);
+                        $('#editDescription').val(res.description);
 
+                        // BARANG
                         edititemSelect.clear(true);
 
                         // Jangan clearOptions()
 
-                        edititemSelect.addOption({
-                            id: res.item_id,
-                            text: res.item_name
-                        });
+                        if (!edititemSelect.options[res.item_id]) {
+                            edititemSelect.addOption({
+                                id: res.item_id,
+                                text: res.item_name
+                            });
+                        }
 
                         edititemSelect.setValue(res.item_id, true);
 
-                        // LOCATION
-                        if (!editLocationSelect.options[res.location]) {
-                            editLocationSelect.sync();
-                            editLocationSelect.setValue(res.location);
-                        }
-
+                        // LOKASI
                         editLocationSelect.setValue(res.location, true);
 
-                        $('#editQtyType').val(res.qty_in > 0 ? 'in' : 'out');
+                        // LOT — sekarang item & lokasi sudah benar-benar
+                        // ter-set di TomSelect, baru muat daftar lot untuk
+                        // kombinasi ini dan pilihkan lot yang sudah
+                        // tersimpan sebelumnya di data mutasi ini.
+                        editLoadLots(res.lot);
 
-                        $('#editQtyInput').val(
-                            Number(res.qty_in > 0 ? res.qty_in : res.qty_out)
-                        );
-
-                        $('#editTransactionNumber').val(res.transaction_number);
-                        $('#editRemark').val(res.remark);
-                        $('#editValue').val(res.value);
+                        // QTY
+                        $('#editQtyType').val(res.qty_type);
+                        $('#editQty').val(parseInt(res.qty));
+                        $('#editQtyIn').val(res.qty_in);
+                        $('#editQtyOut').val(res.qty_out);
 
                         $('#editMutationModal').modal('show');
-
-                        loadCurrentStockEdit();
                     }
 
                 });
@@ -2824,6 +2993,7 @@
 
                 let item = edititemSelect.getValue();
                 let location = editLocationSelect.getValue();
+                let lot = editLotSelect.getValue();
 
                 if (item == "" || location == "") {
 
@@ -2835,7 +3005,8 @@
                 $.get(
                     "{{ route('stock-mutation.current-stock') }}", {
                         item_id: item,
-                        location: location
+                        location: location,
+                        lot: lot
                     },
                     function(res) {
 
@@ -2849,10 +3020,14 @@
             }
 
             edititemSelect.on("change", function() {
-                loadCurrentStockEdit();
+                editLoadLots();
             });
 
             editLocationSelect.on("change", function() {
+                editLoadLots();
+            });
+
+            editLotSelect.on("change", function() {
                 loadCurrentStockEdit();
             });
 
@@ -2860,14 +3035,14 @@
                 validateQtyEdit();
             });
 
-            $("#editQtyInput").on("keyup change", function() {
+            $("#editQty").on("keyup change", function() {
                 validateQtyEdit();
             });
 
             function validateQtyEdit() {
 
                 let current = Number($("#editCurrentStock").text());
-                let input = Number($("#editQtyInput").val());
+                let input = Number($("#editQty").val());
 
                 if (isNaN(current)) current = 0;
                 if (isNaN(input)) input = 0;
@@ -2875,14 +3050,14 @@
                 if ($("#editQtyType").val() == "out") {
 
                     if (input > current) {
-                        $("#editQtyInput").addClass("is-invalid");
+                        $("#editQty").addClass("is-invalid");
                     } else {
-                        $("#editQtyInput").removeClass("is-invalid");
+                        $("#editQty").removeClass("is-invalid");
                     }
 
                 } else {
 
-                    $("#editQtyInput").removeClass("is-invalid");
+                    $("#editQty").removeClass("is-invalid");
 
                 }
 
@@ -2897,9 +3072,13 @@
 
                 editLocationSelect.clear();
 
+                editLotSelect.clear(true);
+                editLotSelect.clearOptions();
+                $("#editLotWrapper").hide();
+
                 $("#editCurrentStock").html("0");
 
-                $("#editQtyInput").removeClass("is-invalid");
+                $("#editQty").removeClass("is-invalid");
 
             });
         </script>

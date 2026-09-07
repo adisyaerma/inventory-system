@@ -47,7 +47,7 @@
                 <div class="modal fade" id="addLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-md">
+                    <div class="modal-dialog modal-lg">
 
                         <div class="modal-content">
 
@@ -197,11 +197,15 @@
                                                     {{-- HEADER --}}
                                                     <div class="row g-2 mb-2 fw-semibold small text-secondary">
 
-                                                        <div class="col-7">
+                                                        <div class="col-5">
                                                             Lokasi
                                                         </div>
 
                                                         <div class="col-3">
+                                                            Lot <span class="fw-normal text-muted">(opsional)</span>
+                                                        </div>
+
+                                                        <div class="col-2">
                                                             Qty
                                                         </div>
 
@@ -216,7 +220,7 @@
                                                     <div class="row g-2 align-items-center location-item">
 
                                                         {{-- LOKASI --}}
-                                                        <div class="col-7">
+                                                        <div class="col-5">
 
                                                             <select name="locations[0][location]"
                                                                 class="form-select form-select-sm location-select"
@@ -237,8 +241,18 @@
                                                         </div>
 
 
-                                                        {{-- QTY --}}
+                                                        {{-- LOT --}}
                                                         <div class="col-3">
+
+                                                            <input type="text" class="form-control form-control-sm"
+                                                                name="locations[0][lot]"
+                                                                placeholder="No. Lot">
+
+                                                        </div>
+
+
+                                                        {{-- QTY --}}
+                                                        <div class="col-2">
 
                                                             <input type="number" class="form-control form-control-sm"
                                                                 name="locations[0][quantity]" min="0"
@@ -260,6 +274,12 @@
                                                         </div>
 
                                                     </div>
+
+                                                    <small class="text-muted d-block mt-2">
+                                                        <i class="bx bx-info-circle"></i>
+                                                        Satu lokasi bisa memiliki lebih dari satu lot. Kosongkan Lot
+                                                        jika barang di lokasi ini tidak dikelola per lot.
+                                                    </small>
 
                                                 </div>
 
@@ -668,7 +688,7 @@
                         <th>Item Code Internal</th>
                         <th>Nama Barang</th>
                         <th>Vendor</th>
-                        <th>Lokasi & Qty</th>
+                        <th>Lokasi / Lot / Qty</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -696,7 +716,7 @@
     <div class="modal fade" id="editLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-        <div class="modal-dialog modal-md">
+        <div class="modal-dialog modal-lg">
 
             <div class="modal-content">
 
@@ -830,11 +850,15 @@
                                         {{-- HEADER --}}
                                         <div class="row g-2 mb-2 fw-semibold small text-secondary">
 
-                                            <div class="col-7">
+                                            <div class="col-5">
                                                 Lokasi
                                             </div>
 
                                             <div class="col-3">
+                                                Lot <span class="fw-normal text-muted">(opsional)</span>
+                                            </div>
+
+                                            <div class="col-2">
                                                 Qty
                                             </div>
 
@@ -845,6 +869,12 @@
                                         </div>
 
                                     </div>
+
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bx bx-info-circle"></i>
+                                        Satu lokasi bisa memiliki lebih dari satu lot. Kosongkan Lot jika barang di
+                                        lokasi ini tidak dikelola per lot.
+                                    </small>
 
                                 </div>
 
@@ -1625,7 +1655,7 @@
 
                 let html = `
     <div class="row g-2 align-items-center location-item mt-2">
-        <div class="col-7">
+        <div class="col-5">
             <select
                 name="locations[${index}][location]"
                 class="form-select form-select-sm location-select"
@@ -1639,6 +1669,13 @@
             </select>
         </div>
         <div class="col-3">
+            <input
+                type="text"
+                class="form-control form-control-sm"
+                name="locations[${index}][lot]"
+                placeholder="No. Lot">
+        </div>
+        <div class="col-2">
             <input
                 type="number"
                 class="form-control form-control-sm"
@@ -1751,11 +1788,11 @@
                 });
             }
 
-            function addEditLocationRow(location = "", qty = "") {
+            function addEditLocationRow(location = "", qty = "", lot = "") {
 
                 let html = `
     <div class="row g-2 align-items-center location-item mt-2">
-        <div class="col-7">
+        <div class="col-5">
             <select
                 name="locations[${editIndex}][location]"
                 class="form-select form-select-sm edit-location-select"
@@ -1769,6 +1806,14 @@
             </select>
         </div>
         <div class="col-3">
+            <input
+                type="text"
+                class="form-control form-control-sm"
+                name="locations[${editIndex}][lot]"
+                value="${lot !== null && lot !== undefined ? lot : ''}"
+                placeholder="No. Lot">
+        </div>
+        <div class="col-2">
             <input
                 type="number"
                 class="form-control form-control-sm"
@@ -1832,7 +1877,8 @@
                         res.item.locations.forEach(function(loc) {
                             addEditLocationRow(
                                 loc.location_name,
-                                loc.pivot.quantity
+                                loc.pivot.quantity,
+                                loc.pivot.lot
                             );
                         });
 

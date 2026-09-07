@@ -22,14 +22,21 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
-            $table->decimal('quantity', 15, 2)->default(0);
+            $table->string('lot')->nullable();
+
+            $table->decimal('opening_balance', 15, 2)
+                ->default(0);
+
+            $table->decimal('quantity', 15, 2)
+                ->default(0);
 
             $table->timestamps();
 
-            $table->unique(['item_id', 'location_id']);
-            $table->decimal('opening_balance', 15, 2)
-                ->default(0)
-                ->after('location_id');
+            $table->unique([
+                'item_id',
+                'location_id',
+                'lot',
+            ]);
         });
     }
 

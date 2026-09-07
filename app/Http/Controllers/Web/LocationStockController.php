@@ -127,16 +127,40 @@ class LocationStockController extends Controller
                     return '-';
                 }
 
+                // Kelompokkan per lokasi supaya beberapa lot dalam satu
+                // lokasi yang sama ditampilkan menyatu, bukan berulang.
+                $grouped = $row->locations->groupBy('location_name');
+
                 $html = '';
 
-                foreach ($row->locations as $location) {
+                foreach ($grouped as $locationName => $entries) {
 
-                    $html .=
-                        '<div>'
-                        .$location->location_name.
-                        ' <span class="text-muted fw-bold">('.
-                        number_format($location->pivot->quantity, 0, ',', '.').
-                        ')</span></div>';
+                    $html .= '<div class="mb-1">';
+
+                    $html .= '<div class="fw-semibold">'.e($locationName).'</div>';
+
+                    foreach ($entries as $entry) {
+
+                        $qty = number_format($entry->pivot->quantity, 0, ',', '.');
+
+                        if (!empty($entry->pivot->lot)) {
+
+                            $html .= '<div class="ps-3 small">'
+                                .'<span class="badge bg-secondary bg-opacity-10 text-secondary border">'
+                                .'Lot: '.e($entry->pivot->lot).
+                                '</span> '
+                                .'<span class="text-muted fw-bold">('.$qty.')</span>'
+                                .'</div>';
+
+                        } else {
+
+                            $html .= '<div class="ps-3 small text-muted fw-bold">('.$qty.')</div>';
+
+                        }
+
+                    }
+
+                    $html .= '</div>';
 
                 }
 
@@ -205,6 +229,7 @@ class LocationStockController extends Controller
             'locations' => 'required|array|min:1',
 
             'locations.*.location' => 'required|string|max:255',
+            'locations.*.lot' => 'nullable|string|max:255',
             'locations.*.quantity' => 'required|numeric|min:0',
 
         ], [
@@ -215,6 +240,7 @@ class LocationStockController extends Controller
 
             'locations.required' => 'Minimal harus ada satu lokasi.',
             'locations.*.location.required' => 'Lokasi wajib diisi.',
+            'locations.*.lot.max' => 'Lot maksimal 255 karakter.',
             'locations.*.quantity.required' => 'Qty wajib diisi.',
             'locations.*.quantity.numeric' => 'Qty harus berupa angka.',
             'locations.*.quantity.min' => 'Qty tidak boleh kurang dari 0.',
@@ -231,9 +257,12 @@ class LocationStockController extends Controller
                     'location_name' => $locationName,
                 ]);
 
+                $lot = !empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
+
                 LocationStock::create([
                     'item_id' => $request->item_id,
                     'location_id' => $location->id,
+                    'lot' => $lot,
                     'opening_balance' => $row['quantity'],
                     'quantity' => $row['quantity'],
                 ]);
@@ -262,12 +291,14 @@ class LocationStockController extends Controller
             'locations' => 'required|array|min:1',
 
             'locations.*.location' => 'required|string|max:255',
+            'locations.*.lot' => 'nullable|string|max:255',
             'locations.*.quantity' => 'required|numeric|min:0',
 
         ], [
 
             'locations.required' => 'Minimal harus ada satu lokasi.',
             'locations.*.location.required' => 'Lokasi wajib diisi.',
+            'locations.*.lot.max' => 'Lot maksimal 255 karakter.',
             'locations.*.quantity.required' => 'Qty wajib diisi.',
             'locations.*.quantity.numeric' => 'Qty harus berupa angka.',
             'locations.*.quantity.min' => 'Qty tidak boleh kurang dari 0.',
@@ -276,7 +307,13 @@ class LocationStockController extends Controller
 
         DB::transaction(function () use ($request, $item) {
 
-            $syncData = [];
+            // Catatan: sync() tidak dipakai lagi karena satu lokasi kini
+            // bisa punya lebih dari satu baris (per lot). Kita cocokkan
+            // baris berdasarkan (item_id, location_id, lot): baris yang
+            // masih ada di-update (opening_balance dipertahankan), baris
+            // baru dibuat, dan baris yang sudah tidak dikirim dihapus.
+
+            $keepIds = [];
 
             foreach ($request->locations as $row) {
 
@@ -284,13 +321,38 @@ class LocationStockController extends Controller
                     'location_name' => strtoupper(trim($row['location'])),
                 ]);
 
-                $syncData[$location->id] = [
-                    'quantity' => $row['quantity'],
-                ];
+                $lot = !empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
+
+                $stock = LocationStock::where('item_id', $item->id)
+                    ->where('location_id', $location->id)
+                    ->where('lot', $lot)
+                    ->first();
+
+                if ($stock) {
+
+                    $stock->update([
+                        'quantity' => $row['quantity'],
+                    ]);
+
+                } else {
+
+                    $stock = LocationStock::create([
+                        'item_id' => $item->id,
+                        'location_id' => $location->id,
+                        'lot' => $lot,
+                        'opening_balance' => $row['quantity'],
+                        'quantity' => $row['quantity'],
+                    ]);
+
+                }
+
+                $keepIds[] = $stock->id;
 
             }
 
-            $item->locations()->sync($syncData);
+            LocationStock::where('item_id', $item->id)
+                ->whereNotIn('id', $keepIds)
+                ->delete();
 
         });
 

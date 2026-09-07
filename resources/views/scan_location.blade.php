@@ -245,9 +245,11 @@
     ${item.vendor_name ?? '-'} &bull; ${item.item_code_internal}
 </small>
 
-                                <div class=" text-dark fw-semibold mb-2">
+                                <div class=" text-dark fw-semibold">
                                     ${item.name}
                                 </div>
+
+                                ${item.lot ? `<small class="text-muted d-block">Lot: ${item.lot}</small>` : ''}
 
                             </div>
 

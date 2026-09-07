@@ -19,6 +19,9 @@ class StagingIn extends Model
         'notes',
         'status',
         'incoterms',
+        'warehouse_location_id',
+        'stock_mutation_id',
+        'lot',
     ];
 
     protected $casts = [
@@ -44,7 +47,7 @@ class StagingIn extends Model
         'rusak',
         'tidak lengkap',
         'salah ukuran',
-        'batal'
+        'batal',
     ];
 
     /**
@@ -62,5 +65,10 @@ class StagingIn extends Model
     public function item()
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function warehouseLocation()
+    {
+        return $this->belongsTo(Location::class, 'warehouse_location_id');
     }
 }

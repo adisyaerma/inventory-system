@@ -155,6 +155,8 @@ Route::prefix('stock-mutation')->group(function () {
         ->name('stock-mutation.default-location');
 });
 
+Route::get('stock-mutation/lots', [StockMutationController::class, 'lots'])->name('stock-mutation.lots');
+
 // ===vendor===
 
 Route::get('/vendor', [VendorController::class, 'index'])
@@ -211,6 +213,11 @@ Route::get('stagings-in/warehouse-locations', [StagingInController::class, 'ware
 
 Route::get('stagings-in/search-stock', [StagingInController::class, 'searchStock'])
     ->name('stagings-in.search-stock');
+
+Route::get('stagings-in/item-locations', [StagingInController::class, 'itemLocations'])
+    ->name('stagings-in.item-locations');
+
+Route::get('stagings-in/lots', [StagingInController::class, 'lots'])->name('stagings-in.lots');
 
 // ===staging out===
 

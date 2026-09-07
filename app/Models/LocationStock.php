@@ -16,6 +16,7 @@ class LocationStock extends Model
         'location_id',
         'opening_balance',
         'quantity',
+        'lot',
     ];
 
     public function location()

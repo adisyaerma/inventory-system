@@ -6,9 +6,9 @@ use App\Exports\StockMutationExport;
 use App\Exports\StockMutationTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StockMutationImport;
+use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
-use App\Models\Item;
 use App\Models\StockMutation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -70,7 +70,14 @@ class StockMutationController extends Controller
             })
 
             ->addColumn('location_name', function ($row) {
-                return $row->location->location_name;
+                $location = $row->location->location_name ?? '-';
+
+                if (! empty($row->lot)) {
+                    return '<div class="fw-semibold">'.e($location).'</div>'
+                         .'<div class="text-muted small">Lot: '.e($row->lot).'</div>';
+                }
+
+                return '<div class="fw-semibold">'.e($location).'</div>';
             })
 
             ->editColumn('qty_in', function ($row) {
@@ -132,7 +139,12 @@ class StockMutationController extends Controller
 
 </div>';
             })
-            ->rawColumns(['action', 'barang', 'checkbox'])
+            ->rawColumns([
+                'action',
+                'barang',
+                'checkbox',
+                'location_name',
+            ])
 
             ->make(true);
     }
@@ -177,9 +189,11 @@ class StockMutationController extends Controller
     {
         $itemId = $stockMutation->item_id;
         $locationId = $stockMutation->location_id;
+        $lot = $stockMutation->lot;
 
         $nextMutation = StockMutation::where('item_id', $itemId)
             ->where('location_id', $locationId)
+            ->where('lot', $lot)
             ->where(function ($q) use ($stockMutation) {
                 $q->where('transaction_date', '>', $stockMutation->transaction_date)
                     ->orWhere(function ($q2) use ($stockMutation) {
@@ -198,17 +212,20 @@ class StockMutationController extends Controller
             $this->recalculateLocationStock(
                 $itemId,
                 $locationId,
-                $nextMutation->id
+                $nextMutation->id,
+                $lot
             );
 
         } else {
 
             $locationStock = LocationStock::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->first();
 
             $lastBalance = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->orderByDesc('transaction_date')
                 ->orderByDesc('id')
                 ->value('qty_balance');
@@ -217,6 +234,7 @@ class StockMutationController extends Controller
                 [
                     'item_id' => $itemId,
                     'location_id' => $locationId,
+                    'lot' => $lot,
                 ],
                 [
                     'quantity' => $lastBalance ?? ($locationStock->opening_balance ?? 0),
@@ -225,7 +243,7 @@ class StockMutationController extends Controller
         }
     }
 
-    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null)
+    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null, $lot = null)
     {
         if ($startMutationId) {
 
@@ -237,6 +255,7 @@ class StockMutationController extends Controller
 
             $previousMutation = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '<', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -256,6 +275,7 @@ class StockMutationController extends Controller
 
                 $locationStock = LocationStock::where('item_id', $itemId)
                     ->where('location_id', $locationId)
+                    ->where('lot', $lot)
                     ->first();
 
                 $balance = $locationStock
@@ -264,6 +284,7 @@ class StockMutationController extends Controller
             }
             $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '>', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -281,6 +302,7 @@ class StockMutationController extends Controller
 
             $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->orderBy('transaction_date')
                 ->orderBy('id')
                 ->get();
@@ -300,6 +322,7 @@ class StockMutationController extends Controller
             [
                 'item_id' => $itemId,
                 'location_id' => $locationId,
+                'lot' => $lot,
             ],
             [
                 'quantity' => $balance,
@@ -448,8 +471,11 @@ class StockMutationController extends Controller
 
         }
 
+        $lot = $request->filled('lot') ? trim($request->lot) : null;
+
         $locationStock = LocationStock::where('item_id', $request->item_id)
             ->where('location_id', $location->id)
+            ->where('lot', $lot)
             ->first();
 
         return response()->json([
@@ -459,12 +485,59 @@ class StockMutationController extends Controller
         ]);
     }
 
+    /**
+     * Daftar lot yang tersedia untuk kombinasi barang + lokasi.
+     * Dipakai frontend untuk memunculkan pilihan lot otomatis setelah
+     * user memilih barang lalu lokasi.
+     */
+    public function lots(Request $request)
+    {
+        $request->validate([
+
+            'item_id' => 'required|exists:items,id',
+
+            'location' => 'required',
+
+        ]);
+
+        $location = Location::where(
+            'location_name',
+            $request->location
+        )->first();
+
+        if (! $location) {
+            return response()->json([]);
+        }
+
+        $stocks = LocationStock::where('item_id', $request->item_id)
+            ->where('location_id', $location->id)
+            ->orderByRaw('lot IS NULL, lot ASC')
+            ->get(['lot', 'quantity']);
+
+        return response()->json(
+
+            $stocks->map(function ($stock) {
+
+                return [
+                    'id' => $stock->lot ?? '',
+                    'text' => $stock->lot
+                        ? $stock->lot.' (Qty: '.number_format($stock->quantity, 0, ',', '.').')'
+                        : 'Tanpa Lot (Qty: '.number_format($stock->quantity, 0, ',', '.').')',
+                    'qty' => $stock->quantity,
+                ];
+
+            })
+
+        );
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'transaction_date' => 'required|date',
             'item_id' => 'required|exists:items,id',
             'location' => 'required',
+            'lot' => 'nullable|string|max:255',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
@@ -479,13 +552,34 @@ class StockMutationController extends Controller
                 'location_name' => trim($request->location),
             ]);
 
+            $lot = $request->filled('lot') ? trim($request->lot) : null;
+
+            // Kalau barang ini punya lebih dari satu baris stok (lot) di
+            // lokasi tersebut, user wajib memilih salah satu lot-nya
+            // terlebih dahulu supaya saldo tidak tercampur antar lot.
+            $lotRowCount = LocationStock::where('item_id', $request->item_id)
+                ->where('location_id', $location->id)
+                ->count();
+
+            if ($lotRowCount > 1 && ! $lot) {
+
+                DB::rollBack();
+
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
+                ], 422);
+            }
+
             $locationStock = LocationStock::firstOrCreate(
                 [
                     'item_id' => $request->item_id,
                     'location_id' => $location->id,
+                    'lot' => $lot,
                 ],
                 [
                     'quantity' => 0,
+                    'opening_balance' => 0,
                 ]
             );
 
@@ -502,6 +596,7 @@ class StockMutationController extends Controller
             $mutation = StockMutation::create([
                 'item_id' => $request->item_id,
                 'location_id' => $location->id,
+                'lot' => $lot,
                 'transaction_date' => $request->transaction_date,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
@@ -513,7 +608,8 @@ class StockMutationController extends Controller
             $this->recalculateLocationStock(
                 $request->item_id,
                 $location->id,
-                $mutation->id
+                $mutation->id,
+                $lot
             );
 
             DB::commit();
@@ -555,6 +651,8 @@ class StockMutationController extends Controller
 
             'location' => $mutation->location->location_name,
 
+            'lot' => $mutation->lot,
+
             'transaction_type' => $mutation->transaction_type,
 
             'transaction_number' => $mutation->transaction_number,
@@ -586,6 +684,7 @@ class StockMutationController extends Controller
             'transaction_date' => 'required|date',
             'item_id' => 'required|exists:items,id',
             'location' => 'required',
+            'lot' => 'nullable|string|max:255',
             'transaction_number' => 'nullable|max:100',
             'description' => 'nullable',
             'qty_in' => 'required|numeric|min:0',
@@ -598,18 +697,37 @@ class StockMutationController extends Controller
 
             $oldItemId = $mutation->item_id;
             $oldLocationId = $mutation->location_id;
+            $oldLot = $mutation->lot;
 
             $location = Location::firstOrCreate([
                 'location_name' => trim($request->location),
             ]);
 
+            $lot = $request->filled('lot') ? trim($request->lot) : null;
+
+            $lotRowCount = LocationStock::where('item_id', $request->item_id)
+                ->where('location_id', $location->id)
+                ->count();
+
+            if ($lotRowCount > 1 && ! $lot) {
+
+                DB::rollBack();
+
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
+                ], 422);
+            }
+
             $locationStock = LocationStock::firstOrCreate(
                 [
                     'item_id' => $request->item_id,
                     'location_id' => $location->id,
+                    'lot' => $lot,
                 ],
                 [
                     'quantity' => 0,
+                    'opening_balance' => 0,
                 ]
             );
 
@@ -617,7 +735,8 @@ class StockMutationController extends Controller
 
             if (
                 $oldItemId == $request->item_id &&
-                $oldLocationId == $location->id
+                $oldLocationId == $location->id &&
+                $oldLot == $lot
             ) {
                 $availableQty = $availableQty - $mutation->qty_in + $mutation->qty_out;
             }
@@ -637,6 +756,7 @@ class StockMutationController extends Controller
             $mutation->update([
                 'item_id' => $request->item_id,
                 'location_id' => $location->id,
+                'lot' => $lot,
                 'transaction_date' => $request->transaction_date,
                 'transaction_number' => $request->transaction_number,
                 'description' => $request->description,
@@ -647,17 +767,20 @@ class StockMutationController extends Controller
             $this->recalculateLocationStock(
                 $oldItemId,
                 $oldLocationId,
-                $startMutationId
+                $startMutationId,
+                $oldLot
             );
 
             if (
                 $oldItemId != $request->item_id ||
-                $oldLocationId != $location->id
+                $oldLocationId != $location->id ||
+                $oldLot != $lot
             ) {
                 $this->recalculateLocationStock(
                     $request->item_id,
                     $location->id,
-                    $startMutationId
+                    $startMutationId,
+                    $lot
                 );
             }
 

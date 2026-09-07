@@ -21,6 +21,7 @@ class LocationStockTemplateExport implements withHeadings
             'Item Code Customer',
             'Location',
             'Name',
+            'Lot',
             'Quantity',
             'Description',
             'Vendor',
@@ -30,7 +31,7 @@ class LocationStockTemplateExport implements withHeadings
     public function array():array
     {
         return[
-            ['','','','','','','',''],
+            ['','','','','','','','',''],
         ];
     }
 
@@ -38,7 +39,7 @@ class LocationStockTemplateExport implements withHeadings
     {
         return[
             AfterSheet::class=>function(AfterSheet $event){
-                foreach(['A','B','C','D','E','G','H'] as $column){
+                foreach(['A','B','C','D','E','F','G','H'] as $column){
                     $event->sheet->getDelegate()
                         ->getStyle($column . '2:'.$column.'1048576')
                         ->getNumberFormat()

@@ -15,6 +15,8 @@ class StockMutationTemplateExport implements WithHeadings
         return [
             'Kode Barang',
             'Nama Barang',
+            'Lokasi',
+            'Lot',
             'Tanggal',
             'Nomor',
             'Deskripsi',

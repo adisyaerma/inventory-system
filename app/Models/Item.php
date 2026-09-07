@@ -25,7 +25,7 @@ class Item extends Model
 public function locations()
 {
     return $this->belongsToMany(Location::class, 'location_stock', 'item_id', 'location_id')
-        ->withPivot(['opening_balance', 'quantity'])
+        ->withPivot(['opening_balance', 'lot', 'quantity'])
         ->withTimestamps();
 }
 

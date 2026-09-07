@@ -387,6 +387,8 @@ class StagingInController extends Controller
             'item_id' => ['required', 'exists:items,id'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
+            'warehouse_location' => ['nullable', 'string', 'max:255'],
+            'lot' => ['nullable', 'string', 'max:255'],
             'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
             'notes' => ['nullable'],
             'status' => ['nullable'],
@@ -395,9 +397,81 @@ class StagingInController extends Controller
             'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
+        $qty = (int) ($validated['qty'] ?? 0);
+        $warehouseLocationName = $validated['warehouse_location'] ?? null;
+        unset($validated['warehouse_location']);
+
+        // Barang belum tentu punya lot — kalau tidak diisi (atau memang
+        // tidak dikirim sama sekali dari form), dianggap tidak berlot.
+        $lot = ! empty($validated['lot']) ? trim($validated['lot']) : null;
+        $validated['lot'] = $lot;
+
+        $sourceLocation = null;
+
+        // Kalau "Lokasi Gudang Asal" dipilih, barang ini benar-benar ditarik
+        // dari stok gudang tersebut — qty tidak boleh melebihi stok yang
+        // sebenarnya tersedia di sana.
+        if ($warehouseLocationName) {
+
+            $sourceLocation = Location::where('location_name', $warehouseLocationName)->first();
+
+            if (! $sourceLocation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi gudang asal tidak ditemukan.',
+                ], 422);
+            }
+
+            // Kalau barang ini punya lebih dari satu baris stok (lot) di
+            // lokasi tersebut, user wajib memilih salah satu lot-nya
+            // terlebih dahulu supaya penarikan tidak salah lot.
+            $lotRowCount = LocationStock::where('item_id', $validated['item_id'])
+                ->where('location_id', $sourceLocation->id)
+                ->count();
+
+            if ($lotRowCount > 1 && ! $lot) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
+                ], 422);
+            }
+
+            $available = LocationStock::where('item_id', $validated['item_id'])
+                ->where('location_id', $sourceLocation->id)
+                ->where('lot', $lot)
+                ->value('quantity') ?? 0;
+
+            if ($qty > $available) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Qty melebihi stok yang tersedia di lokasi tersebut (tersedia: {$available} pcs).",
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
+            if ($sourceLocation) {
+
+                $mutation = StockMutation::create([
+                    'item_id' => $validated['item_id'],
+                    'location_id' => $sourceLocation->id,
+                    'lot' => $lot,
+                    'transaction_date' => $validated['arrival_date'] ?? now()->format('Y-m-d'),
+                    'transaction_number' => $validated['po_number'] ?? null,
+                    'description' => 'Ditarik untuk Staging In'.($validated['po_number'] ? ' ('.$validated['po_number'].')' : ''),
+                    'qty_in' => 0,
+                    'qty_out' => $qty,
+                    'qty_balance' => 0,
+                ]);
+
+                $this->recalculateLocationStock($validated['item_id'], $sourceLocation->id, $mutation->id, $lot);
+
+                $validated['warehouse_location_id'] = $sourceLocation->id;
+                $validated['stock_mutation_id'] = $mutation->id;
+            }
+
             $staging = StagingIn::create($validated);
 
             $this->history->logCreated($staging);
@@ -423,7 +497,7 @@ class StagingInController extends Controller
      */
     public function edit(StagingIn $staging)
     {
-        $staging->loadMissing('item.vendor');
+        $staging->loadMissing(['item.vendor', 'warehouseLocation']);
 
         return response()->json([
             'id' => $staging->id,
@@ -436,6 +510,8 @@ class StagingInController extends Controller
             'item_owner' => optional(optional($staging->item)->vendor)->name,
             'qty' => $staging->qty,
             'location' => $staging->location,
+            'warehouse_location' => optional($staging->warehouseLocation)->location_name,
+            'lot' => $staging->lot,
             'notes' => $staging->notes,
             'status' => $staging->status,
             'incoterms' => $staging->incoterms,
@@ -454,6 +530,8 @@ class StagingInController extends Controller
             'item_id' => ['required', 'exists:items,id'],
             'qty' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
+            'warehouse_location' => ['nullable', 'string', 'max:255'],
+            'lot' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable'],
             'status' => ['nullable'],
             'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
@@ -463,10 +541,135 @@ class StagingInController extends Controller
             'item_id.exists' => 'Barang tidak ditemukan',
         ]);
 
+        $qty = (int) ($validated['qty'] ?? 0);
+        $warehouseLocationName = $validated['warehouse_location'] ?? null;
+        unset($validated['warehouse_location']);
+
+        // Barang belum tentu punya lot — kalau tidak diisi, dianggap tidak
+        // berlot.
+        $lot = ! empty($validated['lot']) ? trim($validated['lot']) : null;
+        $validated['lot'] = $lot;
+
+        $newItemId = (int) $validated['item_id'];
+        $newLocation = null;
+
+        if ($warehouseLocationName) {
+
+            $newLocation = Location::where('location_name', $warehouseLocationName)->first();
+
+            if (! $newLocation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lokasi gudang asal tidak ditemukan.',
+                ], 422);
+            }
+
+            // Kalau barang ini punya lebih dari satu baris stok (lot) di
+            // lokasi tersebut, user wajib memilih salah satu lot-nya
+            // terlebih dahulu supaya penarikan tidak salah lot.
+            $lotRowCount = LocationStock::where('item_id', $newItemId)
+                ->where('location_id', $newLocation->id)
+                ->count();
+
+            if ($lotRowCount > 1 && ! $lot) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
+                ], 422);
+            }
+        }
+
+        // Sumber tarikan (barang + lokasi + lot) sama dengan yang sudah
+        // tersimpan? Kalau sama, qty lama yang sudah "ditarik" dianggap
+        // balik dulu sebelum dibandingkan ke qty baru, supaya menaikkan
+        // qty tidak salah dianggap kekurangan stok gara-gara stoknya
+        // sendiri.
+        $sameSource = $newLocation
+            && (int) $staging->warehouse_location_id === $newLocation->id
+            && (int) $staging->item_id === $newItemId
+            && $staging->lot === $lot;
+
+        if ($newLocation) {
+
+            $available = LocationStock::where('item_id', $newItemId)
+                ->where('location_id', $newLocation->id)
+                ->where('lot', $lot)
+                ->value('quantity') ?? 0;
+
+            if ($sameSource) {
+                $available += (int) $staging->qty;
+            }
+
+            if ($qty > $available) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Qty melebihi stok yang tersedia di lokasi tersebut (tersedia: {$available} pcs).",
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
             $changes = $this->history->diff($staging, $validated);
+
+            $oldMutationId = $staging->stock_mutation_id;
+            $oldLocationId = $staging->warehouse_location_id;
+
+            $sourceChanged = ! $sameSource && ($oldMutationId !== null || $newLocation !== null);
+
+            if ($oldMutationId && $sourceChanged) {
+                // Barang/lokasi gudang asalnya berubah (atau dihapus) —
+                // hapus mutasi lama & hitung ulang stok lokasi lamanya,
+                // seolah-olah stok itu tidak pernah ditarik.
+                $oldMutation = StockMutation::find($oldMutationId);
+
+                if ($oldMutation) {
+                    $this->deleteMutationAndRecalculate($oldMutation);
+                }
+
+                $oldMutationId = null;
+            }
+
+            if ($newLocation) {
+
+                if (! $sourceChanged && $oldMutationId) {
+                    // Sumbernya sama, tinggal sesuaikan qty mutasi yang
+                    // sudah ada dan hitung ulang stoknya dari situ.
+                    StockMutation::where('id', $oldMutationId)->update([
+                        'qty_out' => $qty,
+                        'lot' => $lot,
+                    ]);
+
+                    $this->recalculateLocationStock($newItemId, $newLocation->id, $oldMutationId, $lot);
+
+                    $validated['stock_mutation_id'] = $oldMutationId;
+                } else {
+                    // Sumber baru (atau sebelumnya tidak menarik stok
+                    // sama sekali) — buat mutasi keluar baru.
+                    $mutation = StockMutation::create([
+                        'item_id' => $newItemId,
+                        'location_id' => $newLocation->id,
+                        'lot' => $lot,
+                        'transaction_date' => $validated['arrival_date'] ?? now()->format('Y-m-d'),
+                        'transaction_number' => $validated['po_number'] ?? null,
+                        'description' => 'Ditarik untuk Staging In'.($validated['po_number'] ? ' ('.$validated['po_number'].')' : ''),
+                        'qty_in' => 0,
+                        'qty_out' => $qty,
+                        'qty_balance' => 0,
+                    ]);
+
+                    $this->recalculateLocationStock($newItemId, $newLocation->id, $mutation->id, $lot);
+
+                    $validated['stock_mutation_id'] = $mutation->id;
+                }
+
+                $validated['warehouse_location_id'] = $newLocation->id;
+
+            } else {
+                $validated['warehouse_location_id'] = null;
+                $validated['stock_mutation_id'] = null;
+            }
 
             $staging->update($validated);
 
@@ -497,6 +700,18 @@ class StagingInController extends Controller
 
         try {
             $this->history->logDeleted($staging);
+
+            // Kalau staging ini menarik stok dari sebuah lokasi gudang,
+            // hapus mutasi keluarnya & kembalikan stoknya seolah-olah
+            // penarikan itu tidak pernah terjadi.
+            if ($staging->stock_mutation_id) {
+
+                $mutation = StockMutation::find($staging->stock_mutation_id);
+
+                if ($mutation) {
+                    $this->deleteMutationAndRecalculate($mutation);
+                }
+            }
 
             $staging->delete();
 
@@ -735,7 +950,66 @@ class StagingInController extends Controller
      * mutations (e.g. if the transaction date is backdated before an
      * existing mutation).
      */
-    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null)
+    /**
+     * Delete a stock mutation (created when staging in pulled stock from a
+     * warehouse location) and recalculate that location's running balance,
+     * as if the mutation never happened. Mirrors
+     * StockMutationController::deleteMutationAndRecalculate.
+     */
+    private function deleteMutationAndRecalculate(StockMutation $stockMutation)
+    {
+        $itemId = $stockMutation->item_id;
+        $locationId = $stockMutation->location_id;
+        $lot = $stockMutation->lot;
+
+        $nextMutation = StockMutation::where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot)
+            ->where(function ($q) use ($stockMutation) {
+                $q->where('transaction_date', '>', $stockMutation->transaction_date)
+                    ->orWhere(function ($q2) use ($stockMutation) {
+                        $q2->where('transaction_date', $stockMutation->transaction_date)
+                            ->where('id', '>', $stockMutation->id);
+                    });
+            })
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->first();
+
+        $stockMutation->delete();
+
+        if ($nextMutation) {
+
+            $this->recalculateLocationStock($itemId, $locationId, $nextMutation->id, $lot);
+
+        } else {
+
+            $locationStock = LocationStock::where('item_id', $itemId)
+                ->where('location_id', $locationId)
+                ->where('lot', $lot)
+                ->first();
+
+            $lastBalance = StockMutation::where('item_id', $itemId)
+                ->where('location_id', $locationId)
+                ->where('lot', $lot)
+                ->orderByDesc('transaction_date')
+                ->orderByDesc('id')
+                ->value('qty_balance');
+
+            LocationStock::updateOrCreate(
+                [
+                    'item_id' => $itemId,
+                    'location_id' => $locationId,
+                    'lot' => $lot,
+                ],
+                [
+                    'quantity' => $lastBalance ?? ($locationStock->opening_balance ?? 0),
+                ]
+            );
+        }
+    }
+
+    private function recalculateLocationStock($itemId, $locationId, $startMutationId = null, $lot = null)
     {
         if ($startMutationId) {
 
@@ -747,6 +1021,7 @@ class StagingInController extends Controller
 
             $previousMutation = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '<', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -766,6 +1041,7 @@ class StagingInController extends Controller
 
                 $locationStock = LocationStock::where('item_id', $itemId)
                     ->where('location_id', $locationId)
+                    ->where('lot', $lot)
                     ->first();
 
                 $balance = $locationStock ? $locationStock->opening_balance : 0;
@@ -773,6 +1049,7 @@ class StagingInController extends Controller
 
             $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '>', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -790,6 +1067,7 @@ class StagingInController extends Controller
 
             $mutations = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
+                ->where('lot', $lot)
                 ->orderBy('transaction_date')
                 ->orderBy('id')
                 ->get();
@@ -809,10 +1087,82 @@ class StagingInController extends Controller
             [
                 'item_id' => $itemId,
                 'location_id' => $locationId,
+                'lot' => $lot,
             ],
             [
                 'quantity' => $balance,
             ]
+        );
+    }
+
+    /**
+     * Return the list of warehouse locations that currently have stock
+     * for a given item, used to populate "Lokasi Gudang Asal" on the
+     * add/edit staging forms (loadItemLocations() di blade).
+     */
+    public function itemLocations(Request $request)
+    {
+        $request->validate([
+            'item_id' => 'required|exists:items,id',
+        ]);
+
+        // Satu lokasi bisa punya beberapa baris stok (per lot), jadi
+        // dijumlahkan dulu per lokasi supaya pilihan "Lokasi Gudang Asal"
+        // tetap satu opsi per lokasi. Pemilihan lot spesifiknya dilakukan
+        // lewat select Lot terpisah setelah lokasi dipilih (lihat lots()).
+        $locations = LocationStock::with('location')
+            ->where('item_id', $request->item_id)
+            ->get()
+            ->filter(fn ($stock) => $stock->location !== null)
+            ->groupBy(fn ($stock) => $stock->location->location_name)
+            ->map(function ($stocks) {
+                return [
+                    'name' => $stocks->first()->location->location_name,
+                    'quantity' => $stocks->sum('quantity'),
+                ];
+            })
+            ->filter(fn ($loc) => $loc['quantity'] > 0)
+            ->sortBy('name')
+            ->values();
+
+        return response()->json($locations);
+    }
+
+    /**
+     * Daftar lot yang tersedia untuk kombinasi barang + lokasi gudang asal
+     * yang sedang dipilih di form staging in. Dipakai frontend untuk
+     * memunculkan pilihan lot otomatis setelah user memilih "Lokasi Gudang
+     * Asal" (mirrors StockMutationController::lots()).
+     */
+    public function lots(Request $request)
+    {
+        $request->validate([
+            'item_id' => 'required|exists:items,id',
+            'location' => 'required',
+        ]);
+
+        $location = Location::where('location_name', $request->location)->first();
+
+        if (! $location) {
+            return response()->json([]);
+        }
+
+        $stocks = LocationStock::where('item_id', $request->item_id)
+            ->where('location_id', $location->id)
+            ->where('quantity', '>', 0)
+            ->orderByRaw('lot IS NULL, lot ASC')
+            ->get(['lot', 'quantity']);
+
+        return response()->json(
+            $stocks->map(function ($stock) {
+                return [
+                    'id' => $stock->lot ?? '',
+                    'text' => $stock->lot
+                        ? $stock->lot.' (Qty: '.number_format($stock->quantity, 0, ',', '.').')'
+                        : 'Tanpa Lot (Qty: '.number_format($stock->quantity, 0, ',', '.').')',
+                    'qty' => $stock->quantity,
+                ];
+            })
         );
     }
 
@@ -845,6 +1195,21 @@ class StagingInController extends Controller
             $stagings = StagingIn::whereIn('id', $request->ids)->get();
 
             $this->history->logBulkDeleted($stagings);
+
+            // Kembalikan stok untuk tiap staging yang menarik dari lokasi
+            // gudang, sebelum entri stagingnya sendiri dihapus.
+            foreach ($stagings as $staging) {
+
+                if (! $staging->stock_mutation_id) {
+                    continue;
+                }
+
+                $mutation = StockMutation::find($staging->stock_mutation_id);
+
+                if ($mutation) {
+                    $this->deleteMutationAndRecalculate($mutation);
+                }
+            }
 
             StagingIn::whereIn('id', $request->ids)->delete();
 

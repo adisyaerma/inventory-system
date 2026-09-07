@@ -19,6 +19,7 @@ class StockMutation extends Model
         'warehouse',
         'reference',
         'value',
+        'lot',
     ];
 
     protected $casts = [
