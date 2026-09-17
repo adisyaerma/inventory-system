@@ -140,6 +140,17 @@
             background-color: #696cff;
             color: #fff;
         }
+
+        .date-filter-bar .form-label {
+            font-size: .72rem;
+            margin-bottom: .25rem;
+        }
+
+        .date-filter-bar .btn-check:checked + .btn-outline-primary {
+            background-color: #696cff;
+            border-color: #696cff;
+            color: #fff;
+        }
     </style>
 
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
@@ -198,6 +209,94 @@
         </div>
     </div>
 
+    {{-- ================= FILTER TANGGAL (GLOBAL) =================
+         Filter tanggal satuan atau rentang di bagian atas dashboard.
+         Saat tombol "Terapkan" ditekan, filter ini berlaku untuk SEMUA
+         kartu ringkasan & grafik aktivitas di bawah (menggantikan
+         filter periode per kartu selama filter ini aktif). --}}
+    <div class="card border-0 shadow-sm mb-4 date-filter-bar">
+        <div class="card-body py-3">
+            <form action="{{ url()->current() }}" method="GET" class="row gx-3 gy-2 align-items-end">
+
+                <div class="col-auto">
+                    <label class="form-label text-muted d-block">Jenis Filter</label>
+                    <div class="btn-group" role="group" aria-label="Jenis filter tanggal">
+                        <input type="radio" class="btn-check" name="filter_type" id="filterTypeSingle"
+                            value="single" autocomplete="off"
+                            {{ $filterType !== 'range' ? 'checked' : '' }}
+                            onchange="toggleDashboardDateFilterInputs()">
+                        <label class="btn btn-outline-primary btn-sm" for="filterTypeSingle">
+                            <i class="bx bx-calendar"></i> Tanggal
+                        </label>
+
+                        <input type="radio" class="btn-check" name="filter_type" id="filterTypeRange"
+                            value="range" autocomplete="off"
+                            {{ $filterType === 'range' ? 'checked' : '' }}
+                            onchange="toggleDashboardDateFilterInputs()">
+                        <label class="btn btn-outline-primary btn-sm" for="filterTypeRange">
+                            <i class="bx bx-calendar-week"></i> Rentang
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-auto" id="singleDateWrapper"
+                    style="{{ $filterType === 'range' ? 'display:none;' : '' }}">
+                    <label for="filter_date" class="form-label text-muted d-block">Pilih Tanggal</label>
+                    <input type="date" class="form-control form-control-sm" style="min-width:160px;"
+                        name="filter_date" id="filter_date" value="{{ $filterDate }}">
+                </div>
+
+                <div class="col-auto" id="rangeDateWrapper"
+                    style="{{ $filterType !== 'range' ? 'display:none;' : '' }}">
+                    <div class="d-flex gap-2">
+                        <div>
+                            <label for="filter_start_date" class="form-label text-muted d-block">Dari Tanggal</label>
+                            <input type="date" class="form-control form-control-sm" style="min-width:150px;"
+                                name="filter_start_date" id="filter_start_date" value="{{ $filterStartDate }}">
+                        </div>
+                        <div>
+                            <label for="filter_end_date" class="form-label text-muted d-block">Sampai Tanggal</label>
+                            <input type="date" class="form-control form-control-sm" style="min-width:150px;"
+                                name="filter_end_date" id="filter_end_date" value="{{ $filterEndDate }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bx bx-filter-alt"></i> Terapkan
+                    </button>
+
+                    @if ($hasGlobalFilter)
+                        <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bx bx-x"></i> Reset
+                        </a>
+                    @endif
+                </div>
+
+                @if ($hasGlobalFilter)
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="bx bx-info-circle"></i>
+                            Menampilkan data untuk <strong>{{ $filterCaption }}</strong>.
+                            Filter periode per kartu di bawah dinonaktifkan sementara — klik
+                            "Reset" untuk kembali ke filter periode per kartu.
+                        </small>
+                    </div>
+                @endif
+
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleDashboardDateFilterInputs() {
+            const isRange = document.getElementById('filterTypeRange').checked;
+            document.getElementById('singleDateWrapper').style.display = isRange ? 'none' : '';
+            document.getElementById('rangeDateWrapper').style.display = isRange ? '' : 'none';
+        }
+    </script>
+
     {{-- ================= KARTU RINGKASAN ================= --}}
     {{-- Setiap kartu punya filter periode sendiri (dropdown titik-tiga
          di pojok kanan atas kartu), lewat query string terpisah:
@@ -254,7 +353,8 @@
                             data-bs-toggle="dropdown"
                             aria-haspopup="true"
                             aria-expanded="false"
-                            title="Filter periode Staging In">
+                            {{ $hasGlobalFilter ? 'disabled' : '' }}
+                            title="{{ $hasGlobalFilter ? 'Nonaktif — filter tanggal khusus sedang aktif' : 'Filter periode Staging In' }}">
 
                             <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
                         </button>
@@ -354,7 +454,8 @@
                             data-bs-toggle="dropdown"
                             aria-haspopup="true"
                             aria-expanded="false"
-                            title="Filter periode Staging Out">
+                            {{ $hasGlobalFilter ? 'disabled' : '' }}
+                            title="{{ $hasGlobalFilter ? 'Nonaktif — filter tanggal khusus sedang aktif' : 'Filter periode Staging Out' }}">
 
                             <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
                         </button>
@@ -454,7 +555,8 @@
                             data-bs-toggle="dropdown"
                             aria-haspopup="true"
                             aria-expanded="false"
-                            title="Filter periode Stok Tersedia">
+                            {{ $hasGlobalFilter ? 'disabled' : '' }}
+                            title="{{ $hasGlobalFilter ? 'Nonaktif — filter tanggal khusus sedang aktif' : 'Filter periode Stok Tersedia' }}">
 
                             <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
                         </button>
@@ -553,7 +655,8 @@
                             data-bs-toggle="dropdown"
                             aria-haspopup="true"
                             aria-expanded="false"
-                            title="Filter periode Total Lokasi">
+                            {{ $hasGlobalFilter ? 'disabled' : '' }}
+                            title="{{ $hasGlobalFilter ? 'Nonaktif — filter tanggal khusus sedang aktif' : 'Filter periode Total Lokasi' }}">
 
                             <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary"></i>
                         </button>
@@ -640,7 +743,8 @@
                             <button type="button"
                                 class="btn btn-icon btn-outline-secondary rounded-circle period-filter-btn"
                                 data-bs-toggle="dropdown" aria-expanded="false"
-                                title="Filter periode">
+                                {{ $hasGlobalFilter ? 'disabled' : '' }}
+                                title="{{ $hasGlobalFilter ? 'Nonaktif — filter tanggal khusus sedang aktif' : 'Filter periode' }}">
                                 <i class="icon-base bx bx-dots-vertical-rounded text-body-secondary fs-5"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow period-filter-menu">
@@ -797,11 +901,11 @@
                     </div>
 
                     <div class="status-row">
-                        <span><span class="status-dot bg-danger me-2"></span>Terlambat</span>
+                        <span><span class="status-dot bg-danger me-2"></span>Total So</span>
                         <span class="d-flex align-items-center gap-2">
-                            <strong>{{ $stagingOutStatus['terlambat'] }}</strong>
+                            <strong>{{ $stagingOutStatus['total_so'] }}</strong>
                             <span class="status-icon-sm bg-danger-subtle text-danger">
-                                <i class="bx bx-error"></i>
+                                <i class="bx bx-chart"></i>
                             </span>
                         </span>
                     </div>

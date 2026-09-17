@@ -767,6 +767,27 @@
 
     @push('script')
         <style>
+            #locationTabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+
+            #locationTabs .nav-item {
+                flex-shrink: 0;
+            }
+
+            #locationTabs::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            #locationTabs::-webkit-scrollbar-thumb {
+                background: #ccc;
+                border-radius: 4px;
+            }
+
             .dataTables_wrapper {
                 padding: 1rem;
             }
@@ -1119,10 +1140,34 @@
                 // tab yang masih tersembunyi (display:none) saat pertama kali
                 // di-init. Hitung ulang lebar kolom setiap tab dibuka.
                 $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+                    e.target.scrollIntoView({
+                        behavior: 'smooth',
+                        inline: 'nearest',
+                        block: 'nearest'
+                    });
+
                     const targetSelector = $(e.target).data('bs-target');
                     $(targetSelector).find('table.dataTable').each(function() {
                         $(this).DataTable().columns.adjust().draw(false);
                     });
+                });
+
+                // Perbaikan bug DataTables yang sama, tapi untuk kasus
+                // window di-resize (dibesar/dikecilkan). Tanpa ini, header
+                // kolom bisa geser dari body-nya karena scrollX:true tidak
+                // otomatis menghitung ulang lebar saat browser di-resize.
+                // Di-debounce supaya tidak dipanggil berkali-kali saat
+                // resize masih berlangsung.
+                let resizeTimer;
+
+                $(window).on('resize', function() {
+                    clearTimeout(resizeTimer);
+
+                    resizeTimer = setTimeout(function() {
+                        $('.tab-pane.active').find('table.dataTable').each(function() {
+                            $(this).DataTable().columns.adjust().draw(false);
+                        });
+                    }, 200);
                 });
 
                 function reloadAllTables() {
@@ -1273,7 +1318,7 @@
                         const meta = categoryMeta[key];
 
                         html += `
-                            <div class="col-md-4">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <div class="card border-start border-4 border-${meta.color} h-100">
                                     <div class="card-body">
                                         <div class="text-${meta.color} fw-semibold mb-2">

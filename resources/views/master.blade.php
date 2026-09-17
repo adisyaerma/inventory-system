@@ -37,7 +37,8 @@
 
     <!-- Vendors CSS -->
 
-    <link rel="stylesheet" href="{{ asset('sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}" />
+    <link rel="stylesheet"
+        href="{{ asset('sneat-template/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}" />
 
     <!-- endbuild -->
 
@@ -122,75 +123,126 @@
 
                 <div class="menu-inner-shadow"></div>
 
-                <ul class="menu-inner py-1">
-                    <li class="menu-item">
-                        <a href="/" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Dashboard</div>
+                <ul class="menu-inner py-1" id="sidebar-menu">
+
+                    {{-- Dashboard --}}
+                    <li class="menu-item {{ request()->is('/') ? 'active' : '' }}">
+                        <a href="{{ url('/') }}" class="menu-link">
+                            <i class="menu-icon tf-icons bx bx-home-circle"></i>
+                            <div class="text-truncate" data-i18n="Dashboard">Dashboard</div>
                         </a>
-                        
                     </li>
+
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Master Data</span>
                     </li>
-                    <!-- Cards -->
-                    <li class="menu-item">
-                        <a href="/location" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Lokasi Penyimpanan</div>
+
+                    {{-- Master Data --}}
+                    <li class="menu-item {{ request()->is('location', 'item', 'vendor*') ? 'active open' : '' }}">
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons bx bx-file"></i>
+                            <div class="text-truncate" data-i18n="Master Data">Master Data</div>
                         </a>
-                        <a href="/item" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Barang</div>
-                        </a>
-                        <a href="/vendor" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Vendor</div>
-                        </a>
-                    </li>
-                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Inventory</span>
+                        <ul class="menu-sub">
+                            <li class="menu-item {{ request()->is('location') ? 'active' : '' }}">
+                                <a href="{{ url('/location') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-map-pin"></i>
+                                    <div class="text-truncate" data-i18n="Lokasi Penyimpanan">Lokasi Penyimpanan</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('item') ? 'active' : '' }}">
+                                <a href="{{ url('/item') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-package"></i>
+                                    <div class="text-truncate" data-i18n="Barang">Barang</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('vendor*') ? 'active' : '' }}">
+                                <a href="{{ url('/vendor') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-buildings"></i>
+                                    <div class="text-truncate" data-i18n="Vendor">Vendor</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
 
-                    <li class="menu-item">
-                        <a href="/location-stock" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Stok</div>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">Inventory</span></li>
+
+                    {{-- Inventory --}}
+                    <li
+                        class="menu-item {{ request()->is('location-stock*', 'stock-mutation*', 'staging-in*', 'staging-out*') ? 'active open' : '' }}">
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons bx bx-cube-alt"></i>
+                            <div class="text-truncate" data-i18n="Inventory">Inventory</div>
                         </a>
-                        <a href="/stock-mutation" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Mutasi</div>
-                        </a>
-                        <a href="/staging-in" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Staging-in</div>
-                        </a>
-                        <a href="/staging-out" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Staging-out</div>
-                        </a>
-                    </li>
-                    <li class="menu-header small text-uppercase"><span class="menu-header-text">History</span>
+                        <ul class="menu-sub">
+                            <li class="menu-item {{ request()->is('location-stock*') ? 'active' : '' }}">
+                                <a href="{{ url('/location-stock') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-cube"></i>
+                                    <div class="text-truncate" data-i18n="Stok">Stok</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('stock-mutation*') ? 'active' : '' }}">
+                                <a href="{{ url('/stock-mutation') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-transfer-alt"></i>
+                                    <div class="text-truncate" data-i18n="Mutasi">Mutasi</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('staging-in') ? 'active' : '' }}">
+                                <a href="{{ url('/staging-in') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-log-in-circle"></i>
+                                    <div class="text-truncate" data-i18n="Staging-in">Staging-in</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('staging-out') ? 'active' : '' }}">
+                                <a href="{{ url('/staging-out') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-log-out-circle"></i>
+                                    <div class="text-truncate" data-i18n="Staging-out">Staging-out</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
 
-                    <li class="menu-item">
-                        
-                        <a href="/stagings-in-history" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Staging In History</div>
+                    <li class="menu-header small text-uppercase"><span class="menu-header-text">History</span></li>
+
+                    {{-- History --}}
+                    <li
+                        class="menu-item {{ request()->is('stagings-in-history*', 'stagings-out-history*', 'item-history') ? 'active open' : '' }}">
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons bx bx-history"></i>
+                            <div class="text-truncate" data-i18n="History">History</div>
                         </a>
-                        <a href="/stagings-out-history" class="menu-link">
-                            <i class="menu-icon tf-icons bx bx-collection"></i>
-                            <div class="text-truncate" data-i18n="Basic">Staging Out History</div>
-                        </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item {{ request()->is('stagings-in-history*') ? 'active' : '' }}">
+                                <a href="{{ url('/stagings-in-history') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-log-in"></i>
+                                    <div class="text-truncate" data-i18n="Staging In History">Staging In History</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('stagings-out-history*') ? 'active' : '' }}">
+                                <a href="{{ url('/stagings-out-history') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-log-out"></i>
+                                    <div class="text-truncate" data-i18n="Staging Out History">Staging Out History
+                                    </div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('item-history*') ? 'active' : '' }}">
+                                <a href="{{ url('/item-history') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-history"></i>
+                                    <div class="text-truncate" data-i18n="Item History">Item History</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
-                    
+
                     <li class="menu-header small text-uppercase"><span class="menu-header-text">Tools</span></li>
 
-                    <li class="menu-item">
-                        <a href="/scan-location" class="menu-link">
+                    {{-- Tools --}}
+                    <li class="menu-item {{ request()->is('scan-location*') ? 'active' : '' }}">
+                        <a href="{{ url('/scan-location') }}" class="menu-link">
                             <i class="menu-icon tf-icons bx bx-scan"></i>
-                            <div class="text-truncate" data-i18n="Basic">Scan Barcode</div>
+                            <div class="text-truncate" data-i18n="Scan Barcode">Scan Barcode</div>
                         </a>
                     </li>
+
                 </ul>
             </aside>
             <!-- / Menu -->

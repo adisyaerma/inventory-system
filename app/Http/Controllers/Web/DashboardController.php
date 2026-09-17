@@ -57,30 +57,71 @@ class DashboardController extends Controller
         $today = Carbon::today();
 
         // ============================================================
-        // 0. FILTER PERIODE PER KARTU (Hari Ini / Minggu Ini / Bulan Ini)
+        // 0. FILTER TANGGAL GLOBAL (di bagian atas dashboard)
+        //    Filter satuan (satu tanggal) atau rentang tanggal, dipilih
+        //    lewat form + tombol "Terapkan". Kalau filter ini aktif
+        //    (query string filter_type + filter_date, atau filter_type
+        //    + filter_start_date/filter_end_date valid), rentang tanggal
+        //    ini dipakai untuk SEMUA kartu ringkasan & grafik aktivitas,
+        //    menggantikan filter periode per kartu (today/week/month) di
+        //    bawah supaya seluruh dashboard konsisten menampilkan data
+        //    pada tanggal/rentang yang sama.
+        // ============================================================
+
+        $globalDateFilter = $this->resolveGlobalDateFilter($request);
+        $hasGlobalFilter = $globalDateFilter !== null;
+
+        $filterType = $request->get('filter_type', 'single');
+        $filterDate = $request->get('filter_date', '');
+        $filterStartDate = $request->get('filter_start_date', '');
+        $filterEndDate = $request->get('filter_end_date', '');
+        $filterCaption = null;
+
+        // ============================================================
+        // 0b. FILTER PERIODE PER KARTU (Hari Ini / Minggu Ini / Bulan Ini)
         //    Masing-masing kartu ringkasan (dan grafik aktivitas) resolve
         //    filternya sendiri lewat resolvePeriod(), dari query string
         //    miliknya sendiri. Klik filter di satu kartu tidak akan
         //    mengubah kartu lain karena key query string-nya berbeda dan
         //    request()->fullUrlWithQuery() di view hanya menimpa key itu.
+        //    Ini hanya dipakai kalau filter tanggal global TIDAK aktif.
         // ============================================================
 
-        [$stagingInPeriod, $stagingInPeriodStart, $stagingInPeriodEnd, $stagingInPeriodCaption] =
-            $this->resolvePeriod($request, 'staging_in_period', $today);
+        if ($hasGlobalFilter) {
+            [$globalStart, $globalEnd, $globalCaption] = $globalDateFilter;
+            $filterCaption = $globalCaption;
 
-        [$stagingOutPeriod, $stagingOutPeriodStart, $stagingOutPeriodEnd, $stagingOutPeriodCaption] =
-            $this->resolvePeriod($request, 'staging_out_period', $today);
+            $stagingInPeriod = $stagingOutPeriod = $stockPeriod = $locationPeriod = 'custom';
+            $stagingInPeriodCaption = $stagingOutPeriodCaption = $stockPeriodCaption = $locationPeriodCaption = $globalCaption;
 
-        [$stockPeriod, $stockPeriodStart, $stockPeriodEnd, $stockPeriodCaption] =
-            $this->resolvePeriod($request, 'stock_period', $today);
+            $stagingInPeriodStart = $stagingOutPeriodStart = $stockPeriodStart = $locationPeriodStart = $globalStart;
+            $stagingInPeriodEnd = $stagingOutPeriodEnd = $stockPeriodEnd = $locationPeriodEnd = $globalEnd;
 
-        [$locationPeriod, $locationPeriodStart, $locationPeriodEnd, $locationPeriodCaption] =
-            $this->resolvePeriod($request, 'location_period', $today);
+            $chartPeriodStart = $globalStart;
+            $chartPeriodEnd = $globalEnd;
+            // Kalau rentangnya cuma 1 hari, grafik tetap pakai granularitas
+            // per jam (sama seperti perilaku "Hari Ini"); kalau lebih dari
+            // 1 hari, dipakai granularitas per hari (lihat buildActivitySeries()).
+            $chartPeriod = $globalStart->isSameDay($globalEnd) ? 'today' : 'custom';
+            $chartPeriodLabel = $globalCaption;
+        } else {
+            [$stagingInPeriod, $stagingInPeriodStart, $stagingInPeriodEnd, $stagingInPeriodCaption] =
+                $this->resolvePeriod($request, 'staging_in_period', $today);
 
-        [$chartPeriod, $chartPeriodStart, $chartPeriodEnd] =
-            $this->resolvePeriod($request, 'chart_period', $today);
+            [$stagingOutPeriod, $stagingOutPeriodStart, $stagingOutPeriodEnd, $stagingOutPeriodCaption] =
+                $this->resolvePeriod($request, 'staging_out_period', $today);
 
-        $chartPeriodLabel = self::PERIOD_LABELS[$chartPeriod];
+            [$stockPeriod, $stockPeriodStart, $stockPeriodEnd, $stockPeriodCaption] =
+                $this->resolvePeriod($request, 'stock_period', $today);
+
+            [$locationPeriod, $locationPeriodStart, $locationPeriodEnd, $locationPeriodCaption] =
+                $this->resolvePeriod($request, 'location_period', $today);
+
+            [$chartPeriod, $chartPeriodStart, $chartPeriodEnd] =
+                $this->resolvePeriod($request, 'chart_period', $today);
+
+            $chartPeriodLabel = self::PERIOD_LABELS[$chartPeriod];
+        }
 
         // ============================================================
         // 1. KARTU RINGKASAN (Staging In / Staging Out / Stok / Lokasi)
@@ -155,7 +196,7 @@ class DashboardController extends Controller
         $stagingOutStatus = [
             'menunggu_picking' => StagingOut::whereNull('picking_date')->count(),
             'siap_kirim' => StagingOut::whereNotNull('picking_date')->whereNull('delivery_date')->count(),
-            'terlambat' => StagingOut::whereDate('delivery_instruction_date', '<', $today)->whereNull('delivery_date')->count(),
+            'total_so' => StagingOut::count(),
             'selesai' => StagingOut::whereNotNull('delivery_date')->count(),
         ];
 
@@ -321,6 +362,7 @@ class DashboardController extends Controller
         ];
 
         return view('dashboard', compact(
+            'hasGlobalFilter', 'filterType', 'filterDate', 'filterStartDate', 'filterEndDate', 'filterCaption',
             'stagingInPeriod', 'stagingInPeriodCaption',
             'stagingOutPeriod', 'stagingOutPeriodCaption',
             'stockPeriod', 'stockPeriodCaption',
@@ -343,6 +385,55 @@ class DashboardController extends Controller
     private function stagingInBase()
     {
         return StagingIn::query();
+    }
+
+    /**
+     * Resolve filter tanggal global di bagian atas dashboard (satuan atau
+     * rentang). Mengembalikan [start, end, caption] kalau filter valid &
+     * lengkap diisi, atau null kalau filter tidak aktif/tidak valid
+     * (sehingga dashboard fallback ke filter periode per kartu seperti
+     * biasa).
+     */
+    private function resolveGlobalDateFilter(Request $request): ?array
+    {
+        $type = $request->get('filter_type');
+
+        if ($type === 'single' && $request->filled('filter_date')) {
+            try {
+                $date = Carbon::parse($request->get('filter_date'))->startOfDay();
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            return [
+                $date->copy(),
+                $date->copy()->endOfDay(),
+                $date->translatedFormat('d M Y'),
+            ];
+        }
+
+        if ($type === 'range' && $request->filled('filter_start_date') && $request->filled('filter_end_date')) {
+            try {
+                $start = Carbon::parse($request->get('filter_start_date'))->startOfDay();
+                $end = Carbon::parse($request->get('filter_end_date'))->endOfDay();
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            // Kalau user kebalik isi dari/sampai tanggal, tukar otomatis
+            // supaya query tetap jalan dan hasilnya tetap masuk akal.
+            if ($start->gt($end)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+
+            $caption = $start->isSameDay($end)
+                ? $start->translatedFormat('d M Y')
+                : $start->translatedFormat('d M Y').' - '.$end->translatedFormat('d M Y');
+
+            return [$start, $end, $caption];
+        }
+
+        return null;
     }
 
     /**

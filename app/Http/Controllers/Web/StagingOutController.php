@@ -7,10 +7,14 @@ use App\Exports\StagingOutTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StagingOutImport;
 use App\Models\Item;
+use App\Models\LocationStock;
 use App\Models\StagingOut;
+use App\Models\StockMutation;
 use App\Services\StagingOutHistoryService;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -90,8 +94,18 @@ class StagingOutController extends Controller
             $query->where('staging_outs.customer', $request->customer);
         }
 
+        // 2b. Lokasi (staging/packing/outbound). Nilai "belum_diisi" dipakai
+        //     untuk mencari baris yang lokasinya masih kosong.
+        if ($request->filled('staging_location')) {
+            if ($request->staging_location === 'belum_diisi') {
+                $query->whereNull('staging_outs.staging_location');
+            } elseif (in_array($request->staging_location, ['staging', 'packing', 'outbound'])) {
+                $query->where('staging_outs.staging_location', $request->staging_location);
+            }
+        }
+
         // 3. Rentang tanggal — HANYA satu kolom, sesuai date_type yang dipilih
-        $dateColumn = in_array($request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date'])
+        $dateColumn = in_array($request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date', 'delivery_receipt_date'])
             ? $request->date_type
             : 'delivery_instruction_date';
 
@@ -152,6 +166,14 @@ class StagingOutController extends Controller
 
             ->orderColumn('customer', 'staging_outs.customer $1')
 
+            // Badge kecil supaya kelihatan mana entry "stok" vs "eksternal"
+            // langsung dari kolom kode barang, tanpa nambah kolom baru.
+            ->editColumn('source_type', function ($row) {
+                return $row->source_type === 'stock'
+                    ? '<span class="badge bg-info-subtle text-info">Stok</span>'
+                    : '<span class="badge bg-secondary-subtle text-secondary">Eksternal</span>';
+            })
+
             ->editColumn('delivery_instruction_date', function ($row) {
                 return optional($row->delivery_instruction_date)->format('d M Y');
             })
@@ -166,6 +188,11 @@ class StagingOutController extends Controller
                 <button type="button"
                     class="btn btn-sm btn-confirm-picking btnConfirmPicking"
                     data-id="'.$row->id.'"
+                    data-source-type="'.e($row->source_type).'"
+                    data-item-id="'.e($row->item_id).'"
+                    data-location-id="'.e($row->location_id).'"
+                    data-qty="'.e($row->qty).'"
+                    data-lot="'.e($row->lot).'"
                     data-bs-toggle="modal"
                     data-bs-target="#confirmPickingModal">
 
@@ -175,6 +202,38 @@ class StagingOutController extends Controller
                     </svg>
                     Konfirmasi Picking
                 </button>';
+            })
+
+            // Lokasi (staging/packing/outbound): hanya bisa diubah langsung
+            // dari select di baris tabel, dan hanya muncul setelah picking
+            // sudah dikonfirmasi (picking_date terisi). Warnanya mengikuti
+            // status yang dipilih (lihat class loc-* di CSS blade).
+            ->editColumn('staging_location', function ($row) {
+
+                if (! $row->picking_date) {
+                    return '-';
+                }
+
+                $options = [
+                    '' => ['label' => '- Pilih -', 'class' => 'loc-empty'],
+                    'staging' => ['label' => '🟡 Staging', 'class' => 'loc-staging'],
+                    'packing' => ['label' => '🔵 Packing', 'class' => 'loc-packing'],
+                    'outbound' => ['label' => '🟢 Outbound', 'class' => 'loc-outbound'],
+                ];
+
+                $current = $row->staging_location ?? '';
+                $currentClass = $options[$current]['class'] ?? 'loc-empty';
+
+                $html = '<select class="form-select form-select-sm select-staging-location '.$currentClass.'" data-id="'.$row->id.'">';
+
+                foreach ($options as $value => $opt) {
+                    $selected = $current === $value ? ' selected' : '';
+                    $html .= '<option value="'.$value.'" data-class="'.$opt['class'].'"'.$selected.'>'.$opt['label'].'</option>';
+                }
+
+                $html .= '</select>';
+
+                return $html;
             })
 
             ->editColumn('delivery_date', function ($row) {
@@ -187,6 +246,11 @@ class StagingOutController extends Controller
                 <button type="button"
                     class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
                     data-id="'.$row->id.'"
+                    data-source-type="'.e($row->source_type).'"
+                    data-item-id="'.e($row->item_id).'"
+                    data-location-id="'.e($row->location_id).'"
+                    data-qty="'.e($row->qty).'"
+                    data-lot="'.e($row->lot).'"
                     data-bs-toggle="modal"
                     data-bs-target="#confirmDeliveryModal">
 
@@ -200,6 +264,10 @@ class StagingOutController extends Controller
 
             ->editColumn('do_number', function ($row) {
                 return $row->do_number ?: '-';
+            })
+
+            ->editColumn('delivery_receipt_date', function ($row) {
+                return optional($row->delivery_receipt_date)->format('d M Y') ?: '-';
             })
 
             ->addColumn('action', function ($row) {
@@ -248,12 +316,44 @@ class StagingOutController extends Controller
             ->rawColumns([
                 'checkbox',
                 'item_code',
+                'source_type',
                 'picking_date',
+                'staging_location',
                 'delivery_date',
                 'action',
             ])
 
             ->make(true);
+    }
+
+    /**
+     * Update kolom staging_location (staging/packing/outbound) saja, dipicu
+     * dari select langsung di baris tabel. Tidak lewat modal tambah/edit,
+     * dan hanya boleh diubah kalau picking_date sudah terisi.
+     */
+    public function updateLocation(Request $request, StagingOut $stagingOut)
+    {
+        $validated = $request->validate([
+            'staging_location' => ['nullable', 'in:staging,packing,outbound'],
+        ], [
+            'staging_location.in' => 'Lokasi tidak valid.',
+        ]);
+
+        if (! $stagingOut->picking_date) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lokasi hanya bisa diubah setelah tanggal picking diisi.',
+            ], 422);
+        }
+
+        $stagingOut->update([
+            'staging_location' => $validated['staging_location'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lokasi berhasil diperbarui.',
+        ]);
     }
 
     /**
@@ -285,6 +385,63 @@ class StagingOutController extends Controller
                 ];
             })
         );
+    }
+
+    /**
+     * Untuk source_type = stock: daftar lokasi yang PUNYA stok (qty > 0)
+     * dari item yang dipilih. Dipakai TomSelect "Lokasi" pada modal
+     * tambah/edit staging out.
+     */
+    public function searchLocationForItem(Request $request)
+    {
+        $request->validate([
+            'item_id' => ['required', 'exists:items,id'],
+        ]);
+
+        $locations = LocationStock::with('location')
+            ->where('item_id', $request->item_id)
+            ->where('quantity', '>', 0)
+            ->get()
+            ->groupBy('location_id')
+            ->map(function ($rows) {
+                $first = $rows->first();
+
+                return [
+                    'id' => $first->location_id,
+                    'text' => optional($first->location)->location_name ?? ('Lokasi #'.$first->location_id),
+                    'total_quantity' => (float) $rows->sum('quantity'),
+                ];
+            })
+            ->values();
+
+        return response()->json($locations);
+    }
+
+    /**
+     * Untuk source_type = stock: daftar lot (beserta sisa qty) dari
+     * kombinasi item + lokasi yang sudah dipilih. Dipakai TomSelect "Lot".
+     */
+    public function searchLotForItemLocation(Request $request)
+    {
+        $request->validate([
+            'item_id' => ['required', 'exists:items,id'],
+            'location_id' => ['required', 'exists:locations,id'],
+        ]);
+
+        $lots = LocationStock::where('item_id', $request->item_id)
+            ->where('location_id', $request->location_id)
+            ->where('quantity', '>', 0)
+            ->orderBy('lot')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'id' => $row->lot ?? '',
+                    'text' => $row->lot ?: '(Tanpa Lot)',
+                    'quantity' => (float) $row->quantity,
+                ];
+            });
+
+        return response()->json($lots);
     }
 
     public function template()
@@ -337,27 +494,206 @@ class StagingOutController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Aturan validasi dasar untuk store/update. Validasi tambahan yang
+     * bergantung pada source_type ditangani lewat Validator::after() di
+     * masing-masing method, supaya pesan errornya spesifik.
      */
-    public function store(Request $request)
+    protected function baseValidationRules(): array
     {
-        $validated = $request->validate([
+        return [
             'so_number' => ['nullable', 'max:255'],
             'customer' => ['nullable', 'max:255'],
+            'source_type' => ['required', 'in:external,stock'],
             'item_id' => ['nullable', 'exists:items,id'],
             'line_item' => ['nullable', 'max:255'],
             'qty' => ['nullable', 'integer', 'min:0'],
+            'location_id' => ['nullable', 'exists:locations,id'],
+            'lot' => ['nullable', 'max:255'],
             'delivery_instruction_date' => ['nullable', 'date'],
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
             'delivery_date' => ['nullable', 'date'],
-        ], [
-            'item_id.exists' => 'Barang tidak ditemukan',
+            'delivery_receipt_date' => ['nullable', 'date'],
+        ];
+    }
+
+    /**
+     * Validasi tambahan khusus source_type = stock: item, lokasi, dan qty
+     * wajib diisi, dan qty tidak boleh melebihi qty yang tersedia di
+     * location_stock untuk kombinasi item/lokasi/lot yang dipilih.
+     *
+     * $current dipakai saat update, supaya qty yang SEDANG dipakai staging
+     * out itu sendiri ikut dihitung balik sebagai stok "tersedia" (karena
+     * nanti mutasi lamanya akan di-reverse dulu sebelum diterapkan ulang).
+     */
+    protected function validateStockAvailability(ValidatorContract $validator, Request $request, ?StagingOut $current = null): void
+    {
+        $validator->after(function ($validator) use ($request, $current) {
+            if ($request->source_type !== 'stock') {
+                return;
+            }
+
+            if (! $request->filled('item_id')) {
+                $validator->errors()->add('item_id', 'Barang wajib dipilih untuk sumber stok.');
+            }
+
+            if (! $request->filled('location_id')) {
+                $validator->errors()->add('location_id', 'Lokasi wajib dipilih untuk sumber stok.');
+            }
+
+            if (! $request->filled('qty') || (int) $request->qty < 1) {
+                $validator->errors()->add('qty', 'Qty wajib diisi dan lebih dari 0 untuk sumber stok.');
+            }
+
+            if (! $request->filled('item_id') || ! $request->filled('location_id') || ! $request->filled('qty')) {
+                return;
+            }
+
+            $stock = LocationStock::where('item_id', $request->item_id)
+                ->where('location_id', $request->location_id)
+                ->where('lot', $request->lot ?: null)
+                ->first();
+
+            $available = (float) optional($stock)->quantity;
+
+            // Saat edit, staging out ini sendiri masih "menahan" qty lama di
+            // kombinasi item/lokasi/lot yang SAMA — qty itu perlu dianggap
+            // tersedia lagi karena mutasi lamanya akan direverse dulu.
+            if ($current
+                && $current->source_type === 'stock'
+                && $current->item_id == $request->item_id
+                && $current->location_id == $request->location_id
+                && $current->lot == ($request->lot ?: null)
+            ) {
+                $available += (float) $current->qty;
+            }
+
+            if ((float) $request->qty > $available) {
+                $validator->errors()->add(
+                    'qty',
+                    'Qty melebihi stok yang tersedia. Sisa stok: '.rtrim(rtrim(number_format($available, 2, '.', ''), '0'), '.')
+                );
+            }
+        });
+    }
+
+    /**
+     * Ambil baris location_stock untuk kombinasi item/lokasi/lot, dikunci
+     * (lockForUpdate) supaya aman dari race condition saat dua staging out
+     * dibuat/diubah bersamaan untuk stok yang sama.
+     */
+    protected function lockLocationStock(int $itemId, int $locationId, ?string $lot)
+    {
+        return LocationStock::query()
+            ->where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot)
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * Kurangi qty di location_stock lalu catat sebagai qty_out di
+     * stock_mutations. Dipanggil saat staging out (source_type = stock)
+     * dibuat, atau saat diedit dan datanya masih/menjadi sumber stok.
+     */
+    protected function applyStockOut(StagingOut $stagingOut): void
+    {
+        $stock = $this->lockLocationStock((int) $stagingOut->item_id, (int) $stagingOut->location_id, $stagingOut->lot ?: null);
+
+        if (! $stock || (float) $stock->quantity < (float) $stagingOut->qty) {
+            throw new \RuntimeException('Stok tidak mencukupi untuk item/lokasi/lot yang dipilih.');
+        }
+
+        $stock->quantity = (float) $stock->quantity - (float) $stagingOut->qty;
+        $stock->save();
+
+        StockMutation::create([
+            'item_id' => $stagingOut->item_id,
+            'location_id' => $stagingOut->location_id,
+            'lot' => $stagingOut->lot,
+            'transaction_date' => $stagingOut->delivery_date
+                ?? $stagingOut->picking_date
+                ?? $stagingOut->delivery_instruction_date
+                ?? now(),
+            'transaction_number' => $stagingOut->so_number,
+            'description' => 'Staging Out #'.$stagingOut->id.($stagingOut->customer ? ' - '.$stagingOut->customer : ''),
+            'qty_in' => 0,
+            'qty_out' => $stagingOut->qty,
+            'qty_balance' => $stock->quantity,
         ]);
+    }
+
+    /**
+     * Kebalikan dari applyStockOut(): mengembalikan qty ke location_stock
+     * dan mencatatnya sebagai qty_in di stock_mutations. Dipanggil saat
+     * staging out (yang sumbernya stock) diedit datanya atau dihapus.
+     */
+    protected function reverseStockOut(StagingOut $stagingOut): void
+    {
+        if (! $stagingOut->item_id || ! $stagingOut->location_id) {
+            return;
+        }
+
+        $stock = $this->lockLocationStock((int) $stagingOut->item_id, (int) $stagingOut->location_id, $stagingOut->lot ?: null);
+
+        if (! $stock) {
+            $stock = LocationStock::create([
+                'item_id' => $stagingOut->item_id,
+                'location_id' => $stagingOut->location_id,
+                'lot' => $stagingOut->lot,
+                'opening_balance' => 0,
+                'quantity' => 0,
+            ]);
+        }
+
+        $stock->quantity = (float) $stock->quantity + (float) $stagingOut->qty;
+        $stock->save();
+
+        StockMutation::create([
+            'item_id' => $stagingOut->item_id,
+            'location_id' => $stagingOut->location_id,
+            'lot' => $stagingOut->lot,
+            'transaction_date' => now(),
+            'transaction_number' => $stagingOut->so_number,
+            'description' => 'Pembatalan/Perubahan Staging Out #'.$stagingOut->id,
+            'qty_in' => $stagingOut->qty,
+            'qty_out' => 0,
+            'qty_balance' => $stock->quantity,
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), $this->baseValidationRules(), [
+            'item_id.exists' => 'Barang tidak ditemukan',
+            'location_id.exists' => 'Lokasi tidak ditemukan',
+            'source_type.required' => 'Sumber barang wajib dipilih',
+            'source_type.in' => 'Sumber barang tidak valid',
+        ]);
+
+        $this->validateStockAvailability($validator, $request);
+
+        $validated = $validator->validate();
+
+        // Barang eksternal tidak menyentuh stok — kosongkan lokasi/lot
+        // biar tidak ada data nyasar walaupun user sempat mengisinya lalu
+        // ganti pilihan ke "Eksternal".
+        if ($validated['source_type'] === 'external') {
+            $validated['location_id'] = null;
+            $validated['lot'] = null;
+        }
 
         try {
             DB::transaction(function () use ($validated) {
                 $staging = StagingOut::create($validated);
+
+                if ($staging->source_type === 'stock') {
+                    $this->applyStockOut($staging);
+                }
 
                 $this->history->logCreated($staging);
             });
@@ -386,15 +722,19 @@ class StagingOutController extends Controller
             'id' => $stagingOut->id,
             'so_number' => $stagingOut->so_number,
             'customer' => $stagingOut->customer,
+            'source_type' => $stagingOut->source_type,
             'item_id' => $stagingOut->item_id,
             'item_code' => optional($stagingOut->item)->item_code_internal,
             'item_name' => optional($stagingOut->item)->name,
+            'location_id' => $stagingOut->location_id,
+            'lot' => $stagingOut->lot,
             'line_item' => $stagingOut->line_item,
             'qty' => $stagingOut->qty,
             'delivery_instruction_date' => optional($stagingOut->delivery_instruction_date)->format('Y-m-d'),
             'picking_date' => optional($stagingOut->picking_date)->format('Y-m-d'),
             'do_number' => $stagingOut->do_number,
             'delivery_date' => optional($stagingOut->delivery_date)->format('Y-m-d'),
+            'delivery_receipt_date' => optional($stagingOut->delivery_receipt_date)->format('Y-m-d'),
         ]);
     }
 
@@ -403,19 +743,21 @@ class StagingOutController extends Controller
      */
     public function update(Request $request, StagingOut $stagingOut)
     {
-        $validated = $request->validate([
-            'so_number' => ['nullable', 'max:255'],
-            'customer' => ['nullable', 'max:255'],
-            'item_id' => ['nullable', 'exists:items,id'],
-            'line_item' => ['nullable', 'max:255'],
-            'qty' => ['nullable', 'integer', 'min:0'],
-            'delivery_instruction_date' => ['nullable', 'date'],
-            'picking_date' => ['nullable', 'date'],
-            'do_number' => ['nullable', 'max:255'],
-            'delivery_date' => ['nullable', 'date'],
-        ], [
+        $validator = Validator::make($request->all(), $this->baseValidationRules(), [
             'item_id.exists' => 'Barang tidak ditemukan',
+            'location_id.exists' => 'Lokasi tidak ditemukan',
+            'source_type.required' => 'Sumber barang wajib dipilih',
+            'source_type.in' => 'Sumber barang tidak valid',
         ]);
+
+        $this->validateStockAvailability($validator, $request, $stagingOut);
+
+        $validated = $validator->validate();
+
+        if ($validated['source_type'] === 'external') {
+            $validated['location_id'] = null;
+            $validated['lot'] = null;
+        }
 
         try {
             $justDelivered = DB::transaction(function () use ($validated, $stagingOut) {
@@ -430,7 +772,23 @@ class StagingOutController extends Controller
                     && array_key_exists('delivery_date', $validated)
                     && ! is_null($validated['delivery_date']);
 
+                // Jika baris ini SEBELUMNYA memotong stok, kembalikan dulu
+                // qty-nya sebelum diupdate — supaya perubahan qty/lokasi/lot
+                // (atau ganti jadi "external") tidak meninggalkan stok yang
+                // sudah telanjur terpotong tapi tidak lagi tercatat di sini.
+                $wasStock = $stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id;
+
+                if ($wasStock) {
+                    $this->reverseStockOut($stagingOut);
+                }
+
                 $stagingOut->update($validated);
+
+                // Terapkan lagi pemotongan stok dengan data yang baru, kalau
+                // baris ini (masih/menjadi) bersumber dari stok.
+                if ($stagingOut->source_type === 'stock') {
+                    $this->applyStockOut($stagingOut);
+                }
 
                 $this->history->logUpdated($stagingOut, $changes);
 
@@ -467,6 +825,13 @@ class StagingOutController extends Controller
     {
         try {
             DB::transaction(function () use ($stagingOut) {
+                // Batalkan staging out yang sumbernya stok berarti barangnya
+                // batal keluar — kembalikan qty ke location_stock dulu
+                // sebelum baris ini dihapus.
+                if ($stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id) {
+                    $this->reverseStockOut($stagingOut);
+                }
+
                 // Catat history SEBELUM baris aslinya benar-benar hilang.
                 $this->history->logDeleted($stagingOut);
 
@@ -500,6 +865,12 @@ class StagingOutController extends Controller
                 // Load dulu baris-barisnya SEBELUM dihapus — logBulkDeleted()
                 // butuh data aslinya (qty, dst), bukan cuma ID.
                 $stagings = StagingOut::whereIn('id', $request->ids)->get();
+
+                foreach ($stagings as $staging) {
+                    if ($staging->source_type === 'stock' && $staging->item_id && $staging->location_id) {
+                        $this->reverseStockOut($staging);
+                    }
+                }
 
                 $this->history->logBulkDeleted($stagings);
 

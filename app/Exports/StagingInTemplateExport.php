@@ -24,7 +24,6 @@ class StagingInTemplateExport implements WithHeadings
             'Nama Barang',
             'Qty',
             'Lokasi',
-            'Lot',
             'Keterangan',
             'Status',
         ];
@@ -33,7 +32,7 @@ class StagingInTemplateExport implements WithHeadings
     public function array():array
     {
         return[
-            ['','','','','','','','','','','',''],
+            ['','','','','','','','','','',''],
         ];
     }
 
@@ -41,7 +40,7 @@ class StagingInTemplateExport implements WithHeadings
     {
         return[
             AfterSheet::class=>function(AfterSheet $event){
-                foreach(['A','B','C','D','E','F','G','H','I','J','K','L'] as $column){
+                foreach(['A','B','C','D','E','F','G','H','I','J','K'] as $column){
                     $event->sheet->getDelegate()
                         ->getStyle($column . '2:'.$column.'1048576')
                         ->getNumberFormat()

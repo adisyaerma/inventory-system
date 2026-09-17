@@ -391,8 +391,6 @@
                         <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>Item Code Internal</th>
-                        <th>Item Code Supplier</th>
-                        <th>Item Code Customer</th>
                         <th>Nama Barang</th>
                         <th>Vendor</th>
                         <th>Deskripsi</th>
@@ -643,12 +641,6 @@
                         },
                         {
                             data: 'item_code_internal'
-                        },
-                        {
-                            data: 'item_code_supplier'
-                        },
-                        {
-                            data: 'item_code_customer'
                         },
                         {
                             data: 'name'

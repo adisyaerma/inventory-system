@@ -22,10 +22,17 @@ class LocationStockImport implements ToCollection, WithHeadingRow
      */
     public int $imported = 0;
 
+    /**
+     * Pesan untuk barang yang DILEWATI (tidak disimpan) karena
+     * item_code_internal-nya sudah ada di database.
+     */
+    public array $skipped = [];
+
     public function collection(Collection $rows)
     {
         $this->errors = [];
         $this->imported = 0;
+        $this->skipped = [];
 
         /*
          * Kolom Item Code Internal, Item Code Supplier, Item Code Customer,
@@ -47,21 +54,48 @@ class LocationStockImport implements ToCollection, WithHeadingRow
 
             try {
 
-                DB::transaction(function () use ($group, $firstRow) {
+                /*
+                 * ==========================================
+                 * VALIDASI DATA BARANG
+                 * ==========================================
+                 *
+                 * Hanya item_code_internal yang wajib diisi.
+                 * Nama barang boleh kosong (kolom name nullable).
+                 */
+                if (empty($firstRow['item_code_internal'])) {
+                    throw new \Exception(
+                        'Kode barang internal wajib diisi.'
+                    );
+                }
 
-                    /*
-                     * ==========================================
-                     * VALIDASI DATA BARANG
-                     * ==========================================
-                     */
-                    if (
-                        empty($firstRow['item_code_internal']) ||
-                        empty($firstRow['name'])
-                    ) {
-                        throw new \Exception(
-                            'Kode barang internal dan nama barang wajib diisi.'
-                        );
-                    }
+                $itemCodeInternal = trim($firstRow['item_code_internal']);
+
+                /*
+                 * ==========================================
+                 * CEK DUPLIKAT ITEM CODE INTERNAL
+                 * ==========================================
+                 *
+                 * Jika item_code_internal sudah ada di database,
+                 * barang (beserta location stock-nya) TIDAK disimpan
+                 * lagi. Baris/grup ini dilewati sepenuhnya.
+                 */
+                $existingItem = Item::whereRaw(
+                    'LOWER(item_code_internal) = ?',
+                    [strtolower($itemCodeInternal)]
+                )->first();
+
+                if ($existingItem) {
+
+                    $this->skipped[] =
+                        "Baris Excel {$excelRowLabel} dilewati.\n" .
+                        'Item Code : ' . $itemCodeInternal . "\n" .
+                        'Nama      : ' . ($firstRow['name'] ?? '-') . "\n" .
+                        'Alasan    : item_code_internal sudah ada di database, barang tidak disimpan ulang.';
+
+                    continue;
+                }
+
+                DB::transaction(function () use ($group, $firstRow, $itemCodeInternal) {
 
                     /*
                      * ==========================================
@@ -93,16 +127,16 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                      */
                     $item = Item::create([
                         'vendor_id' => $vendor?->id,
-                        'item_code_internal' => trim(
-                            $firstRow['item_code_internal']
-                        ),
+                        'item_code_internal' => $itemCodeInternal,
                         'item_code_supplier' => !empty($firstRow['item_code_supplier'])
                             ? trim($firstRow['item_code_supplier'])
                             : null,
                         'item_code_customer' => !empty($firstRow['item_code_customer'])
                             ? trim($firstRow['item_code_customer'])
                             : null,
-                        'name' => trim($firstRow['name']),
+                        'name' => !empty($firstRow['name'])
+                            ? trim($firstRow['name'])
+                            : null,
                         'description' => !empty($firstRow['description'])
                             ? trim($firstRow['description'])
                             : null,
@@ -225,14 +259,23 @@ class LocationStockImport implements ToCollection, WithHeadingRow
         /*
          * Barang yang valid tetap tersimpan meskipun ada
          * barang lain yang gagal.
+         *
+         * Barang yang DILEWATI karena duplikat ($this->skipped) itu
+         * NORMAL, bukan kegagalan -- jadi tidak pernah didaftar satu-
+         * satu di pesan ini, cukup jumlahnya saja. Controller tetap
+         * bisa membaca $this->skipped untuk detail lengkapnya kalau
+         * perlu. Hanya barang yang BENAR-BENAR gagal ($this->errors)
+         * yang membuat exception dilempar dan didetailkan di sini.
          */
         if (!empty($this->errors)) {
 
-            throw new \Exception(
+            $summary =
                 "Import selesai: {$this->imported} barang berhasil disimpan, "
-                . count($this->errors) . ' barang gagal.'
-                . "\n\n"
-                . implode("\n\n", $this->errors)
+                . count($this->skipped) . ' barang dilewati (sudah ada), '
+                . count($this->errors) . ' barang gagal.';
+
+            throw new \Exception(
+                $summary . "\n\n" . implode("\n\n", $this->errors)
             );
         }
     }
@@ -296,14 +339,27 @@ class LocationStockImport implements ToCollection, WithHeadingRow
      *
      * location => quantity
      *
-     * Contoh:
+     * Mendukung beberapa format:
      *
-     * 7-11-1 + 25
-     * => 7-11-1 : 25
+     * 1) Lokasi tunggal
+     *    7-11-1 + 25
+     *    => 7-11-1 : 25
      *
-     * 7-11/12-1 + 25
-     * => 7-11-1 : 13
-     * => 7-12-1 : 12
+     * 2) Lokasi bentuk singkat pakai "/" (dibagi rata dari kolom Quantity)
+     *    7-11/12-1 + 25
+     *    => 7-11-1 : 13
+     *    => 7-12-1 : 12
+     *
+     * 3) Beberapa lokasi dipisah koma, MASING-MASING punya quantity
+     *    sendiri di dalam kurung (kolom Quantity diabaikan untuk baris
+     *    ini karena tiap lokasi sudah eksplisit)
+     *    B7 (60ea), O2 (4ea)
+     *    => B7 : 60
+     *    => O2 : 4
+     *
+     * 4) Kode lokasi format RxPyLz (mis. dari sistem lain) dipetakan
+     *    ke format "r-p-l" yang dipakai di kolom location_name
+     *    R1P02L2 => 1-2-2
      */
     private function expandLocationsForRow(
         $locationRaw,
@@ -312,21 +368,7 @@ class LocationStockImport implements ToCollection, WithHeadingRow
 
         $locationRaw = trim((string) ($locationRaw ?? ''));
 
-        /*
-         * Konversi quantity
-         */
-        if (is_numeric($qtyRaw)) {
-
-            $qty = (float) $qtyRaw;
-
-        } else {
-
-            $qty = (float) str_replace(
-                ',',
-                '.',
-                trim((string) $qtyRaw)
-            );
-        }
+        $qty = $this->parseQuantity($qtyRaw);
 
         /*
          * Location kosong atau "-"
@@ -342,39 +384,180 @@ class LocationStockImport implements ToCollection, WithHeadingRow
         }
 
         /*
-         * Tidak ada "/"
+         * ==========================================
+         * PECAH BERDASARKAN KOMA
+         * ==========================================
+         *
+         * Tiap bagian BISA punya quantity sendiri di dalam kurung,
+         * misalnya "B7 (60ea)" atau "R2P14L3 (1)".
          */
-        if (!str_contains($locationRaw, '/')) {
+        $segments = array_map('trim', explode(',', $locationRaw));
+
+        $parsedSegments = [];
+        $hasExplicitQty = false;
+
+        foreach ($segments as $segment) {
+
+            if ($segment === '') {
+                continue;
+            }
+
+            $explicitQty = null;
+
+            // Cocokkan "<kode lokasi> (<quantity>...)" di akhir bagian.
+            if (preg_match('/^(.*?)\(([^)]*)\)\s*$/', $segment, $m)) {
+
+                $codePart = trim($m[1]);
+                $qtyPart = trim($m[2]);
+
+                // Ambil angka pertama dari isi kurung, mis. "60ea" => 60.
+                if (preg_match('/-?\d+(?:[.,]\d+)?/', $qtyPart, $qm)) {
+
+                    $explicitQty = (float) str_replace(
+                        ',',
+                        '.',
+                        $qm[0]
+                    );
+
+                    $hasExplicitQty = true;
+                }
+
+            } else {
+
+                $codePart = $segment;
+            }
+
+            if ($codePart === '') {
+                continue;
+            }
+
+            $parsedSegments[] = [
+                'code' => $codePart,
+                'qty' => $explicitQty,
+            ];
+        }
+
+        if (empty($parsedSegments)) {
 
             return [
                 [
-                    'location' => $locationRaw,
+                    'location' => 'Unlocated',
                     'quantity' => $qty,
                 ]
             ];
         }
 
-        /*
-         * Ada "/"
-         */
-        $locationNames = $this->expandSlashLocation($locationRaw);
-
-        $shares = $this->splitQuantity(
-            $qty,
-            count($locationNames)
-        );
-
         $result = [];
 
-        foreach ($locationNames as $i => $name) {
+        if ($hasExplicitQty) {
 
-            $result[] = [
-                'location' => $name,
-                'quantity' => $shares[$i],
-            ];
+            /*
+             * Minimal satu bagian punya quantity eksplisit di kurung.
+             * Setiap bagian dipakai apa adanya dengan quantity-nya
+             * masing-masing (bagian tanpa kurung dianggap 0, karena
+             * tidak ada dasar quantity yang jelas untuknya).
+             */
+            foreach ($parsedSegments as $segmentData) {
+
+                $segmentQty = $segmentData['qty'] ?? 0;
+
+                $expandedNames = $this->expandLocationCode(
+                    $segmentData['code']
+                );
+
+                $shares = $this->splitQuantity(
+                    $segmentQty,
+                    count($expandedNames)
+                );
+
+                foreach ($expandedNames as $i => $name) {
+
+                    $result[] = [
+                        'location' => $name,
+                        'quantity' => $shares[$i],
+                    ];
+                }
+            }
+
+        } else {
+
+            /*
+             * Tidak ada quantity eksplisit sama sekali -> perilaku lama,
+             * kolom Quantity dibagi rata ke semua lokasi hasil ekspansi.
+             */
+            $allNames = [];
+
+            foreach ($parsedSegments as $segmentData) {
+
+                foreach ($this->expandLocationCode($segmentData['code']) as $name) {
+                    $allNames[] = $name;
+                }
+            }
+
+            $shares = $this->splitQuantity(
+                $qty,
+                count($allNames)
+            );
+
+            foreach ($allNames as $i => $name) {
+
+                $result[] = [
+                    'location' => $name,
+                    'quantity' => $shares[$i],
+                ];
+            }
         }
 
         return $result;
+    }
+
+    /**
+     * Ubah SATU kode lokasi (tanpa quantity) menjadi satu atau
+     * beberapa nama lokasi final yang disimpan di location_name.
+     *
+     * - Format RxPyLz (mis. R1P02L2) => "r-p-l" (leading zero dibuang)
+     *   R1P02L2  => 1-2-2
+     *   R2P14L3  => 2-14-3
+     * - Mengandung "/" => dipecah lewat expandSlashLocation()
+     * - Selain itu dipakai apa adanya (mis. B7, O2, F3)
+     */
+    private function expandLocationCode(string $code): array
+    {
+        $code = trim($code);
+
+        if ($code === '' || $code === '-') {
+            return ['Unlocated'];
+        }
+
+        if (preg_match('/^R(\d+)P(\d+)L(\d+)$/i', $code, $m)) {
+
+            return [
+                ((int) $m[1]) . '-' . ((int) $m[2]) . '-' . ((int) $m[3])
+            ];
+        }
+
+        if (str_contains($code, '/')) {
+            return $this->expandSlashLocation($code);
+        }
+
+        return [$code];
+    }
+
+    /**
+     * Parse nilai quantity mentah dari Excel menjadi float.
+     * Mendukung koma sebagai pemisah desimal.
+     */
+    private function parseQuantity($qtyRaw): float
+    {
+        if (is_numeric($qtyRaw)) {
+            return (float) $qtyRaw;
+        }
+
+        return (float) str_replace(
+            ',',
+            '.',
+            trim((string) $qtyRaw)
+        );
     }
 
     /**

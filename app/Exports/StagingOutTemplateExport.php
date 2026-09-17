@@ -23,7 +23,7 @@ class StagingOutTemplateExport implements WithHeadings
             'Tgl Instruksi Kirim',
             'Tgl Picking',
             'No. DO',
-            'Tgl Kirim',
+            'Tgl Resi Pengiriman',
         ];
     }
 

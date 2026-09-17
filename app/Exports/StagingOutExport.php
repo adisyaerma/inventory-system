@@ -30,8 +30,7 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             'Tgl Instruksi Kirim',
             'Tgl Picking',
             'No. DO',
-            'Tgl Kirim',
-        ];
+            'Tgl Resi Pengiriman',];
     }
 
     public function array(): array
@@ -68,6 +67,14 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
             $query->whereDate('delivery_instruction_date', '<', now())->whereNull('delivery_date');
         }
 
+        if ($this->request->filled('staging_location')) {
+            if ($this->request->staging_location === 'belum_diisi') {
+                $query->whereNull('staging_outs.staging_location');
+            } elseif (in_array($this->request->staging_location, ['staging', 'packing', 'outbound'])) {
+                $query->where('staging_outs.staging_location', $this->request->staging_location);
+            }
+        }
+
         if ($this->request->filled('search')) {
             $search = $this->request->search;
 
@@ -96,7 +103,7 @@ class StagingOutExport implements FromArray, WithEvents, WithHeadings
                 optional($staging->delivery_instruction_date)->format('d/m/Y'),
                 optional($staging->picking_date)->format('d/m/Y'),
                 $staging->do_number,
-                optional($staging->delivery_date)->format('d/m/Y'),
+                optional($staging->delivery_receipt_date)->format('d/m/Y'),
             ];
         }
 

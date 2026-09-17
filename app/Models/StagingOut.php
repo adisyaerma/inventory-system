@@ -19,12 +19,18 @@ class StagingOut extends Model
         'picking_date',
         'do_number',
         'delivery_date',
+        'source_type',
+        'location_id',
+        'lot',
+        'delivery_receipt_date',
+        'staging_location',
     ];
 
     protected $casts = [
         'delivery_instruction_date' => 'date',
         'picking_date' => 'date',
         'delivery_date' => 'date',
+        'delivery_receipt_date' => 'date',
     ];
 
     public function item()

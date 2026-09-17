@@ -13,15 +13,35 @@ return new class extends Migration
     {
         Schema::create('staging_outs', function (Blueprint $table) {
             $table->id();
+
             $table->string('so_number')->nullable();
             $table->string('customer')->nullable();
-            $table->foreignId('item_id')->nullable()->constrained('items')->nullOnDelete();
+
+            $table->foreignId('item_id')
+                ->nullable()
+                ->constrained('items')
+                ->nullOnDelete();
+
             $table->string('line_item')->nullable();
             $table->integer('qty')->nullable();
+
+            $table->enum('source_type', ['external', 'stock'])
+                ->default('external');
+
+            // Hanya untuk source_type = stock
+            $table->foreignId('location_id')
+                ->nullable()
+                ->constrained('locations')
+                ->nullOnDelete();
+
+            $table->string('lot')->nullable();
+
             $table->date('delivery_instruction_date')->nullable();
             $table->date('picking_date')->nullable();
+
             $table->string('do_number')->nullable();
             $table->date('delivery_date')->nullable();
+
             $table->timestamps();
         });
     }

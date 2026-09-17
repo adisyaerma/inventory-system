@@ -19,9 +19,6 @@ class StagingIn extends Model
         'notes',
         'status',
         'incoterms',
-        'warehouse_location_id',
-        'stock_mutation_id',
-        'lot',
     ];
 
     protected $casts = [

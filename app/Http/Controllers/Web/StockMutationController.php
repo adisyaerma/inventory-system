@@ -58,8 +58,12 @@ class StockMutationController extends Controller
 
             // ================= GABUNGAN KODE + NAMA BARANG =================
             ->addColumn('barang', function ($row) {
-                return '<div class="fw-bold">'.e($row->item->item_code_internal).'</div>'
-                     .'<div class="text-muted small">'.e($row->item->name).'</div>';
+                $url = route('item-history.show', $row->item_id);
+
+                return '<a href="'.$url.'" class="text-decoration-none text-dark">'
+                     .'<div class="fw-bold">'.e($row->item->item_code_internal).'</div>'
+                     .'<div class="text-muted small">'.e($row->item->name).'</div>'
+                     .'</a>';
             })
 
             ->filterColumn('barang', function ($query, $keyword) {

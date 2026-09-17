@@ -14,6 +14,8 @@ use App\Http\Controllers\Web\StagingOutHistoryController;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\ItemHistoryController;
+
 
 // ===locations===
 
@@ -219,6 +221,11 @@ Route::get('stagings-in/item-locations', [StagingInController::class, 'itemLocat
 
 Route::get('stagings-in/lots', [StagingInController::class, 'lots'])->name('stagings-in.lots');
 
+Route::patch('stagings-in/{staging}/location', [StagingInController::class, 'updateLocation'])
+    ->name('stagings-in.update-location');
+
+Route::get('stagings-in/location-lots', [StagingInController::class, 'locationLots'])
+    ->name('stagings-in.location-lots');
 // ===staging out===
 
 Route::get('/stagings-out/data', [StagingOutController::class, 'data'])
@@ -252,6 +259,12 @@ Route::get('stagings-out/export', [StagingOutController::class, 'export'])->name
 
 Route::get('stagings-out/search-stock', [StagingOutController::class, 'searchStock'])->name('stagings-out.search-stock');
 
+Route::get('stagings-out/search-location-for-item', [StagingOutController::class, 'searchLocationForItem'])->name('stagings-out.search-location-for-item');
+Route::get('stagings-out/search-lot-for-item-location', [StagingOutController::class, 'searchLotForItemLocation'])->name('stagings-out.search-lot-for-item-location');
+
+Route::patch('stagings-out/{stagingOut}/location', [StagingOutController::class, 'updateLocation'])
+    ->name('stagings-out.update-location');
+    
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::get('stagings-in-history', [StagingInHistoryController::class, 'index'])->name('stagings-in-history.index');
@@ -265,3 +278,12 @@ Route::prefix('stagings-out-history')->name('stagings-out-history.')->group(func
     Route::get('/export', [StagingOutHistoryController::class, 'export'])->name('export');
     Route::get('/{history}/detail', [StagingOutHistoryController::class, 'detail'])->name('detail');
 });
+
+Route::prefix('item-history')->name('item-history.')->group(function () {
+    Route::get('/', [ItemHistoryController::class, 'index'])->name('index');
+    Route::get('/data', [ItemHistoryController::class, 'data'])->name('data');
+    Route::get('/{item}', [ItemHistoryController::class, 'show'])->name('show');
+    Route::get('/{item}/timeline', [ItemHistoryController::class, 'timeline'])->name('timeline');
+    Route::get('/{item}/export', [ItemHistoryController::class, 'export'])->name('export');
+});
+ 

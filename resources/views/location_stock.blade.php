@@ -687,6 +687,7 @@
                         <th>No</th>
                         <th>Item Code Internal</th>
                         <th>Nama Barang</th>
+                        <th>Deskripsi</th>
                         <th>Vendor</th>
                         <th>Lokasi / Lot / Qty</th>
                         <th>Aksi</th>
@@ -971,6 +972,9 @@
                             data: 'name'
                         },
                         {
+                            data: 'description'
+                        },
+                        {
                             data: 'vendor'
                         },
                         {
@@ -991,6 +995,10 @@
 
                     columnDefs: [{
                         targets: 3,
+                        width: "250px",
+                        className: "text-wrap"
+                    }, {
+                        targets: 4,
                         width: "250px",
                         className: "text-wrap"
                     }],

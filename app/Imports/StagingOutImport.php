@@ -120,12 +120,15 @@ class StagingOutImport implements ToCollection, WithHeadingRow
             $qty = $this->parseQty($row['qty'] ?? null);
             $deliveryInstructionDate = $this->parseDate($row['tgl_instruksi_kirim'] ?? null);
             $pickingDate = $this->parseDate($row['tgl_picking'] ?? null);
-            $deliveryDate = $this->parseDate($row['tgl_kirim'] ?? null);
+            // Kolom "Tgl Resi Pengiriman" di file Excel dipetakan ke
+            // delivery_receipt_date. delivery_date sendiri memang tidak
+            // diisi lewat import sama sekali.
+            $deliveryReceiptDate = $this->parseDate($row['tgl_resi_pengiriman'] ?? null);
 
             if ($soNumber === null && $customer === null && $itemCode === null
                 && $lineItem === null && $doNumber === null && $qty === 0
                 && $deliveryInstructionDate === null && $pickingDate === null
-                && $deliveryDate === null) {
+                && $deliveryReceiptDate === null) {
                 continue;
             }
 
@@ -146,20 +149,19 @@ class StagingOutImport implements ToCollection, WithHeadingRow
                     'delivery_instruction_date' => $deliveryInstructionDate,
                     'picking_date' => $pickingDate,
                     'do_number' => $doNumber,
-                    'delivery_date' => $deliveryDate,
+                    'delivery_receipt_date' => $deliveryReceiptDate,
                 ]);
 
                 $this->history->logCreated($staging);
 
-                // Baris yang tanggal kirimnya SUDAH terisi di file Excel dianggap
-                // sudah selesai/terkirim sejak awal — tidak boleh nongkrong di
-                // tabel aktif staging_outs, cukup jejaknya saja yang tersimpan
-                // di history (log dulu baru dihapus, supaya history tetap utuh).
-                if ($deliveryDate !== null) {
-                    $this->history->logDeleted($staging);
-
-                    $staging->delete();
-                }
+                // Catatan: dulu ada logika yang otomatis menganggap baris
+                // "sudah selesai" (lalu dipindah ke history & dihapus dari
+                // tabel aktif) begitu tanggal kirim di Excel terisi. Sekarang
+                // TIDAK LAGI berlaku untuk delivery_receipt_date — resi
+                // pengiriman terisi bukan berarti pengirimannya sudah
+                // dikonfirmasi (delivery_date). Baris tetap disimpan di
+                // tabel aktif staging_outs sampai delivery_date-nya sendiri
+                // dikonfirmasi lewat menu konfirmasi kirim.
 
                 $this->imported++;
 

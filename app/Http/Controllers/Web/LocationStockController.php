@@ -2,23 +2,20 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exports\LocationStockExport;
+use App\Exports\LocationStockTemplateExport;
 use App\Http\Controllers\Controller;
+use App\Imports\LocationStockImport;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\Vendor;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\LocationStockExport;
-use App\Exports\LocationStockTemplateExport;
-use App\Imports\LocationStockImport;
-use Illuminate\Database\QueryException;
 use Maatwebsite\Excel\Validators\ValidationException;
-
-
-
+use Yajra\DataTables\Facades\DataTables;
 
 class LocationStockController extends Controller
 {
@@ -102,8 +99,30 @@ class LocationStockController extends Controller
                 return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
             })
 
-            ->editColumn('item_code_internal', fn ($row) => $row->item_code_internal ?: '-')
-            ->editColumn('name', fn ($row) => $row->name ?: '-')
+            ->editColumn('item_code_internal', function ($row) {
+                $url = route('item-history.show', $row->id);
+
+                return '<a href="'.$url.'" class="text-decoration-none">'
+                    .e($row->item_code_internal ?: '-').'</a>';
+            })
+            ->editColumn('name', function ($row) {
+                $url = route('item-history.show', $row->id);
+
+                return '<a href="'.$url.'" class="text-decoration-none text-dark">'
+                    .e($row->name ?: '-').'</a>';
+            })
+            ->editColumn('description', function ($row) {
+
+                if (empty($row->description)) {
+                    return '-';
+                }
+
+                // Tampilkan versi ringkas di tabel, teks lengkapnya
+                // tetap bisa dibaca lewat tooltip (title).
+                $short = \Illuminate\Support\Str::limit($row->description, 80);
+
+                return '<span title="'.e($row->description).'">'.e($short).'</span>';
+            })
             ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
 
             ->filterColumn('vendor', function ($query, $keyword) {
@@ -143,7 +162,7 @@ class LocationStockController extends Controller
 
                         $qty = number_format($entry->pivot->quantity, 0, ',', '.');
 
-                        if (!empty($entry->pivot->lot)) {
+                        if (! empty($entry->pivot->lot)) {
 
                             $html .= '<div class="ps-3 small">'
                                 .'<span class="badge bg-secondary bg-opacity-10 text-secondary border">'
@@ -215,6 +234,9 @@ class LocationStockController extends Controller
                 'checkbox',
                 'locations_qty',
                 'action',
+                'item_code_internal', // tambahan
+                'name',
+                'description',
             ])
 
             ->make(true);
@@ -257,7 +279,7 @@ class LocationStockController extends Controller
                     'location_name' => $locationName,
                 ]);
 
-                $lot = !empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
+                $lot = ! empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
 
                 LocationStock::create([
                     'item_id' => $request->item_id,
@@ -321,7 +343,7 @@ class LocationStockController extends Controller
                     'location_name' => strtoupper(trim($row['location'])),
                 ]);
 
-                $lot = !empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
+                $lot = ! empty(trim($row['lot'] ?? '')) ? trim($row['lot']) : null;
 
                 $stock = LocationStock::where('item_id', $item->id)
                     ->where('location_id', $location->id)
@@ -391,13 +413,13 @@ class LocationStockController extends Controller
         ]);
     }
 
-     public function export(Request $request)
+    public function export(Request $request)
     {
 
         return Excel::download(new LocationStockExport($request), 'stock.xlsx');
     }
 
-        public function import(Request $request)
+    public function import(Request $request)
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:2048',
