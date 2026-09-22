@@ -26,6 +26,11 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * 7 Qty Masuk
  * 8 Qty Keluar
  * 9 Qty Balance
+ *
+ * Kolom Lokasi bisa ditulis dalam kode gudang, mis. "R8P07L2", dan akan
+ * dikonversi otomatis menjadi format location_name di database, yaitu
+ * "8-7-2" (rak-posisi-level). Kalau nilainya sudah dalam format lain
+ * (tidak cocok pola R{rak}P{posisi}L{level}), dipakai apa adanya.
  */
 class StockMutationImport implements ToCollection
 {
@@ -89,6 +94,25 @@ class StockMutationImport implements ToCollection
         $value = trim((string) ($value ?? ''));
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * Konversi kode lokasi gudang mentah, mis. "R8P07L2", menjadi format
+     * location_name yang dipakai di tabel locations, mis. "8-7-2"
+     * (rak-posisi-level). Angka posisi dilucuti leading zero-nya
+     * ("07" -> "7"). Kalau string tidak cocok pola R{rak}P{posisi}L{level}
+     * (misalnya sudah dalam format "8-7-2", atau nama lokasi bebas lain),
+     * nilainya dikembalikan apa adanya setelah di-trim.
+     */
+    private function normalizeLocationCode(string $raw): string
+    {
+        $raw = trim($raw);
+
+        if (preg_match('/^R(\d+)P(\d+)L(\d+)$/i', $raw, $m)) {
+            return $m[1].'-'.((int) $m[2]).'-'.$m[3];
+        }
+
+        return $raw;
     }
 
     public function collection(Collection $rows)
@@ -185,9 +209,13 @@ class StockMutationImport implements ToCollection
         // dari urutan baris lain yang tercampur di file Excel. Kalau
         // item yang sama muncul di lokasi/lot berbeda, saldonya tetap
         // dihitung terpisah dan tidak saling mempengaruhi.
+        //
+        // Lokasi dinormalisasi (mis. "R8P07L2" -> "8-7-2") di titik ini
+        // supaya baris yang menulis kode lokasi dalam bentuk berbeda
+        // untuk lokasi yang sama tetap dikelompokkan bersama.
         $groupedByItemLocationLot = $rows->groupBy(function ($row) {
             $itemCode = trim($row[0] ?? '');
-            $location = trim($row[2] ?? '');
+            $location = $this->normalizeLocationCode(trim($row[2] ?? ''));
             $lot = $this->normalizeLot($row[3] ?? null);
 
             return $itemCode.'|||'.$location.'|||'.($lot ?? '');
@@ -237,7 +265,8 @@ class StockMutationImport implements ToCollection
 
         $itemCode = trim($row[0]);
         $itemName = trim($row[1] ?? '');
-        $locationName = trim($row[2] ?? '');
+        $locationRaw = trim($row[2] ?? '');
+        $locationName = $this->normalizeLocationCode($locationRaw);
         $lot = $this->normalizeLot($row[3] ?? null);
         $transactionDate = $row[4] ?? null;
         $transactionNumber = $row[5] ?? null;
@@ -288,8 +317,12 @@ class StockMutationImport implements ToCollection
 
                 $balanceKey = $item->id.'|'.$location->id.'|'.($lot ?? '');
 
+                // Saldo awal diambil dari quantity stok TERKINI (bukan
+                // opening_balance yang statis), supaya import mutasi baru
+                // melanjutkan dari sisa stok yang sudah ada saat ini,
+                // bukan mengulang dari saldo awal setiap kali diimport.
                 if (! array_key_exists($balanceKey, $this->runningBalances)) {
-                    $this->runningBalances[$balanceKey] = (float) ($locationStock->opening_balance ?? 0);
+                    $this->runningBalances[$balanceKey] = (float) ($locationStock->quantity ?? 0);
                 }
 
                 $qtyBalanceExcel = (float) ($row[9] ?? 0);
@@ -336,7 +369,7 @@ class StockMutationImport implements ToCollection
                 "Baris Excel {$row['__excel_row']} gagal.\n".
                 'Item Code         : '.($itemCode ?: '-')."\n".
                 'Nama Barang       : '.($itemName ?: '-')."\n".
-                'Lokasi            : '.($locationName ?: '-')."\n".
+                'Lokasi            : '.($locationName ?: '-').' (mentah: '.($locationRaw ?: '-').")\n".
                 'Lot               : '.($lot ?: '-')."\n".
                 'No. Transaksi     : '.($transactionNumber ?: '-')."\n".
                 'Tanggal Transaksi : '.($transactionDate ?: '-')."\n".

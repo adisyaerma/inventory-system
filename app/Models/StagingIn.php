@@ -59,6 +59,28 @@ class StagingIn extends Model
         'NORD-LOCK',
     ];
 
+    /**
+     * Gabungan status default (STATUSES) dengan status lain yang sudah
+     * pernah tersimpan di tabel — termasuk status baru yang masuk lewat
+     * import dan belum ada di daftar STATUSES. Dipakai untuk mengisi
+     * dropdown/select di UI supaya status baru tetap muncul sebagai pilihan.
+     */
+    public static function allStatusOptions(): array
+    {
+        $fromData = static::query()
+            ->whereNotNull('status')
+            ->distinct()
+            ->orderBy('status')
+            ->pluck('status')
+            ->all();
+
+        return collect(self::STATUSES)
+            ->merge($fromData)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function item()
     {
         return $this->belongsTo(Item::class);

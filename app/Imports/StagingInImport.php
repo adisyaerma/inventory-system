@@ -16,6 +16,28 @@ class StagingInImport implements ToCollection, WithHeadingRow
     use ParsesExcelDates;
 
     /**
+     * Kolom-kolom level PENGIRIMAN/PO yang lazim di-merge di Excel kalau
+     * satu PO berisi banyak baris barang (No. PO, Supplier, Owner,
+     * Lokasi, Status, Incoterms, Tanggal Kedatangan). Nilainya di-
+     * forward-fill dari baris terakhir yang terisi, karena
+     * PhpSpreadsheet membaca sel dalam area merge selain baris
+     * pertamanya sebagai kosong.
+     *
+     * Kode Barang, Nama Barang, Qty, dan Keterangan SENGAJA tidak
+     * dimasukkan di sini karena itu data unik per baris barang, bukan
+     * data level pengiriman yang wajar untuk di-merge.
+     */
+    private const MERGEABLE_COLUMNS = [
+        'no_po',
+        'supplier',
+        'owner',
+        'lokasi',
+        'status',
+        'incoterms',
+        'tanggal_kedatangan',
+    ];
+
+    /**
      * Human-readable messages for rows that failed to import
      * (only unexpected/database errors end up here now — missing fields
      * no longer block a row from being saved).
@@ -129,9 +151,10 @@ class StagingInImport implements ToCollection, WithHeadingRow
     /**
      * Match the status cell against the known list of statuses,
      * tolerant of case and surrounding whitespace. Returns the canonical
-     * value (as defined in StagingIn::STATUSES), or null if it's empty or
-     * doesn't match anything — an unmatched status is saved as null
-     * rather than rejecting the row.
+     * value (as defined in StagingIn::STATUSES) when it matches; if it's
+     * empty, returns null. If it doesn't match anything, the raw value is
+     * kept as-is and saved as a new status — it's never rejected or
+     * silently dropped.
      */
     private function resolveStatus(?string $status): ?string
     {
@@ -145,7 +168,9 @@ class StagingInImport implements ToCollection, WithHeadingRow
             }
         }
 
-        return null;
+        // Status belum dikenal di daftar STATUSES — simpan apa adanya
+        // sebagai jenis status baru, bukan dibuang jadi null.
+        return $status;
     }
 
     /**
@@ -192,6 +217,48 @@ class StagingInImport implements ToCollection, WithHeadingRow
     {
         $this->errors = [];
         $this->imported = 0;
+
+        /*
+         * ==========================================
+         * FORWARD-FILL KOLOM YANG DI-MERGE DI EXCEL
+         * ==========================================
+         *
+         * Kolom level pengiriman (lihat self::MERGEABLE_COLUMNS) sering
+         * di-merge kalau satu PO punya banyak baris barang. Baris
+         * lanjutan hasil merge terbaca kosong oleh PhpSpreadsheet, jadi
+         * di sini kita warisi nilainya dari baris terakhir yang benar-
+         * benar terisi.
+         *
+         * TAPI hanya untuk baris yang punya data barangnya SENDIRI
+         * (kode_barang / nama_barang / qty / keterangan terisi).
+         * Kalau tidak, baris yang memang kosong total (mis. baris
+         * pemisah antar-blok di Excel) ikut mewarisi data dan malah
+         * tersimpan sebagai baris palsu -- padahal seharusnya di-skip
+         * oleh pengecekan "baris kosong" di bawah.
+         */
+        $lastValues = array_fill_keys(self::MERGEABLE_COLUMNS, null);
+
+        $rows = $rows->map(function ($row) use (&$lastValues) {
+
+            $rowHasOwnItemData =
+                $this->cleanValue($row['kode_barang'] ?? null) !== null ||
+                $this->cleanValue($row['nama_barang'] ?? null) !== null ||
+                $this->parseQty($row['qty'] ?? null) > 0 ||
+                $this->cleanValue($row['keterangan'] ?? null) !== null;
+
+            foreach (self::MERGEABLE_COLUMNS as $column) {
+
+                $rawValue = $row[$column] ?? null;
+
+                if ($this->cleanValue($rawValue) !== null) {
+                    $lastValues[$column] = $rawValue;
+                } elseif ($rowHasOwnItemData) {
+                    $row[$column] = $lastValues[$column];
+                }
+            }
+
+            return $row;
+        });
 
         foreach ($rows as $index => $row) {
 

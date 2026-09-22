@@ -132,9 +132,10 @@ class StagingOutImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            if ($doNumber === null) {
-                continue;
-            }
+            // Catatan: No DO dulu wajib diisi supaya baris disimpan.
+            // Sekarang TIDAK LAGI — baris tetap disimpan walau No DO
+            // kosong (null), selama baris ini bukan baris kosong total
+            // (sudah ditangani oleh pengecekan di atas).
 
             try {
 

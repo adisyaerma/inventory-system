@@ -10,6 +10,7 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StockMutation;
+use App\Models\Vendor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class StockMutationController extends Controller
 {
     public function data(Request $request)
     {
-        $query = StockMutation::with(['item', 'location'])
+        $query = StockMutation::with(['item.vendor', 'location'])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id');
 
@@ -42,6 +43,14 @@ class StockMutationController extends Controller
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->location_id);
+        }
+
+        if ($request->filled('vendor_id')) {
+            $vendorId = $request->vendor_id;
+
+            $query->whereHas('item', function ($q) use ($vendorId) {
+                $q->where('vendor_id', $vendorId);
+            });
         }
 
         return DataTables::eloquent($query)
@@ -70,6 +79,16 @@ class StockMutationController extends Controller
                 $query->whereHas('item', function ($q) use ($keyword) {
                     $q->where('item_code_internal', 'like', "%{$keyword}%")
                         ->orWhere('name', 'like', "%{$keyword}%");
+                });
+            })
+
+            ->addColumn('vendor', function ($row) {
+                return $row->item->vendor->name ?? '-';
+            })
+
+            ->filterColumn('vendor', function ($query, $keyword) {
+                $query->whereHas('item.vendor', function ($q) use ($keyword) {
+                    $q->where('name', 'like', "%{$keyword}%");
                 });
             })
 
@@ -338,6 +357,7 @@ class StockMutationController extends Controller
     {
 
         $locations = Location::orderBy('location_name')->get();
+        $vendors = Vendor::orderBy('name')->get();
 
         // Total semua transaksi
         $totalMutasi = StockMutation::count();
@@ -357,6 +377,7 @@ class StockMutationController extends Controller
 
         return view('stock_mutation', compact(
             'locations',
+            'vendors',
             'totalMutasi',
             'barangMasuk',
             'barangKeluar',

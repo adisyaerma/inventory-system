@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('item_id')->nullable()->constrained('items')->nullOnDelete();
             $table->unsignedInteger('qty')->default(0);
             $table->enum('location', [
-                'Inbound shipment's
+                'Inbound shipment',
                 'Temporary hold / repair 1',
                 'Temporary hold / repair 2',
                 'Temporary hold / repair 3',
@@ -34,16 +34,7 @@ return new class extends Migration
                 'NORD-LOCK',
             ])->nullable();
             $table->text('notes')->nullable();
-            $table->enum('status', [
-                'menunggu request kirim',
-                'menunggu request packing',
-                'menunggu sertifikat',
-                'menunggu dokumen pelengkap',
-                'rusak',
-                'tidak lengkap',
-                'salah ukuran',
-                'batal',
-            ])->nullable();
+            $table->string('status', 255)->nullable();
                 
             $table->timestamps();
         });

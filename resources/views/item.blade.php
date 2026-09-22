@@ -656,7 +656,15 @@
                             orderable: false,
                             searchable: false
                         }
-                    ]
+                    ],
+                    scrollX: true,
+                    autoWidth: false,
+
+                    columnDefs:[{
+                        targets: [3],
+                        className: 'text-wrap',
+                        width: "220px"
+                    }]
                 })
 
                 $('#customSearch').on('input', function() {

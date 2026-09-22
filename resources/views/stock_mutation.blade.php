@@ -907,8 +907,8 @@
                             </div>
                         </div> --}}
 
-                        <!-- Lokasi (Select2) -->
-                        {{-- <div class="filter-group">
+                        <!-- Lokasi (Select2, searchable) -->
+                        <div class="filter-group">
                             <label class="filter-label" for="filterLocation">Lokasi</label>
                             <div class="input-group input-group-sm shadow-sm">
                                 <span class="input-group-text bg-white border-end-0">
@@ -923,7 +923,23 @@
                                     @endforeach
                                 </select>
                             </div>
-                        </div> --}}
+                        </div>
+
+                        <!-- Vendor (Select2, searchable) -->
+                        <div class="filter-group">
+                            <label class="filter-label" for="filterVendor">Vendor</label>
+                            <div class="input-group input-group-sm shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="bi bi-building text-muted"></i>
+                                </span>
+                                <select class="form-select border-start-0 w-100" id="filterVendor">
+                                    <option value="">Semua Vendor</option>
+                                    @foreach ($vendors as $vendor)
+                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
 
                     </div>
 
@@ -944,6 +960,7 @@
                             <th>No</th>
                             <th>Tanggal</th>
                             <th>Barang</th>
+                            <th>Vendor</th>
                             <th>Lokasi & Lot</th>
                             <th>No. Transaksi</th>
                             <th>Qty Masuk</th>
@@ -1501,6 +1518,29 @@
                 height: 29px !important;
             }
 
+            /*
+             * Select2 mengganti <select> dengan elemen barunya sendiri
+             * (.select2-container) yang BUKAN .form-control, jadi tidak
+             * otomatis ikut aturan flex Bootstrap di dalam .input-group.
+             * Tanpa ini, lebarnya "meluber" dan malah didorong turun ke
+             * baris baru oleh flex-wrap bawaan .input-group, bukan
+             * sejajar dengan ikonnya.
+             */
+            .filter-toolbar .input-group {
+                flex-wrap: nowrap;
+            }
+
+            .filter-toolbar .input-group .select2-container {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            .filter-toolbar .input-group .select2-selection--single {
+                border-top-left-radius: 0 !important;
+                border-bottom-left-radius: 0 !important;
+                border-left: none !important;
+            }
+
         </style>
         <script>
             // ============ VARIABEL GLOBAL FILTER TANGGAL ============
@@ -1577,11 +1617,16 @@
                 width: '100%'
             });
 
+            $('#filterVendor').select2({
+                width: '100%'
+            });
+
             function updateExportUrl() {
                 let start = appliedStartDate;
                 let end = appliedEndDate;
                 let transaction = $('#filterTransaction').val();
                 let location = $('#filterLocation').val();
+                let vendor = $('#filterVendor').val();
                 let search = $('#customSearch').val().trim(); // trim di sini
 
                 let item = new URLSearchParams(window.location.search).get('item');
@@ -1593,6 +1638,7 @@
                 if (end) url.searchParams.append('end_date', end);
                 if (transaction) url.searchParams.append('transaction_type', transaction);
                 if (location) url.searchParams.append('location_id', location);
+                if (vendor) url.searchParams.append('vendor_id', vendor);
                 if (search) url.searchParams.append('search', search);
 
                 $('#exportBtn').attr('href', url.toString());
@@ -1830,6 +1876,7 @@
                             d.end_date = appliedEndDate;
                             d.transaction_type = $('#filterTransaction').val();
                             d.location_id = $('#filterLocation').val();
+                            d.vendor_id = $('#filterVendor').val();
                             d.item = new URLSearchParams(window.location.search).get('item');
                         }
                     },
@@ -1852,6 +1899,10 @@
                             data: 'barang',
                             name: 'barang',
                             orderable: false
+                        },
+                        {
+                            data: 'vendor',
+                            name: 'vendor'
                         },
                         {
                             data: 'location_name',
@@ -1888,7 +1939,7 @@
                     scrollX: true,
                     autoWidth: false,
                     columnDefs: [{
-                        targets: [3, 9],
+                        targets: [3, 10],
                         width: "250px",
                         className: "text-wrap"
                     }],
@@ -1923,8 +1974,8 @@
                     table.page.len($(this).val()).draw();
                 });
 
-                // hanya jenis transaksi & lokasi yang auto-reload; tanggal menunggu tombol "Terapkan"
-                $('#filterTransaction,#filterLocation')
+                // hanya jenis transaksi, lokasi & vendor yang auto-reload; tanggal menunggu tombol "Terapkan"
+                $('#filterTransaction,#filterLocation,#filterVendor')
                     .on('change', function() {
                         table.ajax.reload();
                         updateExportUrl();
@@ -1937,6 +1988,7 @@
                     $('#summaryDateRange').text('Semua Tanggal');
                     $('#filterTransaction').val('').trigger('change');
                     $('#filterLocation').val('').trigger('change');
+                    $('#filterVendor').val('').trigger('change');
                     $('#customSearch').val('');
 
                     appliedStartDate = '';

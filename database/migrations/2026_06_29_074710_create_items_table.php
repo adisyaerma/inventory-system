@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('item_code_supplier')->nullable();
             $table->string('item_code_customer')->nullable();
 
-            $table->string('name')->nullable();
+            $table->text('name')->nullable();
             $table->text('description')->nullable();
 
             $table->foreignId('vendor_id')

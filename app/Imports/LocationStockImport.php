@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Location;
+use App\Models\LocationStock;
 use App\Models\Item;
 use App\Models\Vendor;
 use Illuminate\Support\Collection;
@@ -18,21 +19,33 @@ class LocationStockImport implements ToCollection, WithHeadingRow
     public array $errors = [];
 
     /**
-     * Jumlah barang (bukan baris) yang berhasil disimpan.
+     * Jumlah barang (bukan baris) yang berhasil disimpan -- termasuk
+     * barang yang item_code_internal-nya SUDAH ADA di database (item
+     * baru tidak dibuat, tapi lokasi & qty-nya tetap disimpan/diperbarui).
      */
     public int $imported = 0;
 
     /**
-     * Pesan untuk barang yang DILEWATI (tidak disimpan) karena
-     * item_code_internal-nya sudah ada di database.
+     * Dari $imported di atas, berapa yang benar-benar barang BARU
+     * (record Item baru dibuat).
      */
-    public array $skipped = [];
+    public int $newItemsCreated = 0;
+
+    /**
+     * Pesan informasi untuk barang yang item_code_internal-nya SUDAH ADA
+     * di database. Item BARU tidak dibuat lagi (supaya nama barang tidak
+     * dobel), tapi data lokasi + lot + quantity-nya TETAP diproses dan
+     * disimpan/diperbarui ke item yang sudah ada tsb. Ini bukan
+     * kegagalan, cuma catatan informatif.
+     */
+    public array $existingItemNotices = [];
 
     public function collection(Collection $rows)
     {
         $this->errors = [];
         $this->imported = 0;
-        $this->skipped = [];
+        $this->newItemsCreated = 0;
+        $this->existingItemNotices = [];
 
         /*
          * Kolom Item Code Internal, Item Code Supplier, Item Code Customer,
@@ -75,72 +88,92 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                  * CEK DUPLIKAT ITEM CODE INTERNAL
                  * ==========================================
                  *
-                 * Jika item_code_internal sudah ada di database,
-                 * barang (beserta location stock-nya) TIDAK disimpan
-                 * lagi. Baris/grup ini dilewati sepenuhnya.
+                 * Jika item_code_internal sudah ada di database, Item
+                 * BARU TIDAK dibuat lagi (supaya nama barang tidak
+                 * dobel) -- item yang sudah ada dipakai ulang. TAPI
+                 * data lokasi + lot + quantity di baris Excel ini tetap
+                 * diproses & disimpan/diperbarui untuk item tsb, karena
+                 * itu bagian penting dari import (stok per lokasi),
+                 * bukan sekadar data barangnya.
                  */
                 $existingItem = Item::whereRaw(
                     'LOWER(item_code_internal) = ?',
                     [strtolower($itemCodeInternal)]
                 )->first();
 
-                if ($existingItem) {
+                $isNewItem = ! $existingItem;
 
-                    $this->skipped[] =
-                        "Baris Excel {$excelRowLabel} dilewati.\n" .
+                if (! $isNewItem) {
+                    $this->existingItemNotices[] =
+                        "Baris Excel {$excelRowLabel}.\n" .
                         'Item Code : ' . $itemCodeInternal . "\n" .
                         'Nama      : ' . ($firstRow['name'] ?? '-') . "\n" .
-                        'Alasan    : item_code_internal sudah ada di database, barang tidak disimpan ulang.';
-
-                    continue;
+                        'Catatan   : item_code_internal sudah ada di database, item baru tidak dibuat, tapi data lokasi & qty tetap disimpan/diperbarui untuk item yang sudah ada.';
                 }
 
-                DB::transaction(function () use ($group, $firstRow, $itemCodeInternal) {
+                DB::transaction(function () use ($group, $firstRow, $itemCodeInternal, $existingItem, $isNewItem) {
 
-                    /*
-                     * ==========================================
-                     * VENDOR
-                     * ==========================================
-                     */
-                    $vendor = null;
+                    if ($isNewItem) {
 
-                    if (!empty($firstRow['vendor'])) {
+                        /*
+                         * ==========================================
+                         * VENDOR
+                         * ==========================================
+                         */
+                        $vendor = null;
 
-                        $vendorName = trim($firstRow['vendor']);
+                        if (!empty($firstRow['vendor'])) {
 
-                        $vendor = Vendor::whereRaw(
-                            'LOWER(name) = ?',
-                            [strtolower($vendorName)]
-                        )->first();
+                            $vendorName = trim($firstRow['vendor']);
 
-                        if (!$vendor) {
-                            $vendor = Vendor::create([
-                                'name' => $vendorName,
-                            ]);
+                            $vendor = Vendor::whereRaw(
+                                'LOWER(name) = ?',
+                                [strtolower($vendorName)]
+                            )->first();
+
+                            if (!$vendor) {
+                                $vendor = Vendor::create([
+                                    'name' => $vendorName,
+                                ]);
+                            }
                         }
-                    }
 
-                    /*
-                     * ==========================================
-                     * CREATE ITEM
-                     * ==========================================
-                     */
-                    $item = Item::create([
-                        'vendor_id' => $vendor?->id,
-                        'item_code_internal' => $itemCodeInternal,
-                        'item_code_supplier' => !empty($firstRow['item_code_supplier'])
-                            ? trim($firstRow['item_code_supplier'])
-                            : null,
-                        'item_code_customer' => !empty($firstRow['item_code_customer'])
-                            ? trim($firstRow['item_code_customer'])
-                            : null,
-                        'name' => !empty($firstRow['name'])
-                            ? trim($firstRow['name'])
-                            : null,
-                        'description' => !empty($firstRow['description'])
-                            ? trim($firstRow['description'])
-                            : null,
-                    ]);
+                        /*
+                         * ==========================================
+                         * CREATE ITEM
+                         * ==========================================
+                         */
+                        $item = Item::create([
+                            'vendor_id' => $vendor?->id,
+                            'item_code_internal' => $itemCodeInternal,
+                            'item_code_supplier' => !empty($firstRow['item_code_supplier'])
+                                ? trim($firstRow['item_code_supplier'])
+                                : null,
+                            'item_code_customer' => !empty($firstRow['item_code_customer'])
+                                ? trim($firstRow['item_code_customer'])
+                                : null,
+                            'name' => !empty($firstRow['name'])
+                                ? trim($firstRow['name'])
+                                : null,
+                            'description' => !empty($firstRow['description'])
+                                ? trim($firstRow['description'])
+                                : null,
+                        ]);
+
+                    } else {
+
+                        /*
+                         * ==========================================
+                         * PAKAI ITEM YANG SUDAH ADA
+                         * ==========================================
+                         *
+                         * Tidak membuat Item baru & tidak mengubah data
+                         * Item yang sudah ada (nama, vendor, dst) --
+                         * hanya dipakai referensinya supaya lokasi &
+                         * qty di bawah bisa disimpan ke item yang benar.
+                         */
+                        $item = $existingItem;
+                    }
 
                     /*
                      * ==========================================
@@ -227,14 +260,35 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                          * lot
                          * opening_balance
                          * quantity
+                         *
+                         * Dulu pakai attach() -- itu HANYA aman untuk
+                         * item yang baru dibuat (belum punya baris
+                         * location_stock sama sekali). Sekarang item
+                         * yang SUDAH ADA juga bisa lewat sini, jadi
+                         * kombinasi item+lokasi+lot ini bisa jadi sudah
+                         * punya baris sebelumnya. updateOrCreate() aman
+                         * untuk dua kasus: kombinasi baru -> dibuat,
+                         * kombinasi yang sudah ada -> quantity &
+                         * opening_balance-nya diperbarui sesuai nilai
+                         * dari file Excel ini.
                          */
-                        $item->locations()->attach($location->id, [
-                            'lot' => $entry['lot'],
-                            'opening_balance' => $entry['quantity'],
-                            'quantity' => $entry['quantity'],
-                        ]);
+                        LocationStock::updateOrCreate(
+                            [
+                                'item_id' => $item->id,
+                                'location_id' => $location->id,
+                                'lot' => $entry['lot'],
+                            ],
+                            [
+                                'opening_balance' => $entry['quantity'],
+                                'quantity' => $entry['quantity'],
+                            ]
+                        );
                     }
                 });
+
+                if ($isNewItem) {
+                    $this->newItemsCreated++;
+                }
 
                 $this->imported++;
 
@@ -260,18 +314,22 @@ class LocationStockImport implements ToCollection, WithHeadingRow
          * Barang yang valid tetap tersimpan meskipun ada
          * barang lain yang gagal.
          *
-         * Barang yang DILEWATI karena duplikat ($this->skipped) itu
-         * NORMAL, bukan kegagalan -- jadi tidak pernah didaftar satu-
-         * satu di pesan ini, cukup jumlahnya saja. Controller tetap
-         * bisa membaca $this->skipped untuk detail lengkapnya kalau
+         * Barang yang item_code_internal-nya SUDAH ADA
+         * ($this->existingItemNotices) itu NORMAL, bukan kegagalan --
+         * item barunya tidak dibuat, tapi lokasi & qty-nya tetap
+         * disimpan (lihat $this->imported vs $this->newItemsCreated).
+         * Jadi tidak didaftar satu-satu di pesan exception ini, cukup
+         * jumlahnya saja. Controller tetap bisa membaca
+         * $this->existingItemNotices untuk detail lengkapnya kalau
          * perlu. Hanya barang yang BENAR-BENAR gagal ($this->errors)
          * yang membuat exception dilempar dan didetailkan di sini.
          */
         if (!empty($this->errors)) {
 
             $summary =
-                "Import selesai: {$this->imported} barang berhasil disimpan, "
-                . count($this->skipped) . ' barang dilewati (sudah ada), '
+                "Import selesai: {$this->imported} barang berhasil disimpan "
+                . "({$this->newItemsCreated} barang baru, "
+                . (count($this->existingItemNotices)) . ' barang sudah ada sebelumnya namun lokasi/qty-nya tetap diperbarui), '
                 . count($this->errors) . ' barang gagal.';
 
             throw new \Exception(

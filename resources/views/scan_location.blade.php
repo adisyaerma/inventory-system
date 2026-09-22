@@ -5,16 +5,16 @@
 
         <div class="col-lg-4">
 
-            <div class="card h-100">
+            <div class="card h-100 border-0 shadow-sm" style="border-radius:16px;">
                 <div class="card-body">
 
                     <div class="text-center">
-                        <div class="d-flex align-items-center justify-content-center mb-3">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
 
                             <div class="avatar d-flex align-items-center justify-content-center me-3"
-                                style="width:40px; height:40px; background-color:#e3f2fd; border-radius:50%;">
+                                style="width:44px; height:44px; background:linear-gradient(135deg,#e3f2fd,#dbeafe); border-radius:14px;">
 
-                                <svg class="text-primary" xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                                <svg class="text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                     viewBox="0 0 24 24">
                                     <path d="M0 0h24v24H0z" fill="none" />
                                     <path fill="currentColor"
@@ -25,34 +25,41 @@
 
                             </div>
 
-                            <h4 class="fw-bold mb-0">
+                            <h4 class="fw-bold mb-0 text-start">
                                 Scan Lokasi
                             </h4>
 
                         </div>
 
-                        <small class="text-muted mb-5">
+                        <small class="text-muted d-block mb-4">
                             Arahkan kamera ke barcode / QR code lokasi untuk scan otomatis
                         </small>
 
                     </div>
-                    <div class="d-flex justify-content-center mb-3 mt-5">
+                    <div class="d-flex justify-content-center mb-3">
 
                         <div class="scanner-box">
 
                             <div id="reader"></div>
 
+                            <div class="scanner-corner tl"></div>
+                            <div class="scanner-corner tr"></div>
+                            <div class="scanner-corner bl"></div>
+                            <div class="scanner-corner br"></div>
+
                         </div>
 
                     </div>
                     <div class="text-center">
-                        <small class="mt-5 text-muted text-center">Pastikan kode berada di dalam frame</small>
+                        <small class="text-muted d-flex align-items-center justify-content-center gap-1">
+                            <i class="bx bx-scan"></i> Pastikan kode berada di dalam frame
+                        </small>
                     </div>
-                    <div class="d-flex align-items-center my-3">
+                    <div class="d-flex align-items-center my-4">
 
                         <div class="flex-grow-1 border-top"></div>
 
-                        <div class="px-3 text-muted fw-bold small">
+                        <div class="px-3 text-muted fw-semibold small text-uppercase" style="letter-spacing:.05em;">
                             atau
                         </div>
 
@@ -62,28 +69,38 @@
 
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Input Manual</label>
-                        <div class="row g-2">
-                            <div class="col-md-8">
-                                <input type="text" id="location_code" class="form-control form-control-sm"
-                                    placeholder="Masukkan location code / nama lokasi">
-                            </div>
-                            <div class="col-md-4">
-                                <button id="btnCari" class="btn btn-primary w-100 btn-sm">
-                                    Cari
-                                </button>
-                            </div>
+                        <label class="form-label fw-semibold small text-uppercase text-muted" style="letter-spacing:.03em;">Input Manual</label>
+                        <div class="input-group location-input-group">
+                            <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px;">
+                                <i class="bx bx-map-pin text-muted"></i>
+                            </span>
+                            <input type="text" id="location_code" class="form-control border-start-0 ps-2"
+                                placeholder="Kode / nama lokasi">
+                            <button id="btnCari" class="btn btn-primary d-flex align-items-center gap-1" style="border-radius:0 10px 10px 0;">
+                                <i class="bx bx-search"></i>
+                                <span>Cari</span>
+                            </button>
                         </div>
+                        <style>
+                            .location-input-group .form-control {
+                                border-radius: 0;
+                                box-shadow: none !important;
+                            }
+                            .location-input-group:focus-within {
+                                border-radius: 10px;
+                                box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .15);
+                            }
+                        </style>
                     </div>
 
 
-                    <div class="card border-0 shadow-sm mt-5" style="background-color:#eef4ff; border-radius:12px;">
+                    <div class="card border-0 mt-4" style="background:linear-gradient(135deg,#eef4ff,#f3f0ff); border-radius:14px;">
 
-                        <div class="card-body d-flex align-items-start py-2 px-2">
+                        <div class="card-body d-flex align-items-start py-3 px-3">
 
-                            <div class="me-2">
+                            <div class="me-3">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center"
-                                    style="width:34px; height:34px; background-color:#e3f2fd;">
+                                    style="width:36px; height:36px; background:#fff;">
 
                                     <i class="bx bx-info-circle text-primary fs-5"></i>
 
@@ -91,7 +108,7 @@
                             </div>
 
                             <div>
-                                <div class="fw-bold text-primary mb-0 small">
+                                <div class="fw-semibold text-primary mb-0 small">
                                     Tips
                                 </div>
 
@@ -114,18 +131,21 @@
 
             <div id="hasil">
 
-                <div class="card">
+                <div class="card border-0 shadow-sm" style="border-radius:16px; border:1px dashed #dee2e6 !important;">
 
                     <div class="card-body text-center py-5">
 
-                        <i class="bx bx-map fs-1 text-muted"></i>
+                        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center"
+                            style="width:72px;height:72px;border-radius:50%;background:#f4f6fb;">
+                            <i class="bx bx-map-alt fs-1 text-muted"></i>
+                        </div>
 
-                        <h5 class="mt-3">
+                        <h5 class="mb-1">
                             Belum ada lokasi dipilih
                         </h5>
 
-                        <p class="text-muted">
-                            Scan atau masukkan location code
+                        <p class="text-muted mb-0">
+                            Scan barcode/QR code atau masukkan location code secara manual
                         </p>
 
                     </div>
@@ -142,9 +162,77 @@
 @push('script')
     <style>
         .item-scroll {
-            max-height: 400px;
+            max-height: 480px;
             overflow-y: auto;
             overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .item-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .item-scroll::-webkit-scrollbar-thumb {
+            background: #dde3ec;
+            border-radius: 10px;
+        }
+
+        .item-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .item-card {
+            border-radius: 14px !important;
+            border: 1px solid #edf0f5 !important;
+            transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+        }
+
+        .item-card:hover {
+            box-shadow: 0 6px 18px rgba(15, 23, 42, .07) !important;
+            border-color: #e2e8f5 !important;
+            transform: translateY(-1px);
+        }
+
+        .item-accent {
+            width: 5px;
+            border-radius: 6px;
+            align-self: stretch;
+            flex-shrink: 0;
+        }
+
+        .qty-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            font-size: .8rem;
+            padding: .4rem .7rem;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .meta-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: .74rem;
+            font-weight: 600;
+            color: #64748b;
+            background: #f5f7fb;
+            border-radius: 999px;
+            padding: .18rem .55rem;
+        }
+
+        .lot-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: .74rem;
+            font-weight: 600;
+            color: #7c3aed;
+            background: #f3ebff;
+            border-radius: 999px;
+            padding: .18rem .55rem;
         }
     </style>
     <script>
@@ -158,11 +246,14 @@
 
             function renderNotFound(message = "Data tidak ditemukan") {
                 $('#hasil').html(`
-            <div class="card">
-                <div class="card-body text-center p-5">
-                    <i class="bx bx-search-alt fs-1 text-danger"></i>
-                    <h5 class="mt-2 text-danger">${message}</h5>
-                    <small class="text-muted">Cek kembali kode lokasi</small>
+            <div class="card border-0 shadow-sm" style="border-radius:16px;">
+                <div class="card-body text-center py-5">
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center"
+                        style="width:72px;height:72px;border-radius:50%;background:#fdecec;">
+                        <i class="bx bx-search-alt fs-1 text-danger"></i>
+                    </div>
+                    <h5 class="mb-1 text-danger">${message}</h5>
+                    <p class="text-muted mb-0">Cek kembali kode lokasi yang di-scan / diketik</p>
                 </div>
             </div>
         `);
@@ -174,6 +265,15 @@
 
                 let itemsHtml = '';
 
+                if (response.items.length === 0) {
+                    itemsHtml = `
+                <div class="text-center text-muted py-5">
+                    <i class="bx bx-package fs-1 d-block mb-2"></i>
+                    Tidak ada barang di lokasi ini
+                </div>
+                `;
+                }
+
                 for (let i = 0; i < response.items.length; i++) {
                     const item = response.items[i];
 
@@ -182,98 +282,102 @@
                         // ==== ITEM DARI TABEL STAGING ====
                         itemsHtml += `
 
-                <div class="card border border-light shadow-sm mb-3 item-card">
+                <div class="card shadow-sm mb-2 item-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex gap-3">
 
-                    <div class="card-body">
+                            <div class="item-accent" style="background:#f59e0b;"></div>
 
-                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1 d-flex justify-content-between align-items-start gap-3">
 
-                            <!-- INFO BARANG STAGING -->
-                            <div class="flex-grow-1">
+                                <!-- INFO BARANG STAGING -->
+                                <div class="flex-grow-1">
 
-                                <small class="text-muted">
-    ${item.po_number ?? '-'} &bull; ${item.item_code ?? '-'}
-</small>
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                        <span class="meta-chip"><i class='bx bx-purchase-tag'></i> ${item.po_number ?? '-'}</span>
+                                        <span class="meta-chip"><i class='bx bx-barcode'></i> ${item.item_code ?? '-'}</span>
+                                    </div>
 
-                                <div class=" text-dark fw-semibold mb-1">
-                                    ${item.name ?? '-'}
+                                    <div class="text-dark fw-semibold mb-1">
+                                        ${item.name ?? '-'}
+                                    </div>
+
+                                    <div class="d-flex flex-wrap align-items-center gap-3 text-muted small">
+                                        <span><i class="bx bx-buildings me-1"></i>${item.supplier_origin ?? '-'}</span>
+                                        <span><i class="bx bx-user me-1"></i>${item.item_owner ?? '-'}</span>
+                                        <span><i class="bx bx-calendar me-1"></i>${item.arrival_date ?? '-'}</span>
+                                    </div>
+
+                                    ${item.notes ? `<div class="text-muted small fst-italic mt-2"><i class="bx bx-note me-1"></i>${item.notes}</div>` : ''}
+
                                 </div>
 
-                                <small class="text-muted d-block">
-                                    Supplier: ${item.supplier_origin ?? '-'} &bull; Owner: ${item.item_owner ?? '-'}
-                                </small>
-
-                                <small class="text-muted d-block">
-                                    Tgl Datang: ${item.arrival_date ?? '-'}
-                                </small>
-
-                                ${item.notes ? `<small class="text-muted d-block fst-italic">Catatan: ${item.notes}</small>` : ''}
-
-                            </div>
-
-                            <!-- QTY -->
-                            <div class="text-end" width="300">
-
-                                <small class="badge bg-label-warning p-2">
-                                    Qty: ${parseInt(item.quantity)}
-                                </small>
+                                <!-- QTY -->
+                                <div class="text-end flex-shrink-0">
+                                    <span class="qty-pill" style="background:#fef3e2; color:#b45309;">
+                                        <i class='bx bx-cube'></i> ${parseInt(item.quantity)}
+                                    </span>
+                                </div>
 
                             </div>
 
                         </div>
-
                     </div>
-
                 </div>
 
                 `;
 
                     } else {
-                            // item dari tabel lokasi (input manual)
+                        // item dari tabel lokasi (input manual)
                         itemsHtml += `
 
-                <div class="card border border-light shadow-sm mb-3 item-card">
+                <div class="card shadow-sm mb-2 item-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex gap-3">
 
-                    <div class="card-body">
+                            <div class="item-accent" style="background:#2563eb;"></div>
 
-                        <div class="d-flex justify-content-between align-items-start">
-
-                            <!-- INFO BARANG -->
                             <div class="flex-grow-1">
 
-                                <small class="text-muted">
-    ${item.vendor_name ?? '-'} &bull; ${item.item_code_internal}
-</small>
+                                <div class="d-flex justify-content-between align-items-start gap-3">
 
-                                <div class=" text-dark fw-semibold">
-                                    ${item.name}
+                                    <!-- INFO BARANG -->
+                                    <div class="flex-grow-1">
+
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                            <span class="meta-chip"><i class='bx bx-store'></i> ${item.vendor_name ?? '-'}</span>
+                                            <span class="meta-chip"><i class='bx bx-barcode'></i> ${item.item_code_internal}</span>
+                                            ${item.lot ? `<span class="lot-chip"><i class='bx bx-layer'></i> Lot ${item.lot}</span>` : ''}
+                                        </div>
+
+                                        <div class="text-dark fw-semibold">
+                                            ${item.name}
+                                        </div>
+
+                                    </div>
+
+                                    <!-- QTY -->
+                                    <div class="text-end flex-shrink-0">
+                                        <span class="qty-pill" style="background:#e8f0fe; color:#1d4ed8;">
+                                            <i class='bx bx-cube'></i> ${parseInt(item.quantity)}
+                                        </span>
+                                    </div>
+
                                 </div>
 
-                                ${item.lot ? `<small class="text-muted d-block">Lot: ${item.lot}</small>` : ''}
+                                <div class="mt-2">
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-primary btn-sm btnMutation d-inline-flex align-items-center gap-1"
+                                        style="border-radius:999px;"
+                                        data-item="${item.id}">
 
-                            </div>
+                                        <i class="bx bx-history fs-6"></i>
+                                        <span class="small text-nowrap">Lihat Mutasi</span>
+                                        <i class="bx bx-chevron-down arrow fs-6"></i>
 
-                            <!-- QTY -->
-                            <div class="text-end" width="300">
-
-                                <small class="badge bg-primary p-2">
-                                    Qty: ${parseInt(item.quantity)}
-                                </small>
-
-                                <br>
-
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-primary btn-sm btnMutation mt-2 d-inline-flex align-items-center gap-1"
-                                    data-item="${item.id}">
-
-                                    <i class="bx bx-history fs-6"></i>
-
-                                    <span class="small text-nowrap">Lihat Mutasi</span>
-
-                                    <i class="bx bx-chevron-down arrow fs-6"></i>
-
-                                </button>
+                                    </button>
+                                </div>
 
                             </div>
 
@@ -288,7 +392,6 @@
                         </div>
 
                     </div>
-   
                 </div>
 
                 `;
@@ -297,41 +400,42 @@
                 }
 
                 const html = `
-        <div class="card border-0 mb-3">
+        <div class="card border-0 shadow-sm mb-3" style="border-radius:16px; background:${isStaging ? 'linear-gradient(135deg,#fff8ec,#fff)' : 'linear-gradient(135deg,#eefaf0,#fff)'};">
 
-    <div class="card-body">
+    <div class="card-body p-4">
 
-        <div class="row align-items-center">
+        <div class="row align-items-center g-3">
 
             <!-- ========================= -->
             <!-- INFO LOKASI -->
             <!-- ========================= -->
-            <div class="col-lg-6 col-md-12 mb-3 mb-lg-0">
+            <div class="col-lg-6 col-md-12">
 
                 <div class="d-flex align-items-center">
 
-                    <div class="avatar d-flex align-items-center justify-content-center me-3"
-                        style="width:60px;height:60px;background:#e8f5e9;border-radius:50%;">
+                    <div class="d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                        style="width:58px;height:58px;background:#fff;border-radius:16px;box-shadow:0 4px 14px rgba(15,23,42,.08);">
 
-                        <i class="bx bx-map-pin fs-2 text-success"></i>
+                        <i class="bx ${isStaging ? 'bx-package' : 'bx-map-pin'} fs-2 ${isStaging ? 'text-warning' : 'text-success'}"></i>
 
                     </div>
 
                     <div>
 
-                        <small class="text-muted fw-semibold">
+                        <small class="text-muted fw-semibold text-uppercase" style="letter-spacing:.03em; font-size:.72rem;">
                             ${isStaging ? 'Area Staging Ditemukan' : 'Lokasi Ditemukan'}
                         </small>
 
-                        <h3 class="fw-bold mb-1">
+                        <h3 class="fw-bold mb-1 mt-1">
                             ${response.location.location_name}
                         </h3>
 
-                        <span class="badge mt-2 rounded-pill
+                        <span class="badge rounded-pill
                             ${response.location.status
                                 ? 'bg-label-success'
                                 : 'bg-label-secondary'}">
 
+                            <i class="bx ${response.location.status ? 'bx-check-circle' : 'bx-minus-circle'} me-1"></i>
                             ${response.location.status
                                 ? 'Aktif'
                                 : 'Tidak Aktif'}
@@ -345,28 +449,27 @@
             </div>
             <div class="col-lg-6 col-md-12">
 
-                <div class="row g-3">
+                <div class="row g-2">
 
                     <!-- TOTAL ITEM -->
                     <div class="col-6">
 
-                        <div class="card border-0 shadow-sm h-100"
-                            style="background:#e8f5e9">
+                        <div class="h-100" style="background:rgba(255,255,255,.7); border-radius:14px; backdrop-filter:blur(2px);">
 
-                            <div class="card-body py-3 px-3">
+                            <div class="p-3">
 
                                 <div class="d-flex align-items-center">
 
-                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                        style="width:45px;height:45px;">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                                        style="width:42px;height:42px; background:#fff;">
 
-                                        <i class="bx bx-box text-success fs-3"></i>
+                                        <i class="bx bx-box ${isStaging ? 'text-warning' : 'text-success'} fs-4"></i>
 
                                     </div>
 
                                     <div>
 
-                                        <h4 class="fw-bold text-success mb-0">
+                                        <h4 class="fw-bold mb-0">
                                             ${response.total_item}
                                         </h4>
 
@@ -387,23 +490,22 @@
                     <!-- TOTAL QTY -->
                     <div class="col-6">
 
-                        <div class="card border-0 shadow-sm h-100"
-                            style="background:#e8f5e9">
+                        <div class="h-100" style="background:rgba(255,255,255,.7); border-radius:14px; backdrop-filter:blur(2px);">
 
-                            <div class="card-body py-3 px-3">
+                            <div class="p-3">
 
                                 <div class="d-flex align-items-center">
 
-                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                        style="width:45px;height:45px;">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                                        style="width:42px;height:42px; background:#fff;">
 
-                                        <i class="bx bx-layer text-success fs-3"></i>
+                                        <i class="bx bx-layer ${isStaging ? 'text-warning' : 'text-success'} fs-4"></i>
 
                                     </div>
 
                                     <div>
 
-                                        <h4 class="fw-bold text-success mb-0">
+                                        <h4 class="fw-bold mb-0">
                                             ${response.total_qty}
                                         </h4>
 
@@ -431,18 +533,27 @@
 
 </div>
 
-        <div class="card">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
 
-            <div class="p-2 border-bottom">
-                <input type="text"
-                    id="searchItem"
-                    class="form-control form-control-sm"
-                    placeholder="Cari barang...">
+            <div class="p-3 border-bottom">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0" style="border-radius:10px 0 0 10px;">
+                        <i class="bx bx-search text-muted"></i>
+                    </span>
+                    <input type="text"
+                        id="searchItem"
+                        class="form-control border-start-0 ps-0"
+                        style="border-radius:0 10px 10px 0;"
+                        placeholder="Cari nama, kode, vendor, atau lot...">
+                </div>
             </div>
 
-            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
 
-                <div class="mb-0 fw-bold mt-2">Daftar Barang di Lokasi Ini</div>
+                <div class="fw-semibold d-flex align-items-center gap-2">
+                    <i class="bx bx-list-ul text-muted"></i>
+                    Daftar Barang di Lokasi Ini
+                </div>
 
                 <span class="badge rounded-pill bg-label-primary">
                     ${response.total_item} Item
@@ -450,7 +561,7 @@
 
             </div>
 
-            <div class="card-body p-2">
+            <div class="card-body p-3">
 
                 <div id="itemsContainer" class="item-scroll">
                     ${itemsHtml}
@@ -489,10 +600,10 @@
 
                     beforeSend: function() {
                         $('#hasil').html(`
-                <div class="card">
-                    <div class="card-body text-center p-4">
-                        <div class="spinner-border text-primary"></div>
-                        <div class="mt-2">Mencari lokasi...</div>
+                <div class="card border-0 shadow-sm" style="border-radius:16px;">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-2"></div>
+                        <div class="text-muted">Mencari lokasi...</div>
                     </div>
                 </div>
             `);
@@ -596,6 +707,20 @@
             position: relative;
         }
 
+        .scanner-corner {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border: 3px solid #2563eb;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .scanner-corner.tl { top: -4px; left: -4px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+        .scanner-corner.tr { top: -4px; right: -4px; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+        .scanner-corner.bl { bottom: -4px; left: -4px; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+        .scanner-corner.br { bottom: -4px; right: -4px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+
         #reader {
             width: 100%;
             height: 100%;
@@ -643,7 +768,7 @@
 
         .mutation-panel {
 
-            border-top: 1px solid #eee;
+            border-top: 1px dashed #e9ecf2;
 
             padding-top: 15px;
 
@@ -655,12 +780,14 @@
 
         }
 
-        .badge-type {
-
-            font-size: .85rem;
-
-            padding: 5px 10px;
-
+        .type-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            flex-shrink: 0;
         }
 
         .type-in {
@@ -751,10 +878,9 @@
 
                     html = `
 
-            <div class="alert alert-light border mb-0">
-
-                Belum ada Mutasi
-                .
+            <div class="d-flex align-items-center gap-2 text-muted py-3 px-1">
+                <i class="bx bx-inbox fs-4"></i>
+                <span class="small">Belum ada mutasi untuk barang ini.</span>
             </div>
 
             `;
@@ -763,10 +889,10 @@
 
                     html = `
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0" style="background:#f8f9fc; border-radius:14px;">
 
-<div class="card-header bg-white d-flex justify-content-between align-items-center">
-            
+<div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+
 <div class="fw-semibold text-primary d-flex align-items-center">
 
     <i class="bx bx-history fs-5 me-1"></i>
@@ -777,7 +903,7 @@
 
 <a href="/stock-mutation?item=${itemId}"
 
-class="btn btn-sm btn-outline-primary">
+class="btn btn-sm btn-outline-primary" style="border-radius:999px;">
 
 Selengkapnya
 
@@ -789,23 +915,25 @@ Selengkapnya
 
 <div class="table-responsive">
 
-<table class="table table-hover mb-0 mutation-table">
+<table class="table table-hover align-middle mb-0 mutation-table">
 
 <thead>
 
-<tr>
+<tr class="text-muted small text-uppercase" style="letter-spacing:.03em;">
 
-<th>Tanggal</th>
+<th class="border-0">Tipe</th>
 
-<th>No Transaksi</th>
+<th class="border-0">Tanggal</th>
 
-<th>Deskripsi</th>
+<th class="border-0">No Transaksi</th>
 
-<th class="text-center">Masuk</th>
+<th class="border-0">Deskripsi</th>
 
-<th class="text-center">Keluar</th>
+<th class="border-0 text-center">Masuk</th>
 
-<th class="text-center">Saldo</th>
+<th class="border-0 text-center">Keluar</th>
+
+<th class="border-0 text-center">Saldo</th>
 
 </tr>
 
@@ -817,25 +945,33 @@ Selengkapnya
 
                     data.forEach(function(item) {
 
-                        let badge = '';
+                        let colorClass = '';
+
+                        let bgColor = '';
 
                         let icon = '';
 
                         if (item.transaction_type === "Receive Item") {
 
-                            badge = 'text-success';
+                            colorClass = 'type-in';
+
+                            bgColor = '#e9f9ee';
 
                             icon = 'bx-down-arrow-alt';
 
                         } else if (item.transaction_type === "Delivery Order") {
 
-                            badge = 'text-danger';
+                            colorClass = 'type-out';
+
+                            bgColor = '#fdecec';
 
                             icon = 'bx-up-arrow-alt';
 
                         } else {
 
-                            badge = 'text-primary';
+                            colorClass = 'type-transfer';
+
+                            bgColor = '#f3ebff';
 
                             icon = 'bx-transfer';
 
@@ -844,6 +980,12 @@ Selengkapnya
                         html += `
 
 <tr>
+
+<td>
+    <span class="type-icon ${colorClass}" style="background:${bgColor};" title="${item.transaction_type ?? '-'}">
+        <i class="bx ${icon}"></i>
+    </span>
+</td>
 
 <td>
     ${new Date(item.transaction_date).toLocaleDateString('id-ID')}
@@ -855,7 +997,7 @@ ${item.transaction_number??'-'}
 
 </td>
 
-<td>
+<td class="text-muted">
 
 ${item.description??'-'}
 
@@ -869,7 +1011,7 @@ ${item.description??'-'}
     ${item.qty_out > 0 ? ('-' + parseFloat(item.qty_out)) : '-'}
 </td>
 
-<td class="text-center">
+<td class="text-center fw-semibold">
     ${parseFloat(item.qty_balance)}
 </td>
 

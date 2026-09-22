@@ -441,7 +441,7 @@
                                                             <select name="status" class="form-select form-select-sm">
                                                                 <option value="" selected>Pilih status
                                                                 </option>
-                                                                @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                                @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
                                                                     <option value="{{ $statusItem }}">
                                                                         {{ $statusItem }}</option>
                                                                 @endforeach
@@ -1093,7 +1093,7 @@
                                                 <select name="status" class="form-select form-select-sm">
                                                     <option value="" selected>Pilih status
                                                     </option>
-                                                    @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                    @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
                                                         <option value="{{ $statusItem }}">
                                                             {{ $statusItem }}</option>
                                                     @endforeach
@@ -1207,7 +1207,7 @@
                                                 <select name="status" class="form-select form-select-sm"
                                                     id="editStatus">
                                                     <option value="" selected>Pilih status</option>
-                                                    @foreach (\App\Models\StagingIn::STATUSES as $statusItem)
+                                                    @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
                                                         <option value="{{ $statusItem }}">
                                                             {{ $statusItem }}
                                                         </option>
@@ -1415,7 +1415,7 @@
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Tgl. Delivery Instruction</label>
+                                    <label class="form-label fw-semibold">Delivery Instruction</label>
                                     <input type="date" class="form-control form-control-sm" value="{{ date('Y-m-d') }}"
                                         name="delivery_instruction_date" id="moveDeliveryInstructionDate">
                                 </div>
@@ -1687,7 +1687,7 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [2, 4, 5, 7],
+                            targets: [2, 4, 5, 7, 10],
                             className: "text-wrap",
                             width: "220px"
                         },
