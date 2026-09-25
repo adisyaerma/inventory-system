@@ -18,7 +18,6 @@ class StagingOut extends Model
         'delivery_instruction_date',
         'picking_date',
         'do_number',
-        'delivery_date',
         'source_type',
         'location_id',
         'lot',

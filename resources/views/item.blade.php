@@ -524,7 +524,7 @@
                                 </span>
 
                                 <input type="text" class="form-control form-control-sm" name="name"
-                                    placeholder="Masukkan Nama Barang" id="edit_name" required>
+                                    placeholder="Masukkan Nama Barang" id="edit_name" >
 
                             </div>
 

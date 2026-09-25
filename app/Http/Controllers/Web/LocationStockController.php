@@ -299,7 +299,7 @@ class LocationStockController extends Controller
 
     public function edit(Item $item)
     {
-        $item->load('locations');
+        $item->load(['locations', 'vendor']);
 
         return response()->json([
             'item' => $item,
@@ -415,8 +415,12 @@ class LocationStockController extends Controller
 
     public function export(Request $request)
     {
+        // Nama file sekarang menyertakan tanggal & jam export, supaya
+        // tidak ada lagi beberapa file "stock.xlsx" yang saling menimpa
+        // atau membingungkan kapan data itu diambil.
+        $filename = 'data_stok_lokasi_'.now()->format('Y-m-d_His').'.xlsx';
 
-        return Excel::download(new LocationStockExport($request), 'stock.xlsx');
+        return Excel::download(new LocationStockExport($request), $filename);
     }
 
     public function import(Request $request)

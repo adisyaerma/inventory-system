@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exports\StagingInHistoryDetailExport;
 use App\Exports\StagingInHistoryExport;
 use App\Http\Controllers\Controller;
 use App\Models\StagingIn;
@@ -27,8 +28,11 @@ use Yajra\DataTables\Facades\DataTables;
  * - Label & warna event pakai StagingInHistoryDetail::EVENT_TYPES /
  *   ::EVENT_COLORS, bukan didefinisikan ulang di sini.
  *
- * Halaman ini murni read-only (audit log), jadi tidak ada create/update/
- * delete di sini.
+ * Halaman ini murni read-only (audit log) untuk sisi lain-lainnya —
+ * SATU pengecualian: bulkRestore() di bawah, yang memulihkan siklus
+ * staging_in yang sudah "Dihapus" (deleted/bulk_deleted/reset_by_import)
+ * dengan cara membuat BARIS BARU di staging_ins (data staging_ins yang
+ * sudah ada sama sekali tidak disentuh/dihapus).
  */
 class StagingInHistoryController extends Controller
 {
@@ -91,6 +95,25 @@ class StagingInHistoryController extends Controller
         $filename = 'staging_in_history_'.now()->format('Y-m-d_His').'.xlsx';
 
         return Excel::download(new StagingInHistoryExport($request), $filename);
+    }
+
+    /**
+     * Export SATU siklus staging_in_history (info awal + activity
+     * timeline lengkap) ke Excel -- ini yang dipanggil tombol "Export"
+     * di panel History Detail sebelah kanan (lihat
+     * staging_in_history.blade.php: #detailExportBtn).
+     */
+    public function exportDetail(StagingInHistory $history)
+    {
+        $history->load('item');
+
+        $itemCode = optional($history->item)->item_code_internal ?: 'item';
+
+        $filename = 'staging_in_history_detail_'
+            .\Illuminate\Support\Str::slug($itemCode).'_'
+            .now()->format('Y-m-d').'.xlsx';
+
+        return Excel::download(new StagingInHistoryDetailExport($history), $filename);
     }
 
     /**
@@ -167,6 +190,20 @@ class StagingInHistoryController extends Controller
 
             ->addIndexColumn()
 
+            ->addColumn('checkbox', function ($row) {
+                $status = $this->statusMeta($row->is_active, $row->last_event_type);
+
+                // Cuma history berstatus "Dihapus" yang boleh dipulihkan
+                // -- yang masih aktif atau sudah selesai (moved) tidak
+                // relevan buat fitur restore ini.
+                if ($status['label'] !== 'Dihapus') {
+                    return '<input type="checkbox" class="form-check-input" disabled
+                        title="Hanya data berstatus Dihapus yang bisa dipulihkan">';
+                }
+
+                return '<input type="checkbox" class="form-check-input historyRestoreCheckbox" value="'.$row->id.'">';
+            })
+
             ->addColumn('item_po', function ($row) {
                 return '
                     <small class="fw-bold">'.e($row->item_code).'</small>
@@ -226,6 +263,7 @@ class StagingInHistoryController extends Controller
             })
 
             ->rawColumns([
+                'checkbox',
                 'item_po',
                 'current_qty',
                 'row_status',
@@ -372,5 +410,193 @@ class StagingInHistoryController extends Controller
                 ];
             }),
         ]);
+    }
+
+    /**
+     * Pulihkan sejumlah history yang berstatus "Dihapus" sekaligus --
+     * dipanggil dari tombol "Pulihkan" setelah user centang baris-baris
+     * yang mau dipulihkan di tabel (mirip pola bulkDestroy di modul lain).
+     *
+     * Untuk setiap history yang valid (is_active=false DAN event
+     * terakhirnya ada di self::REMOVED_EVENTS):
+     * 1. Rekonstruksi data staging_in persis sebelum terhapus (lihat
+     *    reconstructSnapshot()) dari staging_in_histories +
+     *    staging_in_history_details-nya sendiri -- SATU-SATUNYA sumber
+     *    data yang tersisa, karena baris staging_ins aslinya sudah hilang.
+     * 2. Buat BARIS BARU di staging_ins dari snapshot itu (data
+     *    staging_ins yang sudah ada sekarang sama sekali tidak disentuh).
+     * 3. History yang sama di-"hidupkan" lagi: staging_in_id diarahkan ke
+     *    baris baru itu, is_active jadi true.
+     * 4. Dicatat 1 detail baru dengan event_type 'restored' supaya
+     *    kelihatan di timeline sebagai aktivitas pemulihan.
+     *
+     * History yang statusnya BUKAN "Dihapus" (mis. baru saja dipulihkan
+     * lagi, sudah aktif, atau sudah "Selesai"/moved) dilewati dan
+     * dilaporkan sebagai error per-baris -- tidak menggagalkan baris lain
+     * yang valid.
+     *
+     * PENTING: event_type 'restored' HARUS didaftarkan dulu di
+     * App\Models\StagingInHistoryDetail::EVENT_TYPES & ::EVENT_COLORS
+     * (mis. 'restored' => 'Dipulihkan' dan 'restored' => 'success') --
+     * kalau belum, label/warnanya di tabel & timeline cuma fallback ke
+     * key mentahnya ('restored') / warna 'secondary', tidak error, tapi
+     * kurang rapi tampilannya.
+     */
+    public function bulkRestore(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:staging_in_histories,id',
+        ]);
+
+        $restored = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($request, &$restored, &$errors) {
+
+            $histories = StagingInHistory::whereIn('id', $request->ids)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($histories as $history) {
+
+                $history->load(['details' => function ($query) {
+                    // Urutan KRONOLOGIS (lama -> baru) -- reconstructSnapshot()
+                    // butuh urutan ini buat replay perubahan field satu-satu.
+                    $query->reorder()->orderBy('created_at')->orderBy('id');
+                }]);
+
+                $lastDetail = $history->details->last();
+                $label = ($history->po_number ?: 'History #'.$history->id);
+
+                if ($history->is_active || ! $lastDetail || ! in_array($lastDetail->event_type, self::REMOVED_EVENTS, true)) {
+                    $errors[] = "{$label}: dilewati -- statusnya bukan \"Dihapus\", tidak perlu/tidak bisa dipulihkan.";
+
+                    continue;
+                }
+
+                try {
+
+                    // PENTING (khusus Postgres): dibungkus DB::transaction()
+                    // TERPISAH per baris (nested di dalam transaction luar)
+                    // supaya Laravel otomatis pakai SAVEPOINT. Tanpa ini,
+                    // begitu satu baris gagal (mis. melanggar constraint),
+                    // Postgres langsung nge-abort SELURUH transaksi luar --
+                    // baris lain yang sebenarnya valid ikut gagal semua
+                    // dengan pesan generik "current transaction is aborted".
+                    // Dengan SAVEPOINT, kegagalan 1 baris cuma di-ROLLBACK
+                    // TO SAVEPOINT itu sendiri, baris lain & transaksi
+                    // luarnya tetap aman dilanjutkan.
+                    DB::transaction(function () use ($history) {
+
+                        $snapshot = $this->reconstructSnapshot($history);
+
+                        $newStagingIn = StagingIn::create([
+                            'item_id' => $snapshot['item_id'],
+                            'po_number' => $snapshot['po_number'],
+                            'supplier_origin' => $snapshot['supplier_origin'],
+                            'location' => $snapshot['location'],
+                            'arrival_date' => $snapshot['arrival_date'],
+                            'incoterms' => $snapshot['incoterms'],
+                            'qty' => $snapshot['qty'],
+                            'notes' => 'Dipulihkan dari History #'.$history->id,
+                        ]);
+
+                        $history->staging_in_id = $newStagingIn->id;
+                        $history->is_active = true;
+                        $history->save();
+
+                        StagingInHistoryDetail::create([
+                            'staging_in_history_id' => $history->id,
+                            'event_type' => 'restored',
+                            'qty_before' => 0,
+                            'qty_change' => $snapshot['qty'],
+                            'qty_after' => $snapshot['qty'],
+                            'meta' => ['restored_staging_in_id' => $newStagingIn->id],
+                            'notes' => 'Dipulihkan kembali ke Staging In (baris baru #'.$newStagingIn->id.')',
+                            'performed_by' => auth()->id(),
+                        ]);
+                    });
+
+                    $restored++;
+
+                } catch (\Throwable $e) {
+                    $errors[] = "{$label}: gagal dipulihkan -- ".$e->getMessage();
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'restored' => $restored,
+            'errors' => $errors,
+            'message' => $restored.' data berhasil dipulihkan'
+                .(count($errors) ? ', '.count($errors).' baris dilewati/gagal.' : '.'),
+        ]);
+    }
+
+    /**
+     * Rekonstruksi kondisi staging_in PERSIS SEBELUM dihapus, dengan
+     * "memutar ulang" seluruh staging_in_history_details-nya secara
+     * kronologis di atas snapshot awal (kolom staging_in_histories itu
+     * sendiri, yang merupakan data SAAT PERTAMA KALI dibuat):
+     *
+     * - Event 'updated': field apapun yang ada di meta-nya (format
+     *   ['field' => ['old' => ..., 'new' => ...]]) menimpa snapshot
+     *   dengan nilai 'new'-nya -- supaya kalau field selain qty (lokasi,
+     *   supplier, PO, incoterms, tanggal) pernah diedit sebelum akhirnya
+     *   dihapus, yang dipulihkan adalah nilai TERAKHIR, bukan nilai awal.
+     * - qty: diambil dari qty_after tiap detail (running balance), KECUALI
+     *   pada detail event terminasi (deleted/bulk_deleted/reset_by_import)
+     *   yang qty_after-nya biasanya 0 (barisnya memang sudah hilang) --
+     *   di situ dipakai qty_before-nya, yaitu qty PERSIS sebelum terhapus.
+     *
+     * Asumsi ini didasarkan pada pola qty_before/qty_change/qty_after
+     * yang sudah ada di kode existing (lihat currentQtyBadge(), yang juga
+     * pakai last_qty_after buat qty "saat ini"). Kalau ternyata konvensi
+     * di StagingInHistoryService beda dari asumsi ini, silakan sesuaikan
+     * logic di sini.
+     */
+    private function reconstructSnapshot(StagingInHistory $history): array
+    {
+        $snapshot = [
+            'item_id' => $history->item_id,
+            'po_number' => $history->po_number,
+            'supplier_origin' => $history->supplier_origin,
+            'location' => $history->location,
+            'arrival_date' => $history->arrival_date,
+            'incoterms' => $history->incoterms,
+        ];
+
+        $qty = (int) $history->initial_qty;
+
+        foreach ($history->details as $detail) {
+
+            if (in_array($detail->event_type, self::REMOVED_EVENTS, true)) {
+                if (! is_null($detail->qty_before)) {
+                    $qty = (int) $detail->qty_before;
+                }
+
+                break;
+            }
+
+            if ($detail->event_type === 'updated' && $detail->meta) {
+                $meta = is_string($detail->meta) ? json_decode($detail->meta, true) : $detail->meta;
+
+                foreach ((array) $meta as $field => $change) {
+                    if (array_key_exists($field, $snapshot) && is_array($change) && array_key_exists('new', $change)) {
+                        $snapshot[$field] = $change['new'];
+                    }
+                }
+            }
+
+            if (! is_null($detail->qty_after)) {
+                $qty = (int) $detail->qty_after;
+            }
+        }
+
+        $snapshot['qty'] = $qty;
+
+        return $snapshot;
     }
 }

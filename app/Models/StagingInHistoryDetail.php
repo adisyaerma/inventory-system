@@ -18,6 +18,7 @@ class StagingInHistoryDetail extends Model
         'deleted' => 'Dihapus',
         'bulk_deleted' => 'Dihapus (Massal)',
         'reset_by_import' => 'Direset oleh Import',
+        'restored' => 'Dipulihkan',
     ];
 
     /**
@@ -31,6 +32,7 @@ class StagingInHistoryDetail extends Model
         'deleted' => 'danger',
         'bulk_deleted' => 'danger',
         'reset_by_import' => 'warning',
+        'restored' => 'success',
     ];
 
     protected $fillable = [

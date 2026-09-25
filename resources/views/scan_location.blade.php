@@ -951,7 +951,7 @@ Selengkapnya
 
                         let icon = '';
 
-                        if (item.transaction_type === "Receive Item") {
+                        if (item.transaction_trype === "Receive Item") {
 
                             colorClass = 'type-in';
 

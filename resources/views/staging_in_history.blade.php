@@ -93,6 +93,15 @@
                     </div>
                     <div class="float-end mt-3">
                         <span class="text-muted small me-2" id="recordCountLabel"></span>
+                        <button type="button" class="btn-sm btn btn-danger d-none me-1" id="bulkRestoreBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d="M3.578 6.487A8 8 0 1 1 2.5 10.5M7.5 6.5h-4v-4" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Pulihkan (<span id="bulkRestoreCount">0</span>)</span>
+                        </button>
                         <a href="{{ route('stagings-in-history.export') }}" class="btn-sm btn border-secondary bg-white border"
                             id="exportHistoryBtn">
                             <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
@@ -215,6 +224,10 @@
                         <table class="table table-bordered" id="historyTable">
                             <thead>
                                 <tr>
+                                    <th style="width:36px;">
+                                        <input type="checkbox" class="form-check-input" id="selectAllHistoryRestore"
+                                            title="Pilih semua baris berstatus Dihapus di halaman ini">
+                                    </th>
                                     <th>No</th>
                                     <th>Item &amp; PO</th>
                                     <th>Supplier</th>
@@ -256,7 +269,18 @@
                         <h5 class="mb-0 fw-bold">History Detail</h5>
                         <small class="text-muted" id="detailSubtitle">Pilih salah satu data untuk melihat detail</small>
                     </div>
-                    <button type="button" class="btn-close d-none" id="closeDetailBtn"></button>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="#" class="btn-sm btn border-secondary bg-white border d-none" id="detailExportBtn" title="Export Detail Ini">
+                            <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                                viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="currentColor"
+                                    d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Export</span>
+                        </a>
+                        <button type="button" class="btn-close d-none" id="closeDetailBtn"></button>
+                    </div>
                 </div>
 
                 <div class="card-body" style="overflow-y:auto; min-height:0;">
@@ -293,6 +317,17 @@
     </div>
 
     @push('script')
+        {{-- Halaman ini sebelumnya read-only & tidak pernah pakai SweetAlert2,
+             jadi library-nya belum tentu ke-load dari master layout. Muat
+             sendiri di sini KALAU BELUM ADA (dicek typeof Swal), pakai
+             document.write supaya tetap synchronous -- baris <script> lain
+             di bawah (yang manggil Swal) dijamin jalan SETELAH ini selesai
+             dimuat, tanpa perlu nunggu event/callback tambahan. --}}
+        <script>
+            if (typeof Swal === 'undefined') {
+                document.write('<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"><\/script>');
+            }
+        </script>
         <style>
             .icon-box-history {
                 border-radius: 14px;
@@ -507,6 +542,12 @@
                     },
 
                     columns: [{
+                            data: 'checkbox',
+                            name: 'checkbox',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
                             data: 'DT_RowIndex',
                             name: 'DT_RowIndex',
                             searchable: false,
@@ -559,12 +600,17 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [1, 2],
+                            targets: [0],
+                            className: "text-center",
+                            width: "36px"
+                        },
+                        {
+                            targets: [2, 3],
                             className: "text-wrap",
                             width: "200px"
                         },
                         {
-                            targets: [4, 5, 6, 8],
+                            targets: [5, 6, 7, 9],
                             className: "text-center"
                         }
                     ],
@@ -592,6 +638,136 @@
                         $paginate.appendTo('#historyTableFooter');
                     }
                 }
+
+
+                // ============ BULK RESTORE (data berstatus "Dihapus") ============
+                function updateBulkRestoreButton() {
+                    const count = $('.historyRestoreCheckbox:checked').length;
+                    $('#bulkRestoreCount').text(count);
+                    $('#bulkRestoreBtn').toggleClass('d-none', count === 0);
+                }
+
+                $(document).on('change', '.historyRestoreCheckbox', function() {
+                    updateBulkRestoreButton();
+
+                    const $selectable = $('.historyRestoreCheckbox');
+                    const allChecked = $selectable.length > 0 &&
+                        $selectable.length === $selectable.filter(':checked').length;
+                    $('#selectAllHistoryRestore').prop('checked', allChecked);
+                });
+
+                $('#selectAllHistoryRestore').on('change', function() {
+                    $('.historyRestoreCheckbox').prop('checked', $(this).is(':checked'));
+                    updateBulkRestoreButton();
+                });
+
+                // Baris & centangan berganti tiap kali tabel di-redraw (ganti
+                // halaman/filter/search) -- reset seleksi supaya tidak nyangkut
+                // ID dari halaman sebelumnya yang sudah tidak terlihat.
+                historyTable.on('draw', function() {
+                    $('#selectAllHistoryRestore').prop('checked', false);
+                    updateBulkRestoreButton();
+                });
+
+                function showRestoreReportAlert(icon, title, rawText) {
+                    Swal.fire({
+                        icon: icon,
+                        title: title,
+                        html: '<pre class="text-start small" style="white-space:pre-wrap;max-height:50vh;overflow-y:auto;">' +
+                            rawText.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                            '</pre>',
+                        confirmButtonText: 'Tutup',
+                        showDenyButton: true,
+                        denyButtonText: '\ud83d\udccb Copy',
+                        width: 650,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    }).then(function(result) {
+                        if (result.isDenied) {
+                            navigator.clipboard.writeText(rawText).then(function() {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: 'Teks berhasil disalin',
+                                    showConfirmButton: false,
+                                    timer: 1500,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+
+                $('#bulkRestoreBtn').on('click', function() {
+                    const ids = $('.historyRestoreCheckbox:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+
+                    if (ids.length === 0) {
+                        return;
+                    }
+
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Pulihkan Data?',
+                        html: `Yakin mau memulihkan <b>${ids.length}</b> data terpilih kembali ke Staging In?`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Pulihkan',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(function(result) {
+                        if (!result.isConfirmed) {
+                            return;
+                        }
+
+                        $('#bulkRestoreBtn').prop('disabled', true);
+
+                        $.ajax({
+                            url: "{{ route('stagings-in-history.bulk-restore') }}",
+                            method: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                ids: ids
+                            },
+                            success: function(res) {
+                                historyTable.ajax.reload(null, false);
+
+                                if (res.errors && res.errors.length > 0) {
+                                    const rawText = res.message + '\n\n' + res.errors.join('\n\n');
+                                    showRestoreReportAlert(
+                                        res.restored > 0 ? 'warning' : 'error',
+                                        res.restored > 0 ? 'Sebagian Berhasil Dipulihkan' : 'Gagal Dipulihkan',
+                                        rawText
+                                    );
+                                } else {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: res.message,
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal Memulihkan Data',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                        'Terjadi kesalahan saat memulihkan data.'
+                                });
+                            },
+                            complete: function() {
+                                $('#bulkRestoreBtn').prop('disabled', false);
+                            }
+                        });
+                    });
+                });
 
                 $('#historySearch').on('input', function() {
                     historyTable.search(this.value).draw();
@@ -801,6 +977,10 @@
                         $('#detailContent').removeClass('d-none');
                         $('#closeDetailBtn').removeClass('d-none');
 
+                        $('#detailExportBtn')
+                            .attr('href', `{{ url('stagings-in-history') }}/${id}/export-detail`)
+                            .removeClass('d-none');
+
                         $('#detailSubtitle').text(`${res.item_code}`);
                         $('#detailItemName').text(res.item_name ?? '-');
                         $('#detailItemPo').text(res.po_number ?? '-');
@@ -832,6 +1012,7 @@
                     $('#detailContent').addClass('d-none');
                     $('#detailEmptyState').removeClass('d-none');
                     $(this).addClass('d-none');
+                    $('#detailExportBtn').addClass('d-none');
                     $('#detailSubtitle').text('Pilih salah satu data untuk melihat detail');
 
                     // Sembunyikan panel detail & kembalikan tabel ke full width

@@ -138,6 +138,46 @@ class StagingOutHistoryService
     }
 
     /**
+     * Catat kejadian "delivered" SEKALIGUS menandai record sudah selesai
+     * (auto-archive) — dipakai khusus untuk import Excel (StagingOutImport
+     * & StagingOutStockImport) yang barisnya SUDAH punya tgl resi
+     * pengiriman terisi sejak awal, jadi baris staging_out yang
+     * bersangkutan TIDAK PERNAH sempat aktif di tabel utama: begitu
+     * dibuat, langsung dihapus lagi oleh pemanggil method ini.
+     *
+     * Beda dengan logDelivered() biasa (dipakai tombol "konfirmasi kirim"
+     * manual di StagingOutController, barisnya TETAP ada & aktif di
+     * staging_outs): di sini is_active langsung di-set false, karena
+     * baris aslinya memang akan langsung dihapus sesudah ini dipanggil.
+     *
+     * SENGAJA tidak menyusul dengan logDeleted() — status "selesai
+     * terkirim" harus tetap kebaca sebagai "Terkirim"/"Selesai" di UI
+     * (lihat StagingOutHistoryController::shippingStatusMarkup() &
+     * statusMeta(), keduanya cek delivery_date LEBIH DULU sebelum
+     * is_active), bukan "Dihapus" — walau baris staging_out aslinya
+     * memang ikut hilang dari tabel aktif.
+     */
+    public function logAutoDelivered(StagingOut $staging, ?string $doNumber, $deliveryDate): StagingOutHistoryDetail
+    {
+        $history = StagingOutHistory::firstOrCreateForStaging($staging);
+
+        $history->update([
+            'do_number' => $doNumber,
+            'delivery_date' => $deliveryDate,
+            'is_active' => false,
+        ]);
+
+        return $history->details()->create([
+            'event_type' => 'delivered',
+            'meta' => [
+                'do_number' => $doNumber,
+                'delivery_date' => (string) $deliveryDate,
+            ],
+            'performed_by' => auth()->id(),
+        ]);
+    }
+
+    /**
      * Catat kejadian "bulk_deleted" untuk banyak baris sekaligus.
      * $stagings harus koleksi yang SUDAH di-load sebelum di-destroy.
      *

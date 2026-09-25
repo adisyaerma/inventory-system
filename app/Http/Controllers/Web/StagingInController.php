@@ -394,31 +394,49 @@ class StagingInController extends Controller
      */
     public function export(Request $request)
     {
-        return Excel::download(new StagingInExport($request), 'staging_in.xlsx');
+        $filename = 'staging_in_'.now()->format('d-m-Y').'.xlsx';
+
+        return Excel::download(new StagingInExport($request), $filename);
     }
 
     public function import(Request $request)
     {
         $request->validate([
             'file' => ['nullable', 'file', 'mimes:xlsx,xls', 'max:5120'],
+            'mode' => ['required', Rule::in(['reset', 'append'])],
         ], [
             'file.nullable' => 'File wajib diupload',
             'file.mimes' => 'File harus berformat .xlsx atau .xls',
             'file.max' => 'Ukuran file maksimal 5MB',
+            'mode.required' => 'Pilih mode import terlebih dahulu (reset atau tambahkan)',
+            'mode.in' => 'Mode import tidak valid',
         ]);
+
+        $isReset = $request->mode === 'reset';
 
         try {
 
-            // Catat dulu seluruh data lama ke history SEBELUM di-truncate —
-            // truncate() menghapus baris secara langsung di database tanpa
-            // lewat Eloquent, jadi kalau tidak disnapshot dulu, perubahan
-            // ini tidak akan pernah tercatat di mana pun.
-            $this->history->logResetByImport(StagingIn::all());
+            if ($isReset) {
 
-            // Hapus semua data lama secara eksplisit sebelum import,
-            // tidak lagi bergantung pada event BeforeImport.
-            StagingIn::query()->truncate();
+                // Catat dulu seluruh data lama ke history SEBELUM dihapus.
+                $this->history->logResetByImport(StagingIn::all());
 
+                // PENTING: pakai delete(), BUKAN truncate().
+                // Di PostgreSQL, truncate() Laravel menjalankan
+                // "TRUNCATE ... RESTART IDENTITY", yang me-reset counter
+                // auto-increment ID ke 1. Akibatnya baris StagingIn baru
+                // bisa mendapat ID yang dulu pernah dipakai baris lama
+                // (yang sudah lama dihapus/beres), dan history baru jadi
+                // "nyasar" nempel ke thread history lama yang kebetulan
+                // punya staging_in_id sama. delete() tidak menyentuh
+                // sequence, jadi ID baru selalu lanjut, tidak pernah
+                // bentrok dengan ID lama.
+                StagingIn::query()->delete();
+            }
+
+            // Mode 'append' sengaja TIDAK menghapus/truncate data lama —
+            // baris dari file Excel akan ditambahkan sebagai data baru di
+            // atas data yang sudah ada.
             Excel::import(app(StagingInImport::class), $request->file('file'));
         } catch (\Exception $e) {
             return redirect()
@@ -428,7 +446,9 @@ class StagingInController extends Controller
 
         return redirect()
             ->route('stagings-in.index')
-            ->with('success', 'Data staging berhasil diimpor');
+            ->with('success', $isReset
+                ? 'Data staging berhasil direset dan diimpor ulang'
+                : 'Data staging baru berhasil ditambahkan');
     }
 
     /**

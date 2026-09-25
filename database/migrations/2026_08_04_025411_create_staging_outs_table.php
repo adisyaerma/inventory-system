@@ -40,7 +40,6 @@ return new class extends Migration
             $table->date('picking_date')->nullable();
 
             $table->string('do_number')->nullable();
-            $table->date('delivery_date')->nullable();
 
             $table->timestamps();
         });

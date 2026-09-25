@@ -212,6 +212,62 @@
                                         <div class="w-100">
 
                                             <h6 class="fw-bold mb-1">
+                                                Pilih Mode Import
+                                            </h6>
+
+                                            <p class="text-muted small mb-3">
+                                                Tentukan apa yang terjadi pada data staging in yang sudah ada.
+                                            </p>
+
+                                            <div class="form-check mb-2 p-3 border rounded">
+                                                <input class="form-check-input" type="radio" name="mode"
+                                                    id="importModeAppend" value="append" checked>
+                                                <label class="form-check-label w-100" for="importModeAppend">
+                                                    <span class="fw-semibold d-block">Tambahkan saja</span>
+                                                    <small class="text-muted">
+                                                        Data lama tetap ada, baris dari file Excel ditambahkan
+                                                        sebagai data baru.
+                                                    </small>
+                                                </label>
+                                            </div>
+
+                                            <div class="form-check p-3 border rounded">
+                                                <input class="form-check-input" type="radio" name="mode"
+                                                    id="importModeReset" value="reset">
+                                                <label class="form-check-label w-100" for="importModeReset">
+                                                    <span class="fw-semibold d-block">Reset &amp; ganti semua</span>
+                                                    <small class="text-muted">
+                                                        Semua data staging in yang ada saat ini dihapus, lalu
+                                                        diganti sepenuhnya dengan data dari file Excel.
+                                                    </small>
+                                                </label>
+                                            </div>
+
+                                            <div id="importResetWarning"
+                                                class="alert alert-warning small mt-2 mb-0" style="display:none;">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                                Semua data staging in yang ada saat ini akan dihapus dan diganti
+                                                dengan data dari file yang diupload. Data lama masih bisa
+                                                dipulihkan lewat riwayat (history) jika diperlukan.
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    {{-- STEP 3 --}}
+                                    <div class="d-flex gap-3">
+                                        <div>
+                                            <span class="badge rounded-circle bg-primary"
+                                                style="width:32px;height:32px;line-height:24px;">
+                                                3
+                                            </span>
+                                        </div>
+
+                                        <div class="w-100">
+
+                                            <h6 class="fw-bold mb-1">
                                                 Upload File
                                             </h6>
 
@@ -1798,6 +1854,11 @@
                     } else {
                         $('#selectedFileStaging').hide();
                     }
+                });
+
+                // Tampilkan peringatan hanya saat mode "Reset & ganti semua" dipilih.
+                $('input[name="mode"]').on('change', function() {
+                    $('#importResetWarning').toggle($('#importModeReset').is(':checked'));
                 });
 
                 // ================= BARANG (TomSelect dari tabel items) =================

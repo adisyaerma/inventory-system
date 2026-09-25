@@ -5,40 +5,50 @@ namespace App\Exports;
 use App\Models\StagingIn;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class StagingInExport implements FromArray, WithEvents, WithHeadings
+/**
+ * PENTING: sengaja TIDAK pakai WithHeadings.
+ *
+ * WithHeadings selalu menaruh baris heading di baris 1 paling atas --
+ * tidak bisa disisipi baris info lain di atasnya. Supaya file export ini
+ * bisa dibuka mandiri (tanpa perlu tanya-tanya lagi filter apa yang
+ * dipakai saat men-generate-nya), heading tabel sekarang ditulis manual
+ * SEBAGAI SALAH SATU BARIS di dalam array(), didahului blok info: judul
+ * laporan, tanggal export, dan filter (lokasi/status/incoterms/owner/
+ * supplier/tanggal/pencarian) yang sedang aktif saat file ini di-export.
+ * Pola sama persis dengan LocationStockExport.
+ *
+ * Baris kosong pemisah SENGAJA ditulis sebagai [''] (array berisi satu
+ * string kosong), BUKAN [] (array benar-benar kosong) -- array yang
+ * benar-benar kosong bisa di-collapse/dilewati oleh Excel writer
+ * sehingga tidak menempati baris fisik, dan bikin semua style di
+ * bawahnya geser.
+ */
+class StagingInExport implements FromArray, WithEvents
 {
+    private const DATA_COLUMNS = 11;
+
     protected $request;
+
+    /**
+     * Baris (1-based) tempat heading tabel ditulis -- diisi saat array()
+     * jalan, dipakai lagi di registerEvents() sebagai fallback kalau
+     * deteksi otomatis di sheet gagal.
+     */
+    protected int $headingRowNumber = 0;
 
     public function __construct($request)
     {
         $this->request = $request;
     }
 
-    public function headings(): array
-    {
-        return [
-            'No. PO',
-            'Tanggal Kedatangan',
-            'Supplier',
-            'Owner',
-            'Incoterms',
-            'Kode Barang',
-            'Nama Barang',
-            'Qty',
-            'Lokasi',
-            'Keterangan',
-            'Status',
-        ];
-    }
-
     public function array(): array
     {
-        $rows = [];
+        $dataRows = [];
 
         $query = StagingIn::query()->with('item.vendor');
 
@@ -98,7 +108,7 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
         $stagings = $query->latest()->get();
 
         foreach ($stagings as $staging) {
-            $rows[] = [
+            $dataRows[] = [
                 $staging->po_number,
                 optional($staging->arrival_date)->format('d/m/Y'),
                 $staging->supplier_origin,
@@ -113,7 +123,44 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
             ];
         }
 
-        return $rows;
+        // ===== Blok info: judul, tanggal export, & filter yang dipakai =====
+        $dateRangeLabel = '-';
+
+        if ($this->request->filled('start_date') || $this->request->filled('end_date')) {
+            $dateRangeLabel = ($this->request->start_date ?: '...').' s/d '.($this->request->end_date ?: '...');
+        }
+
+        $rows = [];
+
+        $rows[] = ['LAPORAN STAGING IN'];
+        $rows[] = ['Tanggal Export', now()->format('d M Y, H:i')];
+        $rows[] = ['Filter Lokasi', $this->request->filled('location') ? $this->request->location : 'Semua Lokasi'];
+        $rows[] = ['Filter Status', $this->request->filled('status') ? $this->request->status : 'Semua Status'];
+        $rows[] = ['Filter Incoterms', $this->request->filled('incoterms') ? $this->request->incoterms : 'Semua Incoterms'];
+        $rows[] = ['Filter Owner', $this->request->filled('item_owner') ? $this->request->item_owner : 'Semua Owner'];
+        $rows[] = ['Filter Supplier', $this->request->filled('supplier_origin') ? $this->request->supplier_origin : 'Semua Supplier'];
+        $rows[] = ['Filter Tanggal Kedatangan', $dateRangeLabel];
+        $rows[] = ['Kata Kunci Pencarian', $this->request->filled('search') ? $this->request->search : '-'];
+        $rows[] = ['Total Data', count($dataRows)];
+        $rows[] = ['']; // spacer -- WAJIB [''] bukan [], lihat docblock class
+
+        $this->headingRowNumber = count($rows) + 1;
+
+        $rows[] = [
+            'No. PO',
+            'Tanggal Kedatangan',
+            'Supplier',
+            'Owner',
+            'Incoterms',
+            'Kode Barang',
+            'Nama Barang',
+            'Qty',
+            'Lokasi',
+            'Keterangan',
+            'Status',
+        ];
+
+        return array_merge($rows, $dataRows);
     }
 
     public function registerEvents(): array
@@ -124,15 +171,61 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
 
                 $sheet = $event->sheet->getDelegate();
 
-                $lastRow = $sheet->getHighestRow();
-                $sheet->getStyle('A1:K1')
+                // Judul laporan.
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 14],
+                ]);
+
+                /*
+                 * Cari baris heading tabel dari isi sheet yang sudah jadi
+                 * (bukan cuma percaya $this->headingRowNumber begitu
+                 * saja) -- pola yang sama dipakai di LocationStockExport
+                 * supaya tahan kalau baris kosong ternyata di-collapse
+                 * oleh Excel writer.
+                 */
+                $headingRow = null;
+
+                foreach ($sheet->getRowIterator() as $row) {
+                    $rowIndex = $row->getRowIndex();
+
+                    if ($sheet->getCell('A'.$rowIndex)->getValue() === 'No. PO') {
+                        $headingRow = $rowIndex;
+
+                        break;
+                    }
+
+                    // Baris info "Label: Value" di atas tabel -- kolom A
+                    // (label) ditebalkan supaya gampang dibaca.
+                    $colA = $sheet->getCell('A'.$rowIndex)->getValue();
+                    $colB = $sheet->getCell('B'.$rowIndex)->getValue();
+
+                    if ($rowIndex > 1 && $colA !== null && $colA !== '' && $colB !== null && $colB !== '') {
+                        $sheet->getStyle('A'.$rowIndex)->applyFromArray(['font' => ['bold' => true]]);
+                    }
+                }
+
+                // Fallback kalau deteksi di atas entah kenapa gagal.
+                $headingRow = $headingRow ?? $this->headingRowNumber;
+
+                $lastRow = $sheet->getHighestDataRow();
+                $lastCol = chr(64 + self::DATA_COLUMNS); // K
+
+                $sheet->getStyle("A{$headingRow}:{$lastCol}{$headingRow}")
                     ->applyFromArray([
-                        'font' => [
-                            'bold' => true,
+                        'font' => ['bold' => true],
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'F1F3F9'],
+                        ],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                            'vertical' => Alignment::VERTICAL_CENTER,
                         ],
                     ]);
 
-                $sheet->getStyle("A1:K{$lastRow}")
+                $tableRange = "A{$headingRow}:{$lastCol}{$lastRow}";
+
+                $sheet->getStyle($tableRange)
                     ->applyFromArray([
                         'borders' => [
                             'allBorders' => [
@@ -141,17 +234,15 @@ class StagingInExport implements FromArray, WithEvents, WithHeadings
                         ],
                     ]);
 
-                $sheet->getStyle("A1:K{$lastRow}")
+                $sheet->getStyle($tableRange)
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                $sheet->getStyle("H2:H{$lastRow}")
+                $firstDataRow = $headingRow + 1;
+
+                $sheet->getStyle("H{$firstDataRow}:H{$lastRow}")
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
-
-                $sheet->getStyle('A1:K1')
-                    ->getAlignment()
-                    ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $sheet->getColumnDimension('A')->setWidth(20); // No. PO
                 $sheet->getColumnDimension('B')->setWidth(18); // Tanggal Kedatangan

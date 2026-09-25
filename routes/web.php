@@ -226,6 +226,12 @@ Route::patch('stagings-in/{staging}/location', [StagingInController::class, 'upd
 
 Route::get('stagings-in/location-lots', [StagingInController::class, 'locationLots'])
     ->name('stagings-in.location-lots');
+
+Route::get('stagings-in-history/{history}/export-detail', [StagingInHistoryController::class, 'exportDetail'])
+    ->name('stagings-in-history.export-detail');
+
+Route::post('stagings-in-history/bulk-restore', [StagingInHistoryController::class, 'bulkRestore'])
+    ->name('stagings-in-history.bulk-restore');
 // ===staging out===
 
 Route::get('/stagings-out/data', [StagingOutController::class, 'data'])
@@ -264,6 +270,9 @@ Route::get('stagings-out/search-lot-for-item-location', [StagingOutController::c
 
 Route::patch('stagings-out/{stagingOut}/location', [StagingOutController::class, 'updateLocation'])
     ->name('stagings-out.update-location');
+
+Route::post('stagings-out/import-stock', [StagingOutController::class, 'importStock'])
+    ->name('stagings-out.import-stock');
     
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 

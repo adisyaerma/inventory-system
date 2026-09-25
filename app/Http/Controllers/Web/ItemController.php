@@ -169,7 +169,7 @@ class ItemController extends Controller
             'item_code_supplier' => 'nullable|string|max:255',
             'item_code_customer' => 'nullable|string|max:255',
 
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'vendor_id' => 'nullable|exists:vendors,id',
 

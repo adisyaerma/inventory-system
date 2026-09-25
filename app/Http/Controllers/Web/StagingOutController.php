@@ -6,6 +6,7 @@ use App\Exports\StagingOutExport;
 use App\Exports\StagingOutTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\StagingOutImport;
+use App\Imports\StagingOutStockImport;
 use App\Models\Item;
 use App\Models\LocationStock;
 use App\Models\StagingOut;
@@ -33,11 +34,11 @@ class StagingOutController extends Controller
 
         $sudahPicking = StagingOut::whereNotNull('picking_date')->count();
 
-        $sudahDikirim = StagingOut::whereNotNull('delivery_date')->count();
+        $sudahDikirim = StagingOut::whereNotNull('delivery_receipt_date')->count();
 
         $belumPicking = StagingOut::whereNull('picking_date')->count();
 
-        $belumDikirim = StagingOut::whereNull('delivery_date')->count();
+        $belumDikirim = StagingOut::whereNull('delivery_receipt_date')->count();
 
         return view('staging_out', compact(
             'totalEntry',
@@ -76,17 +77,17 @@ class StagingOutController extends Controller
 
         } elseif ($request->status === 'siap_kirim') {
             $query->whereNotNull('staging_outs.picking_date')
-                ->whereNull('staging_outs.delivery_date');
+                ->whereNull('staging_outs.delivery_receipt_date');
 
         } elseif ($request->status === 'belum_dikirim') {
-            $query->whereNull('staging_outs.delivery_date');
+            $query->whereNull('staging_outs.delivery_receipt_date');
 
         } elseif (in_array($request->status, ['sudah_dikirim', 'selesai'])) {
-            $query->whereNotNull('staging_outs.delivery_date');
+            $query->whereNotNull('staging_outs.delivery_receipt_date');
 
         } elseif ($request->status === 'terlambat') {
             $query->whereDate('staging_outs.delivery_instruction_date', '<', now())
-                ->whereNull('staging_outs.delivery_date');
+                ->whereNull('staging_outs.delivery_receipt_date');
         }
 
         // 2. Customer
@@ -105,7 +106,7 @@ class StagingOutController extends Controller
         }
 
         // 3. Rentang tanggal — HANYA satu kolom, sesuai date_type yang dipilih
-        $dateColumn = in_array($request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_date', 'delivery_receipt_date'])
+        $dateColumn = in_array($request->date_type, ['delivery_instruction_date', 'picking_date', 'delivery_receipt_date'])
             ? $request->date_type
             : 'delivery_instruction_date';
 
@@ -118,13 +119,13 @@ class StagingOutController extends Controller
 
         // 4. Overdue
         if ($request->overdue == 1) {
-            $query->whereDate('staging_outs.delivery_instruction_date', '<', now())->whereNull('staging_outs.delivery_date');
+            $query->whereDate('staging_outs.delivery_instruction_date', '<', now())->whereNull('staging_outs.delivery_receipt_date');
         }
 
         // 5. Pengiriman dijadwalkan hari ini (dipakai notifikasi dashboard)
         if ($request->query('filter') === 'today') {
             $query->whereDate('staging_outs.delivery_instruction_date', now()->toDateString())
-                ->whereNull('staging_outs.delivery_date');
+                ->whereNull('staging_outs.delivery_receipt_date');
         }
 
         return DataTables::eloquent($query)
@@ -236,32 +237,6 @@ class StagingOutController extends Controller
                 return $html;
             })
 
-            ->editColumn('delivery_date', function ($row) {
-
-                if ($row->delivery_date) {
-                    return optional($row->delivery_date)->format('d M Y');
-                }
-
-                return '
-                <button type="button"
-                    class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
-                    data-id="'.$row->id.'"
-                    data-source-type="'.e($row->source_type).'"
-                    data-item-id="'.e($row->item_id).'"
-                    data-location-id="'.e($row->location_id).'"
-                    data-qty="'.e($row->qty).'"
-                    data-lot="'.e($row->lot).'"
-                    data-bs-toggle="modal"
-                    data-bs-target="#confirmDeliveryModal">
-
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="me-1">
-                        <path d="M0 0h24v24H0z" fill="none"/>
-                        <path fill="currentColor" d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5m13.5-9l1.96 2.5H17V9.5zM18 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5"/>
-                    </svg>
-                    Konfirmasi Kirim
-                </button>';
-            })
-
             ->editColumn('do_number', function ($row) {
                 return $row->do_number ?: '-';
             })
@@ -319,7 +294,6 @@ class StagingOutController extends Controller
                 'source_type',
                 'picking_date',
                 'staging_location',
-                'delivery_date',
                 'action',
             ])
 
@@ -359,6 +333,11 @@ class StagingOutController extends Controller
     /**
      * Search the items table for the "Kode Barang" TomSelect used on the
      * add/edit staging out forms (mirrors StagingInController::searchStock).
+     *
+     * Kata kunci dicocokkan ke SEMUA jenis kode barang (internal,
+     * customer, supplier), bukan cuma item_code_internal -- supaya kalau
+     * user ketik kode dari sisi customer/supplier yang beda dari kode
+     * internal, itemnya tetap ketemu.
      */
     public function searchStock(Request $request)
     {
@@ -368,6 +347,8 @@ class StagingOutController extends Controller
             ->when($keyword, function ($query) use ($keyword) {
                 $query->where(function ($q) use ($keyword) {
                     $q->where('item_code_internal', 'like', "%{$keyword}%")
+                        ->orWhere('item_code_customer', 'like', "%{$keyword}%")
+                        ->orWhere('item_code_supplier', 'like', "%{$keyword}%")
                         ->orWhere('name', 'like', "%{$keyword}%");
                 });
             })
@@ -455,7 +436,9 @@ class StagingOutController extends Controller
      */
     public function export(Request $request)
     {
-        return Excel::download(new StagingOutExport($request), 'staging_out.xlsx');
+        $filename = 'staging_out_'.now()->format('d-m-Y').'.xlsx';
+
+        return Excel::download(new StagingOutExport($request), $filename);
     }
 
     public function import(Request $request)
@@ -494,6 +477,79 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Import khusus untuk staging out yang barangnya diambil dari STOK
+     * (source_type = stock). Lihat StagingOutStockImport untuk aturan
+     * lengkap pencarian lokasi/lot otomatisnya.
+     *
+     * SENGAJA TIDAK men-truncate data staging_outs yang sudah ada
+     * (beda dengan import() biasa di atas) -- setiap baris di sini
+     * adalah transaksi pengurangan stok sungguhan (location_stocks
+     * dikurangi & dicatat di stock_mutations), jadi truncate akan
+     * menghapus riwayat staging out tanpa mengembalikan stok yang sudah
+     * terlanjur dikurangi. Import ini sifatnya menambah baris baru saja.
+     *
+     * Baris yang lokasi/lot-nya ambigu (atau stoknya kosong/kurang)
+     * SENGAJA dilewati, bukan dianggap gagal total -- baris lain yang
+     * berhasil tetap dilaporkan sukses (lihat pembagian pesan sukses/
+     * error di bawah, dibangun dari $import->imported & $import->errors
+     * SETELAH Excel::import() selesai, bukan dari Exception).
+     */
+    public function importStock(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:5120'],
+        ], [
+            'file.required' => 'File wajib diupload',
+            'file.mimes' => 'File harus berformat .xlsx atau .xls',
+            'file.max' => 'Ukuran file maksimal 5MB',
+        ]);
+
+        $import = app(StagingOutStockImport::class);
+
+        try {
+            // $import di sini disimpan dulu ke variabel (bukan langsung
+            // app(...) di dalam call) supaya $import->imported &
+            // $import->errors bisa dibaca lagi setelah proses selesai --
+            // StagingOutStockImport SENGAJA tidak melempar Exception cuma
+            // karena ada baris yang dilewati, jadi baris yang berhasil
+            // tetap harus dilaporkan sebagai sukses, bukan ikut dianggap
+            // gagal total.
+            Excel::import($import, $request->file('file'));
+        } catch (\Exception $e) {
+            // Ini murni error tak terduga (file rusak/corrupt, dsb) --
+            // baris yang sengaja dilewati (lokasi ambigu, dll) tidak
+            // pernah sampai sini.
+            return redirect()
+                ->route('stagings-out.index')
+                ->with('error', $e->getMessage());
+        }
+
+        // Tidak ada satupun baris yang berhasil ATAUPUN dilewati -- besar
+        // kemungkinan file kosong / tidak sesuai template.
+        if ($import->imported === 0 && empty($import->errors)) {
+            return redirect()
+                ->route('stagings-out.index')
+                ->with('error', 'Tidak ada baris yang bisa diimpor. Pastikan file tidak kosong dan formatnya sesuai template.');
+        }
+
+        // Semua baris berhasil, tidak ada yang dilewati.
+        if (empty($import->errors)) {
+            return redirect()
+                ->route('stagings-out.index')
+                ->with('success', "{$import->imported} baris staging out dari stok berhasil diimpor.");
+        }
+
+        // Sebagian (atau semua) baris dilewati -- tetap laporkan berapa
+        // yang berhasil, plus daftar baris yang dilewati beserta
+        // alasan & nomor baris Excel-nya supaya bisa dicek/diperbaiki.
+        $summary = "{$import->imported} baris berhasil diimpor, ".count($import->errors).' baris dilewati:';
+
+        return redirect()
+            ->route('stagings-out.index')
+            ->with('error', $summary."\n\n".implode("\n\n", $import->errors));
+    }
+
+    /**
      * Aturan validasi dasar untuk store/update. Validasi tambahan yang
      * bergantung pada source_type ditangani lewat Validator::after() di
      * masing-masing method, supaya pesan errornya spesifik.
@@ -512,7 +568,6 @@ class StagingOutController extends Controller
             'delivery_instruction_date' => ['nullable', 'date'],
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
-            'delivery_date' => ['nullable', 'date'],
             'delivery_receipt_date' => ['nullable', 'date'],
         ];
     }
@@ -612,7 +667,7 @@ class StagingOutController extends Controller
             'item_id' => $stagingOut->item_id,
             'location_id' => $stagingOut->location_id,
             'lot' => $stagingOut->lot,
-            'transaction_date' => $stagingOut->delivery_date
+            'transaction_date' => $stagingOut->delivery_receipt_date
                 ?? $stagingOut->picking_date
                 ?? $stagingOut->delivery_instruction_date
                 ?? now(),
@@ -625,9 +680,25 @@ class StagingOutController extends Controller
     }
 
     /**
-     * Kebalikan dari applyStockOut(): mengembalikan qty ke location_stock
-     * dan mencatatnya sebagai qty_in di stock_mutations. Dipanggil saat
-     * staging out (yang sumbernya stock) diedit datanya atau dihapus.
+     * Kebalikan dari applyStockOut(): mengembalikan qty ke location_stock,
+     * DAN menghapus baris stock_mutations yang tadinya dibuat
+     * applyStockOut() untuk staging out ini -- BUKAN membuat mutasi
+     * pembalik baru ("Pembatalan/Perubahan ...").
+     *
+     * Kenapa dihapus, bukan dibuatkan entri pembalik: kalau staging out
+     * yang sumbernya stock diedit atau dihapus, riwayat mutasinya harus
+     * ikut berubah/hilang juga -- bukan malah numpuk jadi 2 baris
+     * (baris asli + baris "pembatalan") yang bikin ledger stock mutation
+     * kelihatan ada transaksi masuk padahal sebenarnya cuma
+     * koreksi/pembatalan staging out yang salah input.
+     *
+     * Dipanggil saat staging out (yang sumbernya stock) diedit datanya
+     * atau dihapus. Untuk kasus EDIT, urutannya di update(): reverseStockOut()
+     * (hapus mutasi lama + kembalikan qty) -> $stagingOut->update(...) ->
+     * applyStockOut() (buat mutasi baru + potong qty lagi dengan data
+     * terbaru) -- efeknya di tabel stock_mutations terlihat seperti
+     * "diedit" (baris lama hilang, baris baru sesuai data terkini),
+     * walau secara teknis implementasinya hapus+buat baru.
      */
     protected function reverseStockOut(StagingOut $stagingOut): void
     {
@@ -650,17 +721,32 @@ class StagingOutController extends Controller
         $stock->quantity = (float) $stock->quantity + (float) $stagingOut->qty;
         $stock->save();
 
-        StockMutation::create([
-            'item_id' => $stagingOut->item_id,
-            'location_id' => $stagingOut->location_id,
-            'lot' => $stagingOut->lot,
-            'transaction_date' => now(),
-            'transaction_number' => $stagingOut->so_number,
-            'description' => 'Pembatalan/Perubahan Staging Out #'.$stagingOut->id,
-            'qty_in' => $stagingOut->qty,
-            'qty_out' => 0,
-            'qty_balance' => $stock->quantity,
-        ]);
+        $this->deleteStockOutMutation($stagingOut);
+    }
+
+    /**
+     * Cari & hapus baris stock_mutations yang dibuat applyStockOut()
+     * untuk staging out ini. Tidak ada kolom relasi eksplisit
+     * (staging_out_id) di tabel stock_mutations, jadi baris yang tepat
+     * diidentifikasi lewat kombinasi item/lokasi/lot + kolom
+     * description yang SELALU diawali "Staging Out #<id>" (diisi
+     * applyStockOut() di sini maupun StagingOutStockImport saat
+     * import) -- pola ini dipakai sebagai penanda, bukan pencocokan
+     * teks bebas, supaya "#123" tidak ikut kena kalau yang dicari
+     * "#1234" (makanya wajib dicek diikuti spasi, bukan LIKE "#123%").
+     */
+    protected function deleteStockOutMutation(StagingOut $stagingOut): void
+    {
+        $marker = 'Staging Out #'.$stagingOut->id;
+
+        StockMutation::where('item_id', $stagingOut->item_id)
+            ->where('location_id', $stagingOut->location_id)
+            ->where('lot', $stagingOut->lot)
+            ->where(function ($q) use ($marker) {
+                $q->where('description', $marker)
+                    ->orWhere('description', 'like', $marker.' %');
+            })
+            ->delete();
     }
 
     /**
@@ -733,7 +819,6 @@ class StagingOutController extends Controller
             'delivery_instruction_date' => optional($stagingOut->delivery_instruction_date)->format('Y-m-d'),
             'picking_date' => optional($stagingOut->picking_date)->format('Y-m-d'),
             'do_number' => $stagingOut->do_number,
-            'delivery_date' => optional($stagingOut->delivery_date)->format('Y-m-d'),
             'delivery_receipt_date' => optional($stagingOut->delivery_receipt_date)->format('Y-m-d'),
         ]);
     }
@@ -765,12 +850,12 @@ class StagingOutController extends Controller
                 // getOriginal() sudah ikut ter-sync ke nilai baru.
                 $changes = $this->history->diff($stagingOut, $validated);
 
-                // Tangkap kondisi "baru saja dikirim": tanggal kirim yang
-                // tadinya kosong, sekarang diisi lewat update ini — juga
-                // harus dicek SEBELUM update() menimpa nilai aslinya.
-                $justDelivered = is_null($stagingOut->delivery_date)
-                    && array_key_exists('delivery_date', $validated)
-                    && ! is_null($validated['delivery_date']);
+                // Tangkap kondisi "baru saja dikirim": tgl resi pengiriman
+                // yang tadinya kosong, sekarang diisi lewat update ini —
+                // juga harus dicek SEBELUM update() menimpa nilai aslinya.
+                $justDelivered = is_null($stagingOut->delivery_receipt_date)
+                    && array_key_exists('delivery_receipt_date', $validated)
+                    && ! is_null($validated['delivery_receipt_date']);
 
                 // Jika baris ini SEBELUMNYA memotong stok, kembalikan dulu
                 // qty-nya sebelum diupdate — supaya perubahan qty/lokasi/lot

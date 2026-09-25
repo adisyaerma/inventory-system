@@ -115,7 +115,7 @@ class StockMutationController extends Controller
                 return rtrim(rtrim(number_format($row->qty_balance, 2, '.', ''), '0'), '.');
             })
 
-            ->addColumn('description', function ($row) {
+            ->editColumn('description', function ($row) {
                 return $row->description;
             })
             ->addColumn('action', function ($row) {
@@ -833,9 +833,11 @@ class StockMutationController extends Controller
 
     public function export(Request $request)
     {
+        $filename = 'stock_mutation_ '.now()->format('d-m-Y').'.xlsx';
+
         return Excel::download(
             new StockMutationExport($request),
-            'Stock Mutation.xlsx'
+            $filename
         );
     }
 

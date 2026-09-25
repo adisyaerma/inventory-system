@@ -155,14 +155,17 @@ class StagingOutImport implements ToCollection, WithHeadingRow
 
                 $this->history->logCreated($staging);
 
-                // Catatan: dulu ada logika yang otomatis menganggap baris
-                // "sudah selesai" (lalu dipindah ke history & dihapus dari
-                // tabel aktif) begitu tanggal kirim di Excel terisi. Sekarang
-                // TIDAK LAGI berlaku untuk delivery_receipt_date — resi
-                // pengiriman terisi bukan berarti pengirimannya sudah
-                // dikonfirmasi (delivery_date). Baris tetap disimpan di
-                // tabel aktif staging_outs sampai delivery_date-nya sendiri
-                // dikonfirmasi lewat menu konfirmasi kirim.
+                // Kalau tgl resi pengiriman sudah terisi di baris Excel-nya,
+                // artinya barang ini SUDAH TERKIRIM — catat sebagai event
+                // "delivered" (bukan "deleted"!) supaya status di halaman
+                // history tampil "Terkirim"/"Selesai", lalu baris di tabel
+                // aktif staging_outs dihapus karena memang tidak relevan
+                // lagi (lihat StagingOutHistoryService::logAutoDelivered()).
+                if ($deliveryReceiptDate !== null) {
+                    $this->history->logAutoDelivered($staging, $doNumber, $deliveryReceiptDate);
+
+                    $staging->delete();
+                }
 
                 $this->imported++;
 

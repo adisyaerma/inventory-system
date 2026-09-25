@@ -166,6 +166,17 @@
                     <span class="d-none d-md-inline ms-1">Import</span>
                 </button>
 
+                <button type="button" class="btn-sm btn border-secondary bg-white border me-1" data-bs-toggle="modal"
+                    data-bs-target="#importStagingOutStockModal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <path d="M0 0h24v24H0z" fill="none" />
+                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="1.5"
+                            d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4M4 6v12a2 2 0 0 0 2 2h14v-4M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4z" />
+                    </svg>
+                    <span class="d-none d-md-inline ms-1">Import dari Stock</span>
+                </button>
+
                 <a href="{{ route('stagings-out.export') }}" class="btn-sm btn border-secondary bg-white border me-1"
                     id="exportBtn">
                     <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
@@ -333,6 +344,164 @@
                                     <button type="submit" class="btn btn-primary">
                                         <i class="bi bi-upload me-1"></i>
                                         Import Data
+                                    </button>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {{-- ================= MODAL IMPORT DARI STOCK ================= --}}
+                <div class="modal fade" id="importStagingOutStockModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <form action="{{ route('stagings-out.import-stock') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+
+                            <div class="modal-content border-0 shadow">
+
+                                <div class="modal-header border-0 px-4 pt-4">
+
+                                    <div class="d-flex align-items-center gap-3">
+
+                                        <div class=" rounded-3 p-2 flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
+                                                height="1em" viewBox="0 0 24 24">
+                                                <path d="M0 0h24v24H0z" fill="none" />
+                                                <path fill="none" stroke="currentColor" stroke-linecap="round"
+                                                    stroke-linejoin="round" stroke-width="1.5"
+                                                    d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
+                                            </svg>
+                                        </div>
+
+                                        <div>
+                                            <h5 class="mb-0 fw-bold">
+                                                Impor Staging Out dari Stock
+                                            </h5>
+
+                                            <small class="text-muted">
+                                                Import staging out yang barangnya diambil dari stok -- lokasi &amp; lot dicari otomatis
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+                                </div>
+
+                                <div class="modal-body">
+
+                                    {{-- STEP 1 --}}
+                                    <div class="d-flex gap-3">
+                                        <div>
+                                            <span class="badge rounded-circle bg-primary"
+                                                style="width:32px;height:32px;line-height:24px;">
+                                                1
+                                            </span>
+                                        </div>
+
+                                        <div class="w-100">
+                                            <h6 class="fw-bold mb-1">
+                                                Unduh Template
+                                            </h6>
+
+                                            <p class="text-muted small mb-3">
+                                                Gunakan template Excel berikut untuk menyiapkan data impor.
+                                            </p>
+
+                                            <a href="{{ route('stagings-out.template') }}"
+                                                class="btn btn-sm btn-outline-secondary">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="me-1 fs-5" width="1em"
+                                                    height="1em" viewBox="0 0 24 24">
+                                                    <path d="M0 0h24v24H0z" fill="none" />
+                                                    <path fill="none" stroke="currentColor" stroke-linecap="round"
+                                                        stroke-linejoin="round" stroke-width="1.5"
+                                                        d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
+                                                </svg>
+
+                                                Unduh Template Excel
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    {{-- STEP 2 --}}
+                                    <div class="d-flex gap-3">
+                                        <div>
+                                            <span class="badge rounded-circle bg-primary"
+                                                style="width:32px;height:32px;line-height:24px;">
+                                                2
+                                            </span>
+                                        </div>
+
+                                        <div class="w-100">
+
+                                            <h6 class="fw-bold mb-1">
+                                                Upload File
+                                            </h6>
+
+                                            <p class="text-muted small mb-3">
+                                                Upload file Excel (.xlsx, .xls) sesuai template. Template-nya
+                                                sama seperti import biasa (tidak ada kolom Lokasi) -- lokasi
+                                                &amp; lot diambil otomatis dari data stok per Kode Barang.
+                                                Baris yang barangnya ada di lebih dari 1 lokasi/lot akan
+                                                dilewati dan dilaporkan nomor barisnya, silakan input baris
+                                                itu manual lewat form Tambah dengan sumber "Stock".
+                                            </p>
+
+                                            <label class="upload-box w-100">
+                                                <input type="file" id="excelFileStagingOutStock" name="file"
+                                                    accept=".xlsx,.xls" hidden>
+
+                                                <div class="border border-2 border-primary-subtle rounded p-5 text-center">
+
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="fs-4 mb-1"
+                                                        width="1em" height="1em" viewBox="0 0 24 24">
+                                                        <path d="M0 0h24v24H0z" fill="none" />
+                                                        <path fill="currentColor"
+                                                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm4 18H6V4h7v5h5z" />
+                                                    </svg>
+
+                                                    <div>
+                                                        <small class="fw-semibold">
+                                                            Drag & drop file di sini
+                                                        </small>
+                                                    </div>
+
+                                                    <div>
+                                                        <small class="text-muted">
+                                                            atau klik untuk memilih file
+                                                        </small>
+                                                    </div>
+
+                                                    <small class="text-muted">
+                                                        Maks. 5MB
+                                                    </small>
+
+                                                    <div id="selectedFileStagingOutStock" class="mt-2"
+                                                        style="display:none;">
+                                                        <small class="text-success fw-semibold">
+                                                            ✓ File dipilih: <span id="fileNameStagingOutStock"></span>
+                                                        </small>
+                                                    </div>
+
+                                                </div>
+                                            </label>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="modal-footer border-0">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                        Batal
+                                    </button>
+
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-upload me-1"></i>
+                                        Import Data Stock
                                     </button>
                                 </div>
 
@@ -630,25 +799,6 @@
 
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="do_number" placeholder="Opsional">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Tgl Kirim
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-calendar-event"></i>
-                                                            </span>
-
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                name="delivery_date">
 
                                                         </div>
 
@@ -977,7 +1127,6 @@
                                 <select class="form-select border-start-0" id="filterDateType">
                                     <option value="delivery_instruction_date">Tgl Instruksi Kirim</option>
                                     <option value="picking_date">Tgl Picking</option>
-                                    <option value="delivery_date">Tgl Kirim</option>
                                     <option value="delivery_receipt_date">Tgl Resi Pengiriman</option>
                                 </select>
                             </div>
@@ -1043,7 +1192,6 @@
                         <th>Lokasi</th>
                         <th>No. DO</th>
                         <th>Tgl Resi Pengiriman</th>
-                        <th>Tgl Kirim</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -1363,25 +1511,6 @@
 
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Tgl Kirim
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-calendar-event"></i>
-                                                </span>
-
-                                                <input type="date" class="form-control form-control-sm"
-                                                    name="delivery_date" id="editDeliveryDate">
-
-                                            </div>
-
-                                        </div>
-
                                         <div>
 
                                             <label class="form-label fw-semibold">
@@ -1587,131 +1716,6 @@
 
         </div>
 
-    </div>
-
-    {{-- ================= MODAL KONFIRMASI TANGGAL KIRIM ================= --}}
-    <div class="modal fade" id="confirmDeliveryModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-        aria-hidden="true">
-
-        <div class="modal-dialog modal-dialog-centered modal-md">
-            <div class="modal-content">
-
-                <form id="formConfirmDelivery">
-                    @csrf
-                    @method('PUT')
-
-                    <input type="hidden" name="id" id="confirmDeliveryId">
-                    <input type="hidden" name="source_type" id="confirmDeliverySourceType">
-                    <input type="hidden" name="item_id" id="confirmDeliveryItemId">
-                    <input type="hidden" name="location_id" id="confirmDeliveryLocationId">
-                    <input type="hidden" name="qty" id="confirmDeliveryQty">
-                    <input type="hidden" name="lot" id="confirmDeliveryLot">
-
-                    {{-- HEADER --}}
-                    <div class="modal-header border-0 px-4 pt-4 pb-3">
-
-                        <div class="d-flex align-items-center gap-3">
-
-                            <div class="rounded-3 d-flex align-items-center justify-content-center"
-                                style="
-                                width: 48px;
-                                height: 48px;
-                                background: rgba(var(--bs-primary-rgb), .12);
-                                color: var(--bs-primary);
-                            ">
-                                <i class="bx bx-package fs-3"></i>
-                            </div>
-
-                            <div>
-                                <h5 class="modal-title fw-bold mb-1">
-                                    Konfirmasi Pengiriman
-                                </h5>
-
-                                <p class="mb-0 text-muted small">
-                                    Tandai barang sebagai sudah dikirim
-                                </p>
-                            </div>
-
-                        </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
-                        </button>
-
-                    </div>
-
-
-                    {{-- BODY --}}
-                    <div class="modal-body px-4 pt-2 pb-3">
-
-                        {{-- INFO --}}
-                        <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-4" style="background: #f8f9fa;">
-
-                            <div class="text-primary mt-1">
-                                <i class="bx bx-info-circle fs-4"></i>
-                            </div>
-
-                            <div>
-                                <div class="fw-semibold mb-1">
-                                    Pastikan tanggal pengiriman
-                                </div>
-
-                                <div class="text-muted small">
-                                    Pilih tanggal ketika barang benar-benar dikirim
-                                    kepada customer.
-                                </div>
-                            </div>
-
-                        </div>
-
-
-                        {{-- TANGGAL --}}
-                        <div class="mb-2">
-
-                            <label for="confirmDeliveryDate" class="form-label fw-semibold">
-                                Tanggal Kirim
-                            </label>
-
-                            <div class="input-group">
-
-                                <span class="input-group-text bg-transparent">
-                                    <i class="bx bx-calendar text-primary"></i>
-                                </span>
-
-                                <input type="date" class="form-control" name="delivery_date" id="confirmDeliveryDate"
-                                    required>
-
-                            </div>
-
-                            <div class="form-text">
-                                <i class="bx bx-info-circle me-1"></i>
-                                Secara otomatis menggunakan tanggal hari ini.
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- FOOTER --}}
-                    <div class="modal-footer border-0 px-4 pb-4 pt-2">
-
-                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">
-                            Batal
-                        </button>
-
-                        <button type="submit" class="btn btn-primary px-4 btnSaveConfirmDelivery">
-
-                            <i class="bx bx-check-circle me-1"></i>
-                            Konfirmasi Kirim
-
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-        </div>
     </div>
 
     @push('script')
@@ -1921,10 +1925,6 @@
                             name: 'delivery_receipt_date'
                         },
                         {
-                            data: 'delivery_date',
-                            name: 'delivery_date'
-                        },
-                        {
                             data: 'action',
                             name: 'action',
                             searchable: false,
@@ -2076,6 +2076,15 @@
                         $('#selectedFileStagingOut').show();
                     } else {
                         $('#selectedFileStagingOut').hide();
+                    }
+                });
+
+                $('#excelFileStagingOutStock').on('change', function() {
+                    if (this.files.length > 0) {
+                        $('#fileNameStagingOutStock').text(this.files[0].name);
+                        $('#selectedFileStagingOutStock').show();
+                    } else {
+                        $('#selectedFileStagingOutStock').hide();
                     }
                 });
 
@@ -2409,7 +2418,6 @@
                             $('#editDeliveryInstructionDate').val(res.delivery_instruction_date);
                             $('#editPickingDate').val(res.picking_date);
                             $('#editDoNumber').val(res.do_number);
-                            $('#editDeliveryDate').val(res.delivery_date);
                             $('#editDeliveryReceiptDate').val(res.delivery_receipt_date);
 
                             $('#editItemId').val(res.item_id);
@@ -2706,112 +2714,6 @@
                     this.querySelector('form').reset();
                 });
 
-                // ================= KONFIRMASI TANGGAL KIRIM: buka modal =================
-                $(document).on('click', '.btnConfirmDelivery', function() {
-
-                    let id = $(this).data('id');
-                    let sourceType = $(this).data('source-type');
-
-                    let today = new Date();
-                    let yyyy = today.getFullYear();
-                    let mm = String(today.getMonth() + 1).padStart(2, '0');
-                    let dd = String(today.getDate()).padStart(2, '0');
-
-                    $('#confirmDeliveryId').val(id);
-                    $('#confirmDeliverySourceType').val(sourceType);
-                    $('#confirmDeliveryItemId').val($(this).data('item-id') || '');
-                    $('#confirmDeliveryLocationId').val($(this).data('location-id') || '');
-                    $('#confirmDeliveryQty').val($(this).data('qty') || '');
-                    $('#confirmDeliveryLot').val($(this).data('lot') || '');
-                    $('#confirmDeliveryDate').val(`${yyyy}-${mm}-${dd}`);
-
-                });
-
-                // ================= KONFIRMASI TANGGAL KIRIM: simpan (AJAX) =================
-                $(document).on('submit', '#formConfirmDelivery', function(e) {
-
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    let id = $('#confirmDeliveryId').val();
-
-                    $.ajax({
-
-                        url: "{{ route('stagings-out.update', ':id') }}".replace(':id', id),
-                        method: 'POST',
-                        data: $(this).serialize() + '&_method=PUT',
-
-                        beforeSend: function() {
-                            $('.btnSaveConfirmDelivery').prop('disabled', true)
-                                .html(
-                                    '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...'
-                                );
-                        },
-
-                        success: function(response) {
-
-                            $('.btnSaveConfirmDelivery').prop('disabled', false)
-                                .html('<i class="bi bi-check2-circle me-1"></i> Konfirmasi Kirim');
-
-                            $('#confirmDeliveryModal').modal('hide');
-
-                            table.ajax.reload(null, false);
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: response.message ||
-                                    'Tanggal kirim berhasil dikonfirmasi',
-                                timer: 2000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
-
-                        },
-
-                        error: function(xhr) {
-
-                            $('.btnSaveConfirmDelivery').prop('disabled', false)
-                                .html('<i class="bi bi-check2-circle me-1"></i> Konfirmasi Kirim');
-
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
-
-                        }
-
-                    });
-
-                });
-
-                $('#confirmDeliveryModal').on('hidden.bs.modal', function() {
-                    this.querySelector('form').reset();
-                });
             });
         </script>
 
@@ -3024,16 +2926,48 @@
         @if (session('error'))
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
+                    const rawErrorText = @json(session('error'));
+
                     Swal.fire({
                         icon: 'error',
                         title: 'Import Gagal',
                         html: '<pre class="text-start small" style="white-space:pre-wrap;max-height:50vh;overflow-y:auto;">' +
-                            @json(session('error')).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                            rawErrorText.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
                             '</pre>',
                         confirmButtonText: 'Tutup',
+                        showDenyButton: true,
+                        denyButtonText: '📋 Copy',
                         width: 650,
                         didOpen: () => {
                             document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    }).then(function(result) {
+                        if (result.isDenied) {
+                            navigator.clipboard.writeText(rawErrorText).then(function() {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: 'Teks berhasil disalin',
+                                    showConfirmButton: false,
+                                    timer: 1500,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                    }
+                                });
+                            }).catch(function() {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'error',
+                                    title: 'Gagal menyalin, coba select manual',
+                                    showConfirmButton: false,
+                                    timer: 2000,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                    }
+                                });
+                            });
                         }
                     });
                 });
