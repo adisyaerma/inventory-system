@@ -1718,6 +1718,166 @@
 
     </div>
 
+    {{-- ================= MODAL KONFIRMASI TANGGAL RESI PENGIRIMAN ================= --}}
+    <div class="modal fade" id="confirmDeliveryModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-md">
+
+            <div class="modal-content ">
+
+                <form id="formConfirmDelivery">
+
+                    @csrf
+                    @method('PUT')
+
+                    <input type="hidden" name="id" id="confirmDeliveryId">
+                    <input type="hidden" name="source_type" id="confirmDeliverySourceType">
+                    <input type="hidden" name="item_id" id="confirmDeliveryItemId">
+                    <input type="hidden" name="location_id" id="confirmDeliveryLocationId">
+                    <input type="hidden" name="qty" id="confirmDeliveryQty">
+                    <input type="hidden" name="lot" id="confirmDeliveryLot">
+
+
+                    {{-- HEADER --}}
+                    <div class="modal-header border-0 px-4 pt-4 pb-3">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            {{-- ICON --}}
+                            <div class="rounded-3 d-flex align-items-center justify-content-center"
+                                style="
+                                width: 48px;
+                                height: 48px;
+                                background: rgba(var(--bs-success-rgb), .12);
+                                color: var(--bs-success);
+                            ">
+
+                                <i class="bx bxs-truck fs-3"></i>
+
+                            </div>
+
+
+                            {{-- TITLE --}}
+                            <div>
+
+                                <h5 class="modal-title fw-bold mb-1">
+                                    Konfirmasi Pengiriman
+                                </h5>
+
+                                <p class="mb-0 text-muted small">
+                                    Tandai barang sebagai sudah dikirim
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- CLOSE --}}
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        </button>
+
+                    </div>
+
+
+                    {{-- BODY --}}
+                    <div class="modal-body px-4 pt-2 pb-3">
+
+
+                        {{-- INFO --}}
+                        <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-4" style="background: #f8f9fa;">
+
+                            <div class="text-success mt-1">
+
+                                <i class="bx bx-info-circle fs-4"></i>
+
+                            </div>
+
+
+                            <div>
+
+                                <div class="fw-semibold mb-1">
+                                    Pastikan tanggal resi pengiriman
+                                </div>
+
+                                <div class="text-muted small">
+                                    Pilih tanggal pada resi ketika barang dikirim.
+                                    Setelah dikonfirmasi, data dipindahkan ke history.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- TANGGAL RESI PENGIRIMAN --}}
+                        <div class="mb-2">
+
+                            <label for="confirmDeliveryDate" class="form-label fw-semibold">
+
+                                Tanggal Resi Pengiriman
+
+                            </label>
+
+
+                            <div class="input-group">
+
+                                <span class="input-group-text bg-transparent">
+
+                                    <i class="bx bx-calendar-check text-success"></i>
+
+                                </span>
+
+
+                                <input type="date" class="form-control" name="delivery_receipt_date"
+                                    id="confirmDeliveryDate" required>
+
+                            </div>
+
+
+                            <div class="form-text">
+
+                                <i class="bx bx-info-circle me-1"></i>
+
+                                Secara otomatis menggunakan tanggal hari ini.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- FOOTER --}}
+                    <div class="modal-footer border-0 px-4 pb-4 pt-2">
+
+
+                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">
+
+                            Batal
+
+                        </button>
+
+
+                        <button type="submit" class="btn btn-success px-4 btnSaveConfirmDelivery">
+
+                            <i class="bx bx-check-circle me-1"></i>
+
+                            Konfirmasi Kirim
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
     @push('script')
         <style>
             .icon-box {
@@ -2711,6 +2871,109 @@
                 });
 
                 $('#confirmPickingModal').on('hidden.bs.modal', function() {
+                    this.querySelector('form').reset();
+                });
+
+                // ================= KONFIRMASI RESI PENGIRIMAN: buka modal =================
+                $(document).on('click', '.btnConfirmDelivery', function() {
+
+                    let today = new Date();
+                    let yyyy = today.getFullYear();
+                    let mm = String(today.getMonth() + 1).padStart(2, '0');
+                    let dd = String(today.getDate()).padStart(2, '0');
+
+                    $('#confirmDeliveryId').val($(this).data('id'));
+                    $('#confirmDeliverySourceType').val($(this).data('source-type'));
+                    $('#confirmDeliveryItemId').val($(this).data('item-id') || '');
+                    $('#confirmDeliveryLocationId').val($(this).data('location-id') || '');
+                    $('#confirmDeliveryQty').val($(this).data('qty') || '');
+                    $('#confirmDeliveryLot').val($(this).data('lot') || '');
+                    $('#confirmDeliveryDate').val(`${yyyy}-${mm}-${dd}`);
+
+                });
+
+                // ================= KONFIRMASI RESI PENGIRIMAN: simpan (AJAX) =================
+                $(document).on('submit', '#formConfirmDelivery', function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    let id = $('#confirmDeliveryId').val();
+                    let btnHtml = '<i class="bx bx-check-circle me-1"></i> Konfirmasi Kirim';
+
+                    $.ajax({
+
+                        url: "{{ route('stagings-out.update', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: $(this).serialize() + '&_method=PUT',
+
+                        beforeSend: function() {
+                            $('.btnSaveConfirmDelivery').prop('disabled', true)
+                                .html(
+                                    '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...'
+                                );
+                        },
+
+                        success: function(response) {
+
+                            $('.btnSaveConfirmDelivery').prop('disabled', false).html(btnHtml);
+
+                            $('#confirmDeliveryModal').modal('hide');
+
+                            table.ajax.reload(null, false);
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: response.message ||
+                                    'Tanggal resi pengiriman berhasil dikonfirmasi',
+                                timer: 2000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        },
+
+                        error: function(xhr) {
+
+                            $('.btnSaveConfirmDelivery').prop('disabled', false).html(btnHtml);
+
+                            let message = 'Terjadi kesalahan.';
+
+                            if (xhr.status === 422) {
+                                if (xhr.responseJSON.errors) {
+                                    message = Object.values(xhr.responseJSON.errors)[0][0];
+                                } else if (xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: message,
+                                timer: 3000,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    document.querySelector('.swal2-container').style
+                                        .zIndex = '9999999';
+                                }
+                            });
+
+                        }
+
+                    });
+
+                });
+
+                $('#confirmDeliveryModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
                 });
 

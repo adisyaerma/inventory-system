@@ -241,8 +241,36 @@ class StagingOutController extends Controller
                 return $row->do_number ?: '-';
             })
 
+            // Tgl Resi Pengiriman: kalau sudah terisi tampil sebagai tanggal.
+            // Kalau masih kosong DAN picking sudah dikonfirmasi, tampil
+            // tombol "Konfirmasi Kirim" (mirip tombol Konfirmasi Picking).
+            // Sebelum picking dikonfirmasi barang belum siap kirim, jadi
+            // cukup tampil "-".
             ->editColumn('delivery_receipt_date', function ($row) {
-                return optional($row->delivery_receipt_date)->format('d M Y') ?: '-';
+
+                if ($row->delivery_receipt_date) {
+                    return optional($row->delivery_receipt_date)->format('d M Y');
+                }
+
+                if (! $row->picking_date) {
+                    return '-';
+                }
+
+                return '
+                <button type="button"
+                    class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
+                    data-id="'.$row->id.'"
+                    data-source-type="'.e($row->source_type).'"
+                    data-item-id="'.e($row->item_id).'"
+                    data-location-id="'.e($row->location_id).'"
+                    data-qty="'.e($row->qty).'"
+                    data-lot="'.e($row->lot).'"
+                    data-bs-toggle="modal"
+                    data-bs-target="#confirmDeliveryModal">
+
+                    <i class="bx bxs-truck me-1"></i>
+                    Konfirmasi Kirim
+                </button>';
             })
 
             ->addColumn('action', function ($row) {
@@ -294,6 +322,7 @@ class StagingOutController extends Controller
                 'source_type',
                 'picking_date',
                 'staging_location',
+                'delivery_receipt_date',
                 'action',
             ])
 

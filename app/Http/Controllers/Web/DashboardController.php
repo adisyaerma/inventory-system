@@ -189,15 +189,15 @@ class DashboardController extends Controller
         // ============================================================
         // 5. STATUS STAGING OUT
         //    Tidak ada kolom status eksplisit — diturunkan dari
-        //    picking_date / delivery_date, sama seperti logika yang
+        //    picking_date / delivery_receipt_date (tgl resi pengiriman; terisi = sudah dikirim), sama seperti logika yang
         //    sudah dipakai di StagingOutController.
         // ============================================================
 
         $stagingOutStatus = [
             'menunggu_picking' => StagingOut::whereNull('picking_date')->count(),
-            'siap_kirim' => StagingOut::whereNotNull('picking_date')->whereNull('delivery_date')->count(),
+            'siap_kirim' => StagingOut::whereNotNull('picking_date')->whereNull('delivery_receipt_date')->count(),
             'total_so' => StagingOut::count(),
-            'selesai' => StagingOut::whereNotNull('delivery_date')->count(),
+            'selesai' => StagingOut::whereNotNull('delivery_receipt_date')->count(),
         ];
 
         // ============================================================
@@ -293,9 +293,9 @@ class DashboardController extends Controller
         }
 
         // 9c. Pengiriman dijadwalkan hari ini (instruksi kirim hari ini,
-        //     belum ada tanggal delivery)
+        //     belum ada tanggal resi pengiriman)
         $deliveriesToday = StagingOut::whereDate('delivery_instruction_date', $today)
-            ->whereNull('delivery_date')
+            ->whereNull('delivery_receipt_date')
             ->latest('updated_at')
             ->get();
 
@@ -314,8 +314,8 @@ class DashboardController extends Controller
         }
 
         // 9d. Staging out selesai (terakhir dikirim)
-        $lastCompletedStagingOut = StagingOut::whereNotNull('delivery_date')
-            ->latest('delivery_date')
+        $lastCompletedStagingOut = StagingOut::whereNotNull('delivery_receipt_date')
+            ->latest('delivery_receipt_date')
             ->first();
 
         if ($lastCompletedStagingOut) {
@@ -328,7 +328,7 @@ class DashboardController extends Controller
                 'highlight' => false,
                 'title' => 'Staging Out Selesai',
                 'message' => ($lastCompletedStagingOut->so_number ?: 'Staging out').' berhasil dikirim.',
-                'time' => optional($lastCompletedStagingOut->delivery_date)->diffForHumans(),
+                'time' => optional($lastCompletedStagingOut->delivery_receipt_date)->diffForHumans(),
             ]);
         }
 
@@ -353,7 +353,7 @@ class DashboardController extends Controller
                 'overdue_count' => $followUpCount,
             ],
             'staging_out_siap_kirim' => StagingOut::whereNotNull('picking_date')
-                ->whereNull('delivery_date')
+                ->whereNull('delivery_receipt_date')
                 ->count(),
             'stok_rendah' => LocationStock::where('quantity', '>', 0)
                 ->where('quantity', '<', self::LOW_STOCK_THRESHOLD)

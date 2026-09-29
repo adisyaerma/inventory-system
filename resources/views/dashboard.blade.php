@@ -1034,7 +1034,7 @@
                                     <td>{{ optional($row->delivery_instruction_date)->format('d M Y') ?: '-' }}</td>
                                     <td>{{ number_format($row->qty, 0, ',', '.') }}</td>
                                     <td class="pe-4">
-                                        @if ($row->delivery_date)
+                                        @if ($row->delivery_receipt_date)
                                             <span class="badge bg-label-success">Selesai</span>
                                         @elseif ($row->picking_date)
                                             <span class="badge bg-label-info">Siap Kirim</span>
