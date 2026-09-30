@@ -24,8 +24,18 @@ class StagingOutHistoryService
     /**
      * Field status terkini yang disimpan langsung di header, disinkronkan
      * setiap kali muncul di $changes pada logUpdated().
+     *
+     * Format: 'kolom di staging_outs' => 'kolom di header history'.
+     * Kolom staging_outs.delivery_date sudah diganti delivery_receipt_date
+     * (tgl resi pengiriman), sedangkan header history tetap menyimpannya
+     * di kolom delivery_date -- yang dibaca StagingOutHistoryController
+     * untuk menentukan status "Terkirim/Selesai".
      */
-    private const HEADER_SYNC_FIELDS = ['picking_date', 'do_number', 'delivery_date'];
+    private const HEADER_SYNC_MAP = [
+        'picking_date' => 'picking_date',
+        'do_number' => 'do_number',
+        'delivery_receipt_date' => 'delivery_date',
+    ];
 
     /**
      * Catat kejadian "created" — dipanggil sesaat setelah StagingOut::create().
@@ -48,7 +58,7 @@ class StagingOutHistoryService
      * berubah saja, format: ['field' => ['old' => ..., 'new' => ...]].
      *
      * Kalau salah satu field yang berubah adalah picking_date, do_number,
-     * atau delivery_date, kolom status terkini di header ikut disinkronkan
+     * atau delivery_receipt_date, kolom status terkini di header ikut disinkronkan
      * — supaya header selalu mencerminkan kondisi terbaru walau field itu
      * diedit lewat form biasa, bukan lewat tombol konfirmasi picking/kirim.
      */
@@ -60,10 +70,13 @@ class StagingOutHistoryService
 
         $history = StagingOutHistory::firstOrCreateForStaging($staging);
 
-        $headerSync = array_intersect_key(
-            array_map(fn ($change) => $change['new'] ?? null, $changes),
-            array_flip(self::HEADER_SYNC_FIELDS)
-        );
+        $headerSync = [];
+
+        foreach (self::HEADER_SYNC_MAP as $stagingField => $headerColumn) {
+            if (array_key_exists($stagingField, $changes)) {
+                $headerSync[$headerColumn] = $changes[$stagingField]['new'] ?? null;
+            }
+        }
 
         if (! empty($headerSync)) {
             $history->update($headerSync);
@@ -113,7 +126,7 @@ class StagingOutHistoryService
             'event_type' => 'delivered',
             'meta' => [
                 'do_number' => $doNumber,
-                'delivery_date' => (string) $deliveryDate,
+                'delivery_date' => $this->toDateString($deliveryDate),
             ],
             'performed_by' => auth()->id(),
         ]);
@@ -139,11 +152,15 @@ class StagingOutHistoryService
 
     /**
      * Catat kejadian "delivered" SEKALIGUS menandai record sudah selesai
-     * (auto-archive) — dipakai khusus untuk import Excel (StagingOutImport
-     * & StagingOutStockImport) yang barisnya SUDAH punya tgl resi
-     * pengiriman terisi sejak awal, jadi baris staging_out yang
-     * bersangkutan TIDAK PERNAH sempat aktif di tabel utama: begitu
-     * dibuat, langsung dihapus lagi oleh pemanggil method ini.
+     * (auto-archive). Dipakai di dua tempat:
+     *  - import Excel (StagingOutImport & StagingOutStockImport) yang
+     *    barisnya SUDAH punya tgl resi pengiriman terisi sejak awal, jadi
+     *    baris staging_out yang bersangkutan TIDAK PERNAH sempat aktif di
+     *    tabel utama: begitu dibuat, langsung dihapus lagi.
+     *  - StagingOutController::update() saat tgl resi pengiriman baru saja
+     *    diisi (tombol "Konfirmasi Kirim" / form edit): baris dipindahkan
+     *    ke history dan dihapus dari tabel aktif, tapi statusnya harus
+     *    tetap "Selesai", bukan "Dihapus".
      *
      * Beda dengan logDelivered() biasa (dipakai tombol "konfirmasi kirim"
      * manual di StagingOutController, barisnya TETAP ada & aktif di
@@ -171,7 +188,7 @@ class StagingOutHistoryService
             'event_type' => 'delivered',
             'meta' => [
                 'do_number' => $doNumber,
-                'delivery_date' => (string) $deliveryDate,
+                'delivery_date' => $this->toDateString($deliveryDate),
             ],
             'performed_by' => auth()->id(),
         ]);
@@ -223,6 +240,16 @@ class StagingOutHistoryService
     }
 
     /**
+     * Ubah tanggal (Carbon/DateTime/string) jadi string Y-m-d untuk meta.
+     */
+    private function toDateString($value): string
+    {
+        return $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : (string) $value;
+    }
+
+    /**
      * Helper untuk StagingOutController::update() — bandingkan data lama vs
      * data tervalidasi yang baru, hasilkan array $changes siap pakai untuk
      * logUpdated().
@@ -234,16 +261,48 @@ class StagingOutHistoryService
         foreach ($validated as $field => $newValue) {
             $oldValue = $staging->getOriginal($field);
 
-            // Bandingkan sebagai string supaya date/casted value tidak
-            // dianggap "berubah" gara-gara beda tipe.
-            if ((string) $oldValue !== (string) $newValue) {
+            // Bandingkan dalam bentuk yang sudah dinormalisasi. Kolom tanggal
+            // di-cast jadi Carbon, jadi (string) $oldValue menghasilkan
+            // "2026-09-20 00:00:00" sedangkan input form "2026-09-20" —
+            // kalau dibandingkan mentah, kolom yang tidak diubah pun
+            // dianggap "berubah".
+            $old = $this->normalizeForDiff($oldValue);
+            $new = $this->normalizeForDiff($newValue);
+
+            if ($old !== $new) {
                 $changes[$field] = [
-                    'old' => $oldValue,
-                    'new' => $newValue,
+                    'old' => $old === '' ? null : $old,
+                    'new' => $new === '' ? null : $new,
                 ];
             }
         }
 
         return $changes;
+    }
+
+    /**
+     * Samakan bentuk nilai sebelum dibandingkan: null/'' jadi '', tanggal
+     * (Carbon/DateTime atau string tanggal-jam) jadi Y-m-d kalau jamnya
+     * 00:00:00, lainnya jadi string biasa.
+     */
+    private function normalizeForDiff($value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i:s') === '00:00:00'
+                ? $value->format('Y-m-d')
+                : $value->format('Y-m-d H:i:s');
+        }
+
+        $string = trim((string) $value);
+
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})[ T]00:00:00(\.0+)?(Z|[+-]00:?00)?$/', $string, $m)) {
+            return $m[1];
+        }
+
+        return $string;
     }
 }

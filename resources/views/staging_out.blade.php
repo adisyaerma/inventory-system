@@ -695,7 +695,7 @@
 
                                                             <input type="text" class="form-control form-control-sm"
                                                                 name="line_item"
-                                                                placeholder="Contoh: Nord-Lock Steel Washer">
+                                                                placeholder="Contoh: 10">
 
                                                         </div>
 

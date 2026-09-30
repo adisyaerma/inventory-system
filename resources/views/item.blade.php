@@ -391,6 +391,7 @@
                         <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>Item Code Internal</th>
+                        <th>Item Code Supplier</th>
                         <th>Nama Barang</th>
                         <th>Vendor</th>
                         <th>Deskripsi</th>
@@ -643,6 +644,9 @@
                             data: 'item_code_internal'
                         },
                         {
+                            data: 'item_code_supplier'
+                        },
+                        {
                             data: 'name'
                         },
                         {
@@ -661,7 +665,7 @@
                     autoWidth: false,
 
                     columnDefs:[{
-                        targets: [3],
+                        targets: [4],
                         className: 'text-wrap',
                         width: "220px"
                     }]
@@ -855,15 +859,15 @@
                 vertical-align: middle;
             }
 
-            #item th:nth-child(6),
-            #item td:nth-child(6) {
+            #item th:nth-child(7),
+            #item td:nth-child(7) {
                 min-width: 250px;
                 white-space: normal;
                 word-break: break-word;
             }
 
-            #item th:not(:nth-child(6)),
-            #item td:not(:nth-child(6)) {
+            #item th:not(:nth-child(7)),
+            #item td:not(:nth-child(7)) {
                 white-space: nowrap;
             }
         </style>

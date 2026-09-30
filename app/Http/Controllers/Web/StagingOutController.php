@@ -10,6 +10,7 @@ use App\Imports\StagingOutStockImport;
 use App\Models\Item;
 use App\Models\LocationStock;
 use App\Models\StagingOut;
+use App\Models\StagingOutHistory;
 use App\Models\StockMutation;
 use App\Services\StagingOutHistoryService;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
@@ -701,7 +702,7 @@ class StagingOutController extends Controller
                 ?? $stagingOut->delivery_instruction_date
                 ?? now(),
             'transaction_number' => $stagingOut->so_number,
-            'description' => 'Staging Out #'.$stagingOut->id.($stagingOut->customer ? ' - '.$stagingOut->customer : ''),
+            'description' => $this->stockOutDescription($stagingOut),
             'qty_in' => 0,
             'qty_out' => $stagingOut->qty,
             'qty_balance' => $stock->quantity,
@@ -754,28 +755,66 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Teks description untuk baris stock_mutations: "<no SO> - <customer>".
+     * Bagian yang kosong dilewati; kalau dua-duanya kosong dipakai
+     * "Staging Out" saja. ID staging out sengaja TIDAK ditulis lagi.
+     */
+    protected function stockOutDescription(StagingOut $stagingOut): string
+    {
+        $parts = array_filter([
+            trim((string) $stagingOut->so_number),
+            trim((string) $stagingOut->customer),
+        ], fn ($part) => $part !== '');
+
+        return $parts ? implode(' - ', $parts) : 'Staging Out';
+    }
+
+    /**
      * Cari & hapus baris stock_mutations yang dibuat applyStockOut()
-     * untuk staging out ini. Tidak ada kolom relasi eksplisit
-     * (staging_out_id) di tabel stock_mutations, jadi baris yang tepat
-     * diidentifikasi lewat kombinasi item/lokasi/lot + kolom
-     * description yang SELALU diawali "Staging Out #<id>" (diisi
-     * applyStockOut() di sini maupun StagingOutStockImport saat
-     * import) -- pola ini dipakai sebagai penanda, bukan pencocokan
-     * teks bebas, supaya "#123" tidak ikut kena kalau yang dicari
-     * "#1234" (makanya wajib dicek diikuti spasi, bukan LIKE "#123%").
+     * untuk staging out ini.
+     *
+     * Karena description tidak lagi memuat ID staging out, baris yang
+     * tepat dicari lewat kombinasi item/lokasi/lot + description
+     * (no SO - customer) + qty_out, lalu HANYA satu baris terbaru yang
+     * dihapus (kalau ada beberapa baris identik, yang terhapus cukup
+     * satu, sesuai jumlah staging out-nya).
+     *
+     * Baris lama yang dibuat sebelum perubahan ini (atau oleh import)
+     * masih berformat "Staging Out #<id> ...", jadi dicek dulu lewat
+     * penanda lama itu -- wajib diikuti spasi/akhir teks supaya "#123"
+     * tidak ikut kena kalau yang dicari "#1234".
      */
     protected function deleteStockOutMutation(StagingOut $stagingOut): void
     {
+        $base = fn () => StockMutation::where('item_id', $stagingOut->item_id)
+            ->where('location_id', $stagingOut->location_id)
+            ->where('lot', $stagingOut->lot);
+
+        // 1. Format lama: "Staging Out #<id> ..."
         $marker = 'Staging Out #'.$stagingOut->id;
 
-        StockMutation::where('item_id', $stagingOut->item_id)
-            ->where('location_id', $stagingOut->location_id)
-            ->where('lot', $stagingOut->lot)
+        $deleted = $base()
             ->where(function ($q) use ($marker) {
                 $q->where('description', $marker)
                     ->orWhere('description', 'like', $marker.' %');
             })
             ->delete();
+
+        if ($deleted > 0) {
+            return;
+        }
+
+        // 2. Format baru: "<no SO> - <customer>". PostgreSQL tidak
+        //    mendukung DELETE ... LIMIT, jadi ambil id-nya dulu.
+        $mutationId = $base()
+            ->where('description', $this->stockOutDescription($stagingOut))
+            ->where('qty_out', $stagingOut->qty)
+            ->orderByDesc('id')
+            ->value('id');
+
+        if ($mutationId) {
+            StockMutation::whereKey($mutationId)->delete();
+        }
     }
 
     /**
@@ -803,19 +842,49 @@ class StagingOutController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($validated) {
+            $justDelivered = DB::transaction(function () use ($validated) {
                 $staging = StagingOut::create($validated);
 
+                // Stok tetap dipotong walau langsung selesai, karena
+                // barangnya memang sudah keluar (mutasi stok tidak ikut
+                // dihapus).
                 if ($staging->source_type === 'stock') {
                     $this->applyStockOut($staging);
                 }
 
                 $this->history->logCreated($staging);
+
+                // Tgl resi pengiriman sudah terisi sejak awal berarti barang
+                // sudah terkirim: cukup riwayatnya saja yang disimpan.
+                // Dicatat sebagai "delivered" (status Selesai), BUKAN
+                // logDeleted(), lalu barisnya dihapus dari tabel aktif.
+                $delivered = ! empty($validated['delivery_receipt_date']);
+
+                if ($delivered) {
+                    $this->history->logAutoDelivered(
+                        $staging,
+                        $staging->do_number,
+                        $staging->delivery_receipt_date
+                    );
+
+                    // logCreated() tidak menyinkronkan picking_date ke
+                    // header, jadi diisi di sini kalau form-nya mengisi.
+                    if (! empty($validated['picking_date'])) {
+                        StagingOutHistory::firstOrCreateForStaging($staging)
+                            ->update(['picking_date' => $validated['picking_date']]);
+                    }
+
+                    $staging->delete();
+                }
+
+                return $delivered;
             });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data berhasil disimpan',
+                'message' => $justDelivered
+                    ? 'Data tersimpan dan langsung dipindahkan ke history (sudah terkirim).'
+                    : 'Data berhasil disimpan',
             ]);
 
         } catch (\Exception $e) {
@@ -906,11 +975,17 @@ class StagingOutController extends Controller
 
                 $this->history->logUpdated($stagingOut, $changes);
 
-                // Begitu tanggal kirim terisi, data tidak lagi relevan di
+                // Begitu tgl resi pengiriman terisi, data tidak lagi relevan di
                 // tabel aktif staging out — cukup riwayatnya saja yang
-                // disimpan (log dulu baru dihapus, supaya history tetap utuh).
+                // disimpan. Dicatat sebagai "delivered" (status Selesai),
+                // BUKAN logDeleted() yang artinya dibuang/dibatalkan.
+                // Log dulu baru dihapus, supaya history tetap utuh.
                 if ($justDelivered) {
-                    $this->history->logDeleted($stagingOut);
+                    $this->history->logAutoDelivered(
+                        $stagingOut,
+                        $stagingOut->do_number,
+                        $stagingOut->delivery_receipt_date
+                    );
 
                     $stagingOut->delete();
                 }

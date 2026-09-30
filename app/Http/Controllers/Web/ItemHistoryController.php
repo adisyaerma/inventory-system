@@ -213,10 +213,57 @@ class ItemHistoryController extends Controller
             ->filter(fn ($d) => ! empty($d->meta['stock_mutation_id']))
             ->keyBy(fn ($d) => $d->meta['stock_mutation_id']);
 
-        $mutations = StockMutation::with('location')
+        $mutationRows = StockMutation::with('location')
             ->where('item_id', $item->id)
-            ->get()
-            ->map(function ($row) use ($movedToStockByMutationId) {
+            ->get();
+
+        $stagingOutDetails = StagingOutHistoryDetail::with('history')
+            ->whereHas('history', function ($q) use ($item) {
+                $q->where('item_id', $item->id);
+            })
+            ->get();
+
+        // applyStockOut() SELALU membuat satu baris mutasi keluar (qty_out)
+        // untuk staging out yang sumbernya stok, dengan transaction_number =
+        // no SO. Karena description mutasi tidak lagi memuat ID staging out,
+        // pencocokan dilakukan lewat no SO + qty, satu-lawan-satu (satu
+        // mutasi hanya dipasangkan dengan satu event "created").
+        //
+        // Hasilnya:
+        // - $stagingOutByMutationId: id mutasi => event staging out asalnya,
+        //   dipakai untuk memberi label "dari Staging Out" pada baris mutasi.
+        // - $createdCoveredByMutation: event "created" yang sudah terwakili
+        //   baris mutasi, jadi tidak ditampilkan lagi (tidak dobel).
+        // Staging out yang tidak punya mutasi (mis. berasal dari staging in)
+        // tidak cocok dengan apa pun dan tetap tampil apa adanya.
+        $mutationOutIdsByKey = [];
+
+        foreach ($mutationRows->filter(fn ($m) => $m->qty_out > 0 && ! empty($m->transaction_number))->sortBy('created_at') as $m) {
+            $mutationOutIdsByKey[$m->transaction_number.'|'.(float) $m->qty_out][] = $m->id;
+        }
+
+        $stagingOutByMutationId = [];
+        $createdCoveredByMutation = [];
+
+        foreach ($stagingOutDetails->where('event_type', 'created')->sortBy('created_at') as $detail) {
+            $soNumber = $detail->history?->so_number;
+
+            if (empty($soNumber)) {
+                continue;
+            }
+
+            $key = $soNumber.'|'.(float) $detail->qty_after;
+
+            if (! empty($mutationOutIdsByKey[$key])) {
+                $mutationId = array_shift($mutationOutIdsByKey[$key]);
+
+                $stagingOutByMutationId[$mutationId] = $detail;
+                $createdCoveredByMutation[$detail->id] = true;
+            }
+        }
+
+        $mutations = $mutationRows
+            ->map(function ($row) use ($movedToStockByMutationId, $stagingOutByMutationId) {
                 $isIn = $row->qty_in > 0;
 
                 $fromStagingIn = $isIn ? $movedToStockByMutationId->get($row->id) : null;
@@ -232,6 +279,20 @@ class ItemHistoryController extends Controller
                     $notes = trim(
                         'Dipindahkan dari Staging In'.($poNumber ? ' (PO: '.$poNumber.')' : '').
                         ($row->description ? ' - '.$row->description : '')
+                    );
+                }
+
+                $fromStagingOut = ! $isIn ? ($stagingOutByMutationId[$row->id] ?? null) : null;
+
+                if ($fromStagingOut) {
+                    $label = 'Mutasi Keluar (dari Staging Out)';
+
+                    $soHistory = $fromStagingOut->history;
+
+                    $notes = trim(
+                        'Dikeluarkan lewat Staging Out'.
+                        ($soHistory?->customer ? ' - Customer: '.$soHistory->customer : '').
+                        ($soHistory?->do_number ? ' | DO: '.$soHistory->do_number : '')
                     );
                 }
 
@@ -303,16 +364,19 @@ class ItemHistoryController extends Controller
 
         // Sama seperti staging in di atas: diambil dari
         // staging_out_history_details (log permanen), bukan tabel
-        // staging_outs langsung. "updated" & "deleted" juga disembunyikan
-        // dengan alasan yang sama.
-        $hiddenStagingOutEvents = ['updated', 'deleted'];
+        // staging_outs langsung.
+        //
+        // Yang disembunyikan:
+        // - "updated" & "deleted": cuma perubahan administratif.
+        // - "delivered": info barang sudah dikirim tidak perlu tampil di
+        //   history item (barangnya sudah tercatat keluar lewat mutasi).
+        // - "created" yang sudah punya baris mutasi keluar (lihat di
+        //   bawah), supaya satu barang keluar tidak tampil dobel.
+        $hiddenStagingOutEvents = ['updated', 'deleted', 'delivered'];
 
-        $stagingOuts = StagingOutHistoryDetail::with('history')
-            ->whereHas('history', function ($q) use ($item) {
-                $q->where('item_id', $item->id);
-            })
-            ->get()
-            ->reject(fn ($d) => in_array($d->event_type, $hiddenStagingOutEvents))
+        $stagingOuts = $stagingOutDetails
+            ->reject(fn ($d) => in_array($d->event_type, $hiddenStagingOutEvents)
+                || isset($createdCoveredByMutation[$d->id]))
             ->map(function ($row) {
                 $history = $row->history;
 

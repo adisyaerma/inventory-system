@@ -38,6 +38,7 @@ class ItemController extends Controller
             })
 
             ->editColumn('item_code_internal', fn ($row) => $row->item_code_internal ?: '-')
+            ->editColumn('item_code_supplier', fn ($row) => $row->item_code_supplier ?: '-')
             ->editColumn('name', fn ($row) => $row->name ?: '-')
             ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
             ->editColumn('description', fn ($row) => $row->description ?: '-')

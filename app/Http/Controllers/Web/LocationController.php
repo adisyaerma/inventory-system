@@ -16,13 +16,13 @@ class LocationController extends Controller
     }
 
     /**
-     * Kategori lokasi ditentukan dari huruf/karakter awal location_code:
-     * - diawali angka  => Rak
+     * Kategori lokasi ditentukan dari huruf/karakter awal location_name:
+     * - diawali "R"    => Rak
      * - diawali "F"    => Flat Indoor
      * - diawali "H"    => H-Room Storage
      * - diawali "O"    => Outdoor
      * - diawali "B"    => Backside
-     * - selain itu     => Lain-lain (supaya tidak ada lokasi yang hilang
+     * - selain itu     => Lain-lain (termasuk yang diawali angka, supaya tidak ada lokasi yang hilang
      *   dari tampilan hanya karena tidak cocok pola manapun)
      * (semua tetap berasal dari satu tabel `locations` yang sama).
      */
@@ -30,8 +30,8 @@ class LocationController extends Controller
     {
         switch ($category) {
             case 'rak':
-                // PostgreSQL: '~' adalah operator regex (setara REGEXP di MySQL)
-                $query->whereRaw("location_name ~ '^[0-9]'");
+                // ILIKE = LIKE case-insensitive di PostgreSQL
+                $query->where('location_name', 'ILIKE', 'R%');
                 break;
 
             case 'flat_indoor':
@@ -53,9 +53,9 @@ class LocationController extends Controller
 
             case 'lain_lain':
                 // Kebalikan dari semua pola kategori di atas — supaya
-                // lokasi yang tidak diawali angka/F/H/O/B tetap kelihatan,
+                // lokasi yang tidak diawali R/F/H/O/B tetap kelihatan,
                 // bukan hilang begitu saja dari daftar.
-                $query->whereRaw("location_name !~ '^[0-9]'")
+                $query->where('location_name', 'NOT ILIKE', 'R%')
                     ->where('location_name', 'NOT ILIKE', 'F%')
                     ->where('location_name', 'NOT ILIKE', 'H%')
                     ->where('location_name', 'NOT ILIKE', 'O%')
