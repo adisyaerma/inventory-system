@@ -1146,9 +1146,9 @@
                                                     <i class="bx bx-flag"></i>
                                                 </span>
 
-                                                <select name="status" class="form-select form-select-sm">
-                                                    <option value="" selected>Pilih status
-                                                    </option>
+                                                <select name="status" class="form-select form-select-sm"
+                                                    id="editStatus">
+                                                    <option value="">Pilih status</option>
                                                     @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
                                                         <option value="{{ $statusItem }}">
                                                             {{ $statusItem }}</option>
@@ -1240,32 +1240,6 @@
                                                     @foreach (\App\Models\StagingIn::LOCATIONS as $location)
                                                         <option value="{{ $location }}">
                                                             {{ $location }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Status
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-flag"></i>
-                                                </span>
-
-                                                <select name="status" class="form-select form-select-sm"
-                                                    id="editStatus">
-                                                    <option value="" selected>Pilih status</option>
-                                                    @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
-                                                        <option value="{{ $statusItem }}">
-                                                            {{ $statusItem }}
                                                         </option>
                                                     @endforeach
                                                 </select>

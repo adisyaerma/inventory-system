@@ -473,6 +473,13 @@ class StagingOutController extends Controller
 
     public function import(Request $request)
     {
+        // Pilihan "Langsung dari Stok" di modal import dialihkan ke
+        // importStock(), karena aturannya berbeda (tidak truncate, lokasi &
+        // lot dicari otomatis, baris ambigu dilewati).
+        if ($request->input('source') === 'stock') {
+            return $this->importStock($request);
+        }
+
         $request->validate([
             'file' => ['nullable', 'file', 'mimes:xlsx,xls', 'max:5120'],
         ], [

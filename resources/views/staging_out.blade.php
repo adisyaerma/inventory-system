@@ -166,17 +166,6 @@
                     <span class="d-none d-md-inline ms-1">Import</span>
                 </button>
 
-                <button type="button" class="btn-sm btn border-secondary bg-white border me-1" data-bs-toggle="modal"
-                    data-bs-target="#importStagingOutStockModal">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none" />
-                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4M4 6v12a2 2 0 0 0 2 2h14v-4M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4z" />
-                    </svg>
-                    <span class="d-none d-md-inline ms-1">Import dari Stock</span>
-                </button>
-
                 <a href="{{ route('stagings-out.export') }}" class="btn-sm btn border-secondary bg-white border me-1"
                     id="exportBtn">
                     <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
@@ -285,6 +274,65 @@
                                         <div class="w-100">
 
                                             <h6 class="fw-bold mb-1">
+                                                Pilih Mode Import
+                                            </h6>
+
+                                            <p class="text-muted small mb-3">
+                                                Tentukan asal barang pada data staging out yang diimpor.
+                                            </p>
+
+                                            <div class="form-check mb-2 p-3 border rounded">
+                                                <input class="form-check-input" type="radio" name="source"
+                                                    id="importSourceExternal" value="external" checked>
+                                                <label class="form-check-label w-100" for="importSourceExternal">
+                                                    <span class="fw-semibold d-block">Eksternal</span>
+                                                    <small class="text-muted">
+                                                        Data diimpor apa adanya dari file Excel. Semua data staging
+                                                        out yang ada saat ini akan diganti dengan data dari file.
+                                                    </small>
+                                                </label>
+                                            </div>
+
+                                            <div class="form-check p-3 border rounded">
+                                                <input class="form-check-input" type="radio" name="source"
+                                                    id="importSourceStock" value="stock">
+                                                <label class="form-check-label w-100" for="importSourceStock">
+                                                    <span class="fw-semibold d-block">Langsung dari Stok</span>
+                                                    <small class="text-muted">
+                                                        Barang diambil dari stok. Lokasi &amp; lot dicari otomatis
+                                                        dari data stok per Kode Barang, dan stok ikut berkurang.
+                                                        Data lama tetap ada.
+                                                    </small>
+                                                </label>
+                                            </div>
+
+                                            <div id="importSourceStockInfo" class="alert alert-info small mt-2 mb-0"
+                                                style="display:none;">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Template sama seperti mode Eksternal (tanpa kolom Lokasi). Baris
+                                                yang barangnya ada di lebih dari 1 lokasi/lot, atau stoknya
+                                                kosong/kurang, akan dilewati dan dilaporkan nomor barisnya.
+                                                Baris itu bisa diinput manual lewat form Tambah dengan sumber
+                                                "Stock".
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    {{-- STEP 3 --}}
+                                    <div class="d-flex gap-3">
+                                        <div>
+                                            <span class="badge rounded-circle bg-primary"
+                                                style="width:32px;height:32px;line-height:24px;">
+                                                3
+                                            </span>
+                                        </div>
+
+                                        <div class="w-100">
+
+                                            <h6 class="fw-bold mb-1">
                                                 Upload File
                                             </h6>
 
@@ -344,164 +392,6 @@
                                     <button type="submit" class="btn btn-primary">
                                         <i class="bi bi-upload me-1"></i>
                                         Import Data
-                                    </button>
-                                </div>
-
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                {{-- ================= MODAL IMPORT DARI STOCK ================= --}}
-                <div class="modal fade" id="importStagingOutStockModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <form action="{{ route('stagings-out.import-stock') }}" method="POST" enctype="multipart/form-data">
-                            @csrf
-
-                            <div class="modal-content border-0 shadow">
-
-                                <div class="modal-header border-0 px-4 pt-4">
-
-                                    <div class="d-flex align-items-center gap-3">
-
-                                        <div class=" rounded-3 p-2 flex-shrink-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
-                                                height="1em" viewBox="0 0 24 24">
-                                                <path d="M0 0h24v24H0z" fill="none" />
-                                                <path fill="none" stroke="currentColor" stroke-linecap="round"
-                                                    stroke-linejoin="round" stroke-width="1.5"
-                                                    d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
-                                            </svg>
-                                        </div>
-
-                                        <div>
-                                            <h5 class="mb-0 fw-bold">
-                                                Impor Staging Out dari Stock
-                                            </h5>
-
-                                            <small class="text-muted">
-                                                Import staging out yang barangnya diambil dari stok -- lokasi &amp; lot dicari otomatis
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-
-                                </div>
-
-                                <div class="modal-body">
-
-                                    {{-- STEP 1 --}}
-                                    <div class="d-flex gap-3">
-                                        <div>
-                                            <span class="badge rounded-circle bg-primary"
-                                                style="width:32px;height:32px;line-height:24px;">
-                                                1
-                                            </span>
-                                        </div>
-
-                                        <div class="w-100">
-                                            <h6 class="fw-bold mb-1">
-                                                Unduh Template
-                                            </h6>
-
-                                            <p class="text-muted small mb-3">
-                                                Gunakan template Excel berikut untuk menyiapkan data impor.
-                                            </p>
-
-                                            <a href="{{ route('stagings-out.template') }}"
-                                                class="btn btn-sm btn-outline-secondary">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="me-1 fs-5" width="1em"
-                                                    height="1em" viewBox="0 0 24 24">
-                                                    <path d="M0 0h24v24H0z" fill="none" />
-                                                    <path fill="none" stroke="currentColor" stroke-linecap="round"
-                                                        stroke-linejoin="round" stroke-width="1.5"
-                                                        d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12m0 0l-3.5-3.5M12 15l3.5-3.5" />
-                                                </svg>
-
-                                                Unduh Template Excel
-                                            </a>
-                                        </div>
-                                    </div>
-
-                                    <hr class="my-4">
-
-                                    {{-- STEP 2 --}}
-                                    <div class="d-flex gap-3">
-                                        <div>
-                                            <span class="badge rounded-circle bg-primary"
-                                                style="width:32px;height:32px;line-height:24px;">
-                                                2
-                                            </span>
-                                        </div>
-
-                                        <div class="w-100">
-
-                                            <h6 class="fw-bold mb-1">
-                                                Upload File
-                                            </h6>
-
-                                            <p class="text-muted small mb-3">
-                                                Upload file Excel (.xlsx, .xls) sesuai template. Template-nya
-                                                sama seperti import biasa (tidak ada kolom Lokasi) -- lokasi
-                                                &amp; lot diambil otomatis dari data stok per Kode Barang.
-                                                Baris yang barangnya ada di lebih dari 1 lokasi/lot akan
-                                                dilewati dan dilaporkan nomor barisnya, silakan input baris
-                                                itu manual lewat form Tambah dengan sumber "Stock".
-                                            </p>
-
-                                            <label class="upload-box w-100">
-                                                <input type="file" id="excelFileStagingOutStock" name="file"
-                                                    accept=".xlsx,.xls" hidden>
-
-                                                <div class="border border-2 border-primary-subtle rounded p-5 text-center">
-
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="fs-4 mb-1"
-                                                        width="1em" height="1em" viewBox="0 0 24 24">
-                                                        <path d="M0 0h24v24H0z" fill="none" />
-                                                        <path fill="currentColor"
-                                                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm4 18H6V4h7v5h5z" />
-                                                    </svg>
-
-                                                    <div>
-                                                        <small class="fw-semibold">
-                                                            Drag & drop file di sini
-                                                        </small>
-                                                    </div>
-
-                                                    <div>
-                                                        <small class="text-muted">
-                                                            atau klik untuk memilih file
-                                                        </small>
-                                                    </div>
-
-                                                    <small class="text-muted">
-                                                        Maks. 5MB
-                                                    </small>
-
-                                                    <div id="selectedFileStagingOutStock" class="mt-2"
-                                                        style="display:none;">
-                                                        <small class="text-success fw-semibold">
-                                                            ✓ File dipilih: <span id="fileNameStagingOutStock"></span>
-                                                        </small>
-                                                    </div>
-
-                                                </div>
-                                            </label>
-
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer border-0">
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                                        Batal
-                                    </button>
-
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-upload me-1"></i>
-                                        Import Data Stock
                                     </button>
                                 </div>
 
@@ -2239,13 +2129,15 @@
                     }
                 });
 
-                $('#excelFileStagingOutStock').on('change', function() {
-                    if (this.files.length > 0) {
-                        $('#fileNameStagingOutStock').text(this.files[0].name);
-                        $('#selectedFileStagingOutStock').show();
-                    } else {
-                        $('#selectedFileStagingOutStock').hide();
-                    }
+                // Tampilkan catatan hanya saat "Langsung dari Stok" dipilih.
+                $('#importStagingOutModal input[name="source"]').on('change', function() {
+                    $('#importSourceStockInfo').toggle($('#importSourceStock').is(':checked'));
+                });
+
+                // Kembalikan modal ke kondisi awal setiap kali ditutup.
+                $('#importStagingOutModal').on('hidden.bs.modal', function() {
+                    $('#importSourceExternal').prop('checked', true);
+                    $('#importSourceStockInfo').hide();
                 });
 
                 // ================= SUMBER BARANG: Eksternal vs Stok =================
