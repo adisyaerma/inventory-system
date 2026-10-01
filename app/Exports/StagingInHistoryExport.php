@@ -96,8 +96,21 @@ class StagingInHistoryExport implements FromQuery, WithColumnFormatting, WithEve
             ])
             ->orderByDesc('staging_in_histories.id');
 
-        if ($this->request->filled('status')) {
-            match ($this->request->status) {
+        self::applyFilters($query, $this->request);
+        self::applySearch($query, $this->request->input('search'));
+
+        return $query;
+    }
+
+    /**
+     * SATU-SATUNYA tempat definisi filter status / event / rentang tanggal.
+     * Dipanggil oleh export ini DAN oleh StagingInHistoryController::data().
+     * Query wajib sudah di-join ke `items` dan subquery `ld`.
+     */
+    public static function applyFilters($query, Request $request): void
+    {
+        if ($request->filled('status')) {
+            match ($request->status) {
                 'aktif' => $query->where('staging_in_histories.is_active', true),
                 'selesai' => $query->where('staging_in_histories.is_active', false)
                     ->whereIn('ld.event_type', self::COMPLETED_EVENTS),
@@ -107,30 +120,37 @@ class StagingInHistoryExport implements FromQuery, WithColumnFormatting, WithEve
             };
         }
 
-        if ($this->request->filled('event')) {
-            $query->where('ld.event_type', $this->request->event);
+        if ($request->filled('event')) {
+            $query->where('ld.event_type', $request->event);
         }
 
-        if ($this->request->filled('start_date')) {
-            $query->whereDate('staging_in_histories.arrival_date', '>=', $this->request->start_date);
+        if ($request->filled('start_date')) {
+            $query->whereDate('staging_in_histories.arrival_date', '>=', $request->start_date);
         }
 
-        if ($this->request->filled('end_date')) {
-            $query->whereDate('staging_in_histories.arrival_date', '<=', $this->request->end_date);
+        if ($request->filled('end_date')) {
+            $query->whereDate('staging_in_histories.arrival_date', '<=', $request->end_date);
+        }
+    }
+
+    /**
+     * Pencarian kata kunci -- dipakai bersama oleh tabel & export.
+     * `ilike` supaya tidak case-sensitive di PostgreSQL.
+     */
+    public static function applySearch($query, $keyword): void
+    {
+        $keyword = trim((string) $keyword);
+
+        if ($keyword === '') {
+            return;
         }
 
-        if ($this->request->filled('search')) {
-            $keyword = $this->request->search;
-
-            $query->where(function ($q) use ($keyword) {
-                $q->where('items.name', 'like', "%{$keyword}%")
-                    ->orWhere('items.item_code_internal', 'like', "%{$keyword}%")
-                    ->orWhere('staging_in_histories.po_number', 'like', "%{$keyword}%")
-                    ->orWhere('staging_in_histories.supplier_origin', 'like', "%{$keyword}%");
-            });
-        }
-
-        return $query;
+        $query->where(function ($q) use ($keyword) {
+            $q->where('items.name', 'ilike', "%{$keyword}%")
+                ->orWhere('items.item_code_internal', 'ilike', "%{$keyword}%")
+                ->orWhere('staging_in_histories.po_number', 'ilike', "%{$keyword}%")
+                ->orWhere('staging_in_histories.supplier_origin', 'ilike', "%{$keyword}%");
+        });
     }
 
     public function headings(): array

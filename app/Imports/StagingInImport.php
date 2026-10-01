@@ -83,11 +83,123 @@ class StagingInImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Match the location cell against the known list of locations,
-     * tolerant of case and surrounding whitespace. Returns the canonical
-     * value (as defined in Staging::LOCATIONS), or null if it's empty or
-     * doesn't match anything — an unmatched location is saved as null
-     * rather than rejecting the row.
+     * Cache indeks lokasi (dibangun sekali per import dari
+     * StagingIn::LOCATIONS) — lihat buildLocationIndex().
+     */
+    private ?array $locationIndex = null;
+
+    /**
+     * Ubah teks lokasi apa pun menjadi "kunci" yang seragam, supaya
+     * perbedaan cara mengetik tidak berpengaruh:
+     *  - huruf besar/kecil                  "TEMPORARY HOLD 2" = "temporary hold 2"
+     *  - spasi ganda / spasi di tepi        "temporary  hold 2 "
+     *  - tanda baca & pemisah               "Temporary-Hold_2", "Temporary Hold (2)", "Temporary Hold #2"
+     *  - huruf & angka yang menempel        "Temporary Hold2"
+     *  - angka nol di depan                 "Rack 01" = "Rack 1"
+     *  - singkatan umum                     "Temp Hold 2", "Tmp Hold 2"
+     *  - spasi non-breaking dari copy-paste (NBSP, zero-width, dll)
+     *
+     * Hasil: kata-kata huruf kecil dipisah satu spasi, mis. "temporary hold 2".
+     */
+    private function normalizeLocationKey(string $value): string
+    {
+        $value = mb_strtolower($value, 'UTF-8');
+
+        // Buang karakter tak terlihat yang sering ikut saat copy-paste.
+        $value = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $value);
+
+        $value = str_replace('&', ' and ', $value);
+
+        // Pisahkan huruf dan angka yang menempel: "hold2" -> "hold 2".
+        $value = preg_replace('/(?<=\p{L})(?=\p{N})|(?<=\p{N})(?=\p{L})/u', ' ', $value);
+
+        // Semua yang bukan huruf/angka (spasi, -, _, /, ., (), #, NBSP, dst)
+        // dijadikan satu spasi.
+        $value = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $value);
+        $value = trim($value);
+
+        // Angka nol di depan diabaikan: "01" = "1".
+        $value = preg_replace('/(?<![\p{L}\p{N}])0+(?=\d)/u', '', $value);
+
+        // Singkatan umum -> bentuk lengkap.
+        $value = preg_replace('/\b(?:temp|tmp)\b/u', 'temporary', $value);
+
+        // Kata sambung diabaikan: "Hold & Repair" = "Hold / Repair" = "Hold Repair".
+        $value = preg_replace('/\b(?:and|dan|atau|or)\b/u', ' ', $value);
+        $value = trim(preg_replace('/\s+/u', ' ', $value));
+
+        return $value;
+    }
+
+    /**
+     * Bangun indeks pencarian dari StagingIn::LOCATIONS:
+     *  - 'full'     : kunci ternormalisasi            "temporary hold 2"
+     *  - 'compact'  : tanpa spasi                     "temporaryhold2"
+     *  - 'initials' : inisial kata + angka            "th2"
+     * Kunci yang bentrok antar-lokasi dibuang (dianggap ambigu), supaya
+     * tidak pernah salah memetakan ke lokasi yang keliru.
+     */
+    private function buildLocationIndex(): array
+    {
+        $index = ['full' => [], 'compact' => [], 'initials' => [], 'keys' => [], 'tokens' => []];
+        $seen = ['full' => [], 'compact' => [], 'initials' => []];
+
+        foreach (StagingIn::LOCATIONS as $valid) {
+            $key = $this->normalizeLocationKey((string) $valid);
+
+            if ($key === '') {
+                continue;
+            }
+
+            $words = explode(' ', $key);
+
+            $initials = '';
+            foreach ($words as $word) {
+                $initials .= ctype_digit($word) ? $word : mb_substr($word, 0, 1, 'UTF-8');
+            }
+
+            $entries = [
+                'full' => $key,
+                'compact' => str_replace(' ', '', $key),
+                'initials' => $initials,
+            ];
+
+            foreach ($entries as $type => $k) {
+                $seen[$type][$k][$valid] = true;
+            }
+
+            $index['keys'][$valid] = $entries['compact'];
+            $index['tokens'][$valid] = $words;
+        }
+
+        foreach ($seen as $type => $keys) {
+            foreach ($keys as $k => $canonicals) {
+                // Hanya simpan kunci yang menunjuk tepat ke satu lokasi.
+                if (count($canonicals) === 1) {
+                    $index[$type][$k] = array_key_first($canonicals);
+                }
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * Cocokkan sel lokasi ke daftar StagingIn::LOCATIONS dengan toleran
+     * terhadap cara pengetikan. Urutan pencocokan (berhenti di yang pertama
+     * berhasil):
+     *   1. kunci ternormalisasi sama persis
+     *   2. sama tanpa memedulikan spasi/tanda baca
+     *   3. singkatan inisial (mis. "TH2" -> "Temporary Hold 2")
+     *   4. kata-kata yang diketik adalah bagian dari nama lokasi (atau
+     *      sebaliknya) dengan angka yang sama, mis. "temporary hold 2" ->
+     *      "Temporary Hold / Repair 2"
+     *   5. typo ringan (selisih <= 2 karakter), HANYA bila angkanya persis
+     *      sama dan kandidatnya tunggal — "Hold 1" tidak akan pernah
+     *      dicocokkan ke "Hold 2".
+     * Mengembalikan nilai kanonik (persis seperti di StagingIn::LOCATIONS),
+     * atau null bila kosong / tidak ada yang cocok — baris tetap disimpan
+     * tanpa lokasi, tidak pernah ditolak.
      */
     private function resolveLocation(?string $location): ?string
     {
@@ -95,9 +207,124 @@ class StagingInImport implements ToCollection, WithHeadingRow
             return null;
         }
 
-        foreach (StagingIn::LOCATIONS as $valid) {
-            if (strcasecmp($valid, $location) === 0) {
-                return $valid;
+        $this->locationIndex ??= $this->buildLocationIndex();
+        $index = $this->locationIndex;
+
+        $key = $this->normalizeLocationKey($location);
+
+        if ($key === '') {
+            return null;
+        }
+
+        $compact = str_replace(' ', '', $key);
+
+        if (isset($index['full'][$key])) {
+            return $index['full'][$key];
+        }
+
+        if (isset($index['compact'][$compact])) {
+            return $index['compact'][$compact];
+        }
+
+        if (isset($index['initials'][$compact])) {
+            return $index['initials'][$compact];
+        }
+
+        // Nama lokasi di daftar bisa lebih panjang dari yang diketik (mis.
+        // "Temporary Hold / Repair 2" diketik "temporary hold 2" atau
+        // "repair 2"), atau sebaliknya. Cocok bila kata-kata salah satu sisi
+        // ada seluruhnya di sisi lain, ANGKA-nya persis sama, dan hanya ada
+        // satu kandidat terbaik.
+        $inputWords = explode(' ', $key);
+        $inputDigits = array_values(array_filter($inputWords, 'ctype_digit'));
+        $inputText = array_values(array_diff($inputWords, $inputDigits));
+
+        // Perbaiki typo per kata ("temporari" -> "temporary") terhadap
+        // kosakata nama lokasi; hanya bila kata itu belum dikenal dan
+        // koreksinya tunggal.
+        $vocabulary = array_unique(array_merge(...array_values($index['tokens'] ?: [[]])));
+
+        $inputText = array_map(function (string $word) use ($vocabulary) {
+            $length = mb_strlen($word, 'UTF-8');
+
+            if ($length < 5 || in_array($word, $vocabulary, true)) {
+                return $word;
+            }
+
+            $matches = array_filter(
+                $vocabulary,
+                fn ($v) => ! ctype_digit($v) && levenshtein($word, $v) <= 2
+            );
+
+            return count($matches) === 1 ? reset($matches) : $word;
+        }, $inputText);
+
+        if ($inputText !== []) {
+            $best = null;
+            $bestScore = 0;
+            $tie = false;
+
+            foreach ($index['tokens'] as $canonical => $words) {
+                $digits = array_values(array_filter($words, 'ctype_digit'));
+
+                if ($digits !== $inputDigits) {
+                    continue;
+                }
+
+                $text = array_values(array_diff($words, $digits));
+                $common = count(array_intersect($inputText, $text));
+
+                $isSubset = $common === count(array_unique($inputText))
+                    || $common === count(array_unique($text));
+
+                if (! $isSubset || $common === 0) {
+                    continue;
+                }
+
+                if ($common > $bestScore) {
+                    $best = $canonical;
+                    $bestScore = $common;
+                    $tie = false;
+                } elseif ($common === $bestScore) {
+                    $tie = true;
+                }
+            }
+
+            if ($best !== null && ! $tie) {
+                return $best;
+            }
+        }
+
+        // Typo ringan: angka harus sama persis, jarak edit kecil, dan
+        // pemenangnya harus tunggal.
+        if (mb_strlen($compact, 'UTF-8') >= 5) {
+            preg_match_all('/\d+/', $compact, $m);
+            $digits = $m[0];
+
+            $best = null;
+            $bestDistance = PHP_INT_MAX;
+            $tie = false;
+
+            foreach ($index['keys'] as $canonical => $candidate) {
+                preg_match_all('/\d+/', $candidate, $cm);
+
+                if ($cm[0] !== $digits) {
+                    continue;
+                }
+
+                $distance = levenshtein($compact, $candidate);
+
+                if ($distance < $bestDistance) {
+                    $best = $canonical;
+                    $bestDistance = $distance;
+                    $tie = false;
+                } elseif ($distance === $bestDistance) {
+                    $tie = true;
+                }
+            }
+
+            if ($best !== null && ! $tie && $bestDistance <= 2) {
+                return $best;
             }
         }
 
@@ -226,9 +453,9 @@ class StagingInImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            // Baris dengan lokasi "Outbound" / "Outbound Shipment" (case-insensitive)
+            // Baris dengan lokasi "Outbound" / "Outbound Shipment" (apa pun cara pengetikannya)
             // tidak boleh disimpan ke database — lewati baris ini sepenuhnya.
-            if ($rawLocation !== null && in_array(strtolower($rawLocation), ['outbound', 'outbound shipment'], true)) {
+            if ($rawLocation !== null && in_array(str_replace(' ', '', $this->normalizeLocationKey($rawLocation)), ['outbound', 'outboundshipment'], true)) {
                 continue;
             }
 

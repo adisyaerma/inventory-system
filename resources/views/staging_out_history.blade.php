@@ -93,6 +93,15 @@
                     </div>
                     <div class="float-end mt-3">
                         <span class="text-muted small me-2" id="recordCountLabel"></span>
+                        <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="bulkDestroyBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Hapus (<span id="bulkDestroyCount">0</span>)</span>
+                        </button>
                         <a href="{{ route('stagings-out-history.export') }}" class="btn-sm btn border-secondary bg-white border"
                             id="exportHistoryBtn">
                             <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
@@ -215,6 +224,10 @@
                         <table class="table table-bordered" id="historyTable">
                             <thead>
                                 <tr>
+                                    <th style="width:36px;">
+                                        <input type="checkbox" class="form-check-input" id="selectAllHistory"
+                                            title="Pilih semua baris di halaman ini">
+                                    </th>
                                     <th>No</th>
                                     <th>Item &amp; SO</th>
                                     <th>Customer</th>
@@ -300,6 +313,14 @@
     </div>
 
     @push('script')
+        {{-- SweetAlert2 belum tentu ke-load dari master layout. Muat sendiri
+             KALAU BELUM ADA (synchronous via document.write supaya script di
+             bawahnya yang memanggil Swal dijamin jalan setelah ini). --}}
+        <script>
+            if (typeof Swal === 'undefined') {
+                document.write('<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"><\/script>');
+            }
+        </script>
         <style>
             .icon-box-history {
                 border-radius: 14px;
@@ -514,6 +535,12 @@
                     },
 
                     columns: [{
+                            data: 'checkbox',
+                            name: 'checkbox',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
                             data: 'DT_RowIndex',
                             name: 'DT_RowIndex',
                             searchable: false,
@@ -571,12 +598,17 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [1, 2],
+                            targets: [0],
+                            className: "text-center",
+                            width: "36px"
+                        },
+                        {
+                            targets: [2, 3],
                             className: "text-wrap",
                             width: "200px"
                         },
                         {
-                            targets: [4, 5, 6, 7, 9],
+                            targets: [5, 6, 7, 8, 10],
                             className: "text-center"
                         }
                     ],
@@ -604,6 +636,140 @@
                         $paginate.appendTo('#historyTableFooter');
                     }
                 }
+
+                // ============ CHECKBOX BARIS & BULK DESTROY ============
+                function updateBulkButtons() {
+                    const deleteCount = $('.historyCheckbox:checked').length;
+
+                    $('#bulkDestroyCount').text(deleteCount);
+                    $('#bulkDestroyBtn').toggleClass('d-none', deleteCount === 0);
+                }
+
+                $(document).on('change', '.historyCheckbox', function() {
+                    updateBulkButtons();
+
+                    const $selectable = $('.historyCheckbox');
+                    const allChecked = $selectable.length > 0 &&
+                        $selectable.length === $selectable.filter(':checked').length;
+                    $('#selectAllHistory').prop('checked', allChecked);
+                });
+
+                $('#selectAllHistory').on('change', function() {
+                    $('.historyCheckbox').prop('checked', $(this).is(':checked'));
+                    updateBulkButtons();
+                });
+
+                // Reset seleksi tiap tabel di-redraw (ganti halaman/filter/search).
+                historyTable.on('draw', function() {
+                    $('#selectAllHistory').prop('checked', false);
+                    updateBulkButtons();
+                });
+
+                function showRestoreReportAlert(icon, title, rawText) {
+                    Swal.fire({
+                        icon: icon,
+                        title: title,
+                        html: '<pre class="text-start small" style="white-space:pre-wrap;max-height:50vh;overflow-y:auto;">' +
+                            rawText.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                            '</pre>',
+                        confirmButtonText: 'Tutup',
+                        showDenyButton: true,
+                        denyButtonText: '\ud83d\udccb Copy',
+                        width: 650,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    }).then(function(result) {
+                        if (result.isDenied) {
+                            navigator.clipboard.writeText(rawText).then(function() {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: 'Teks berhasil disalin',
+                                    showConfirmButton: false,
+                                    timer: 1500,
+                                    didOpen: () => {
+                                        document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+
+                // ============ BULK DESTROY (hapus permanen history) ============
+                $('#bulkDestroyBtn').on('click', function() {
+                    const ids = $('.historyCheckbox:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+
+                    if (ids.length === 0) {
+                        return;
+                    }
+
+                    const activeCount = $('.historyCheckbox[data-active="1"]:checked').length;
+                    const activeNote = activeCount > 0 ?
+                        `<br><small class="text-danger">${activeCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>` :
+                        '';
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Hapus History?',
+                        html: `Yakin mau menghapus <b>${ids.length}</b> history terpilih beserta seluruh timeline-nya?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>${activeNote}`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Hapus',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function(result) {
+                        if (!result.isConfirmed) {
+                            return;
+                        }
+
+                        $('#bulkDestroyBtn').prop('disabled', true);
+
+                        $.ajax({
+                            url: "{{ route('stagings-out-history.bulk-destroy') }}",
+                            method: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                ids: ids
+                            },
+                            success: function(res) {
+                                historyTable.ajax.reload(null, false);
+
+                                if (res.errors && res.errors.length > 0) {
+                                    const rawText = res.message + '\n\n' + res.errors.join('\n\n');
+                                    showRestoreReportAlert(
+                                        res.deleted > 0 ? 'warning' : 'error',
+                                        res.deleted > 0 ? 'Sebagian Berhasil Dihapus' : 'Gagal Dihapus',
+                                        rawText
+                                    );
+                                } else {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: res.message,
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal Menghapus Data',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                        'Terjadi kesalahan saat menghapus data.'
+                                });
+                            },
+                            complete: function() {
+                                $('#bulkDestroyBtn').prop('disabled', false);
+                            }
+                        });
+                    });
+                });
 
                 $('#historySearch').on('input', function() {
                     historyTable.search(this.value).draw();

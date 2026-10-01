@@ -30,8 +30,8 @@ use Yajra\DataTables\Facades\DataTables;
  * dengan status pengiriman. Staging out yang sudah delivered tetap
  * is_active = true selama baris aslinya belum dihapus.
  *
- * Halaman ini murni read-only (audit log), jadi tidak ada create/update/
- * delete di sini.
+ * Halaman ini pada dasarnya read-only (audit log). Satu-satunya aksi tulis
+ * adalah bulkDestroy(): hapus permanen history yang dipilih.
  */
 class StagingOutHistoryController extends Controller
 {
@@ -138,34 +138,22 @@ class StagingOutHistoryController extends Controller
     {
         $query = $this->baseQuery()->orderByDesc('staging_out_histories.id');
 
-        if ($request->filled('status')) {
-            match ($request->status) {
-                'aktif' => $query->where('staging_out_histories.is_active', true)
-                    ->whereNull('staging_out_histories.delivery_date'),
-                // Selesai = delivery_date sudah terisi, apapun is_active-nya.
-                'selesai' => $query->whereNotNull('staging_out_histories.delivery_date'),
-                // Dihapus = hilang sebelum sempat terkirim.
-                'dihapus' => $query->where('staging_out_histories.is_active', false)
-                    ->whereNull('staging_out_histories.delivery_date'),
-                default => null,
-            };
-        }
-
-        if ($request->filled('event')) {
-            $query->where('ld.event_type', $request->event);
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('staging_out_histories.delivery_instruction_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('staging_out_histories.delivery_instruction_date', '<=', $request->end_date);
-        }
+        // Filter dipusatkan di StagingOutHistoryExport supaya tabel & export
+        // selalu identik.
+        StagingOutHistoryExport::applyFilters($query, $request);
 
         return DataTables::eloquent($query)
 
             ->addIndexColumn()
+
+            ->addColumn('checkbox', function ($row) {
+                // Semua baris bisa dicentang. data-active=1 menandai history
+                // yang barisnya masih ada di Staging Out (peringatan tambahan
+                // di konfirmasi Hapus).
+                return '<input type="checkbox" class="form-check-input historyCheckbox"
+                    data-active="'.($row->is_active ? '1' : '0').'"
+                    value="'.$row->id.'">';
+            })
 
             ->addColumn('item_so', function ($row) {
                 return '
@@ -175,19 +163,13 @@ class StagingOutHistoryController extends Controller
                 ';
             })
 
-            ->filterColumn('item_so', function ($query, $keyword) {
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('items.name', 'like', "%{$keyword}%")
-                        ->orWhere('items.item_code_internal', 'like', "%{$keyword}%")
-                        ->orWhere('staging_out_histories.so_number', 'like', "%{$keyword}%");
-                });
-            })
-
             ->orderColumn('item_so', 'items.name $1')
 
-            ->filterColumn('customer', function ($query, $keyword) {
-                $query->where('staging_out_histories.customer', 'like', "%{$keyword}%");
-            })
+            // Pencarian global DataTables diganti dengan logika bersama
+            // (sama dengan export). Keyword = search[value] dari DataTables.
+            ->filter(function ($query) use ($request) {
+                StagingOutHistoryExport::applySearch($query, $request->input('search.value'));
+            }, true)
 
             ->editColumn('line_item', function ($row) {
                 return $row->line_item ?: '-';
@@ -230,6 +212,7 @@ class StagingOutHistoryController extends Controller
             })
 
             ->rawColumns([
+                'checkbox',
                 'item_so',
                 'current_qty',
                 'shipping_status',
@@ -239,6 +222,39 @@ class StagingOutHistoryController extends Controller
             ])
 
             ->make(true);
+    }
+
+    /**
+     * Hapus PERMANEN sejumlah history sekaligus (beserta seluruh detail/
+     * timeline-nya). Semua status boleh dihapus, termasuk yang masih
+     * Aktif. Data staging_outs itu sendiri tidak disentuh.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:staging_out_histories,id',
+        ]);
+
+        $deleted = 0;
+
+        DB::transaction(function () use ($request, &$deleted) {
+
+            $ids = StagingOutHistory::whereIn('id', $request->ids)
+                ->lockForUpdate()
+                ->pluck('id');
+
+            StagingOutHistoryDetail::whereIn('staging_out_history_id', $ids)->delete();
+
+            $deleted = StagingOutHistory::whereIn('id', $ids)->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted,
+            'errors' => [],
+            'message' => $deleted.' history berhasil dihapus.',
+        ]);
     }
 
     /**

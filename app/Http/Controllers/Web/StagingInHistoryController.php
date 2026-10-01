@@ -28,8 +28,9 @@ use Yajra\DataTables\Facades\DataTables;
  * - Label & warna event pakai StagingInHistoryDetail::EVENT_TYPES /
  *   ::EVENT_COLORS, bukan didefinisikan ulang di sini.
  *
- * Halaman ini murni read-only (audit log) untuk sisi lain-lainnya —
- * SATU pengecualian: bulkRestore() di bawah, yang memulihkan siklus
+ * Halaman ini pada dasarnya read-only (audit log), dengan DUA pengecualian:
+ * bulkDestroy() (hapus permanen history yang dipilih) dan
+ * bulkRestore() di bawah, yang memulihkan siklus
  * staging_in yang sudah "Dihapus" (deleted/bulk_deleted/reset_by_import)
  * dengan cara membuat BARIS BARU di staging_ins (data staging_ins yang
  * sudah ada sama sekali tidak disentuh/dihapus).
@@ -163,28 +164,9 @@ class StagingInHistoryController extends Controller
     {
         $query = $this->baseQuery()->orderByDesc('staging_in_histories.id');
 
-        if ($request->filled('status')) {
-            match ($request->status) {
-                'aktif' => $query->where('staging_in_histories.is_active', true),
-                'selesai' => $query->where('staging_in_histories.is_active', false)
-                    ->whereIn('ld.event_type', self::COMPLETED_EVENTS),
-                'dihapus' => $query->where('staging_in_histories.is_active', false)
-                    ->whereIn('ld.event_type', self::REMOVED_EVENTS),
-                default => null,
-            };
-        }
-
-        if ($request->filled('event')) {
-            $query->where('ld.event_type', $request->event);
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('staging_in_histories.arrival_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('staging_in_histories.arrival_date', '<=', $request->end_date);
-        }
+        // Filter dipusatkan di StagingInHistoryExport supaya tabel & export
+        // selalu identik.
+        StagingInHistoryExport::applyFilters($query, $request);
 
         return DataTables::eloquent($query)
 
@@ -193,15 +175,15 @@ class StagingInHistoryController extends Controller
             ->addColumn('checkbox', function ($row) {
                 $status = $this->statusMeta($row->is_active, $row->last_event_type);
 
-                // Cuma history berstatus "Dihapus" yang boleh dipulihkan
-                // -- yang masih aktif atau sudah selesai (moved) tidak
-                // relevan buat fitur restore ini.
-                if ($status['label'] !== 'Dihapus') {
-                    return '<input type="checkbox" class="form-check-input" disabled
-                        title="Hanya data berstatus Dihapus yang bisa dipulihkan">';
-                }
-
-                return '<input type="checkbox" class="form-check-input historyRestoreCheckbox" value="'.$row->id.'">';
+                // Semua baris bisa dicentang (untuk Hapus). data-removed=1
+                // menandai baris berstatus "Dihapus" -- hanya ini yang ikut
+                // dihitung/dikirim oleh tombol Pulihkan. data-active=1
+                // menandai history yang barisnya masih ada di Staging In,
+                // dipakai untuk peringatan tambahan di konfirmasi Hapus.
+                return '<input type="checkbox" class="form-check-input historyCheckbox"
+                    data-removed="'.($status['label'] === 'Dihapus' ? '1' : '0').'"
+                    data-active="'.($row->is_active ? '1' : '0').'"
+                    value="'.$row->id.'">';
             })
 
             ->addColumn('item_po', function ($row) {
@@ -212,19 +194,13 @@ class StagingInHistoryController extends Controller
                 ';
             })
 
-            ->filterColumn('item_po', function ($query, $keyword) {
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('items.name', 'like', "%{$keyword}%")
-                        ->orWhere('items.item_code_internal', 'like', "%{$keyword}%")
-                        ->orWhere('staging_in_histories.po_number', 'like', "%{$keyword}%");
-                });
-            })
-
             ->orderColumn('item_po', 'items.name $1')
 
-            ->filterColumn('supplier_origin', function ($query, $keyword) {
-                $query->where('staging_in_histories.supplier_origin', 'like', "%{$keyword}%");
-            })
+            // Pencarian global DataTables diganti dengan logika bersama
+            // (sama dengan export). Keyword = search[value] dari DataTables.
+            ->filter(function ($query) use ($request) {
+                StagingInHistoryExport::applySearch($query, $request->input('search.value'));
+            }, true)
 
             ->editColumn('arrival_date', function ($row) {
                 return $row->arrival_date ? $row->arrival_date->format('d M Y') : '-';
@@ -532,6 +508,40 @@ class StagingInHistoryController extends Controller
             'errors' => $errors,
             'message' => $restored.' data berhasil dipulihkan'
                 .(count($errors) ? ', '.count($errors).' baris dilewati/gagal.' : '.'),
+        ]);
+    }
+
+    /**
+     * Hapus PERMANEN sejumlah history sekaligus (beserta seluruh detail/
+     * timeline-nya) -- dipanggil dari tombol "Hapus" setelah user centang
+     * baris-baris di tabel. Semua status boleh dihapus, termasuk yang
+     * masih Aktif. Data staging_ins itu sendiri tidak disentuh.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:staging_in_histories,id',
+        ]);
+
+        $deleted = 0;
+
+        DB::transaction(function () use ($request, &$deleted) {
+
+            $ids = StagingInHistory::whereIn('id', $request->ids)
+                ->lockForUpdate()
+                ->pluck('id');
+
+            StagingInHistoryDetail::whereIn('staging_in_history_id', $ids)->delete();
+
+            $deleted = StagingInHistory::whereIn('id', $ids)->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $deleted,
+            'errors' => [],
+            'message' => $deleted.' history berhasil dihapus.',
         ]);
     }
 

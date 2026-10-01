@@ -102,6 +102,15 @@
                             </svg>
                             <span class="d-none d-md-inline ms-1">Pulihkan (<span id="bulkRestoreCount">0</span>)</span>
                         </button>
+                        <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="bulkDestroyBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Hapus (<span id="bulkDestroyCount">0</span>)</span>
+                        </button>
                         <a href="{{ route('stagings-in-history.export') }}" class="btn-sm btn border-secondary bg-white border"
                             id="exportHistoryBtn">
                             <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
@@ -225,8 +234,8 @@
                             <thead>
                                 <tr>
                                     <th style="width:36px;">
-                                        <input type="checkbox" class="form-check-input" id="selectAllHistoryRestore"
-                                            title="Pilih semua baris berstatus Dihapus di halaman ini">
+                                        <input type="checkbox" class="form-check-input" id="selectAllHistory"
+                                            title="Pilih semua baris di halaman ini">
                                     </th>
                                     <th>No</th>
                                     <th>Item &amp; PO</th>
@@ -640,33 +649,40 @@
                 }
 
 
-                // ============ BULK RESTORE (data berstatus "Dihapus") ============
-                function updateBulkRestoreButton() {
-                    const count = $('.historyRestoreCheckbox:checked').length;
-                    $('#bulkRestoreCount').text(count);
-                    $('#bulkRestoreBtn').toggleClass('d-none', count === 0);
+                // ============ CHECKBOX BARIS (dipakai Pulihkan & Hapus) ============
+                // Pulihkan hanya menghitung baris berstatus "Dihapus"
+                // (data-removed="1"); Hapus menghitung semua yang tercentang.
+                function updateBulkButtons() {
+                    const restoreCount = $('.historyCheckbox[data-removed="1"]:checked').length;
+                    const deleteCount = $('.historyCheckbox:checked').length;
+
+                    $('#bulkRestoreCount').text(restoreCount);
+                    $('#bulkRestoreBtn').toggleClass('d-none', restoreCount === 0);
+
+                    $('#bulkDestroyCount').text(deleteCount);
+                    $('#bulkDestroyBtn').toggleClass('d-none', deleteCount === 0);
                 }
 
-                $(document).on('change', '.historyRestoreCheckbox', function() {
-                    updateBulkRestoreButton();
+                $(document).on('change', '.historyCheckbox', function() {
+                    updateBulkButtons();
 
-                    const $selectable = $('.historyRestoreCheckbox');
+                    const $selectable = $('.historyCheckbox');
                     const allChecked = $selectable.length > 0 &&
                         $selectable.length === $selectable.filter(':checked').length;
-                    $('#selectAllHistoryRestore').prop('checked', allChecked);
+                    $('#selectAllHistory').prop('checked', allChecked);
                 });
 
-                $('#selectAllHistoryRestore').on('change', function() {
-                    $('.historyRestoreCheckbox').prop('checked', $(this).is(':checked'));
-                    updateBulkRestoreButton();
+                $('#selectAllHistory').on('change', function() {
+                    $('.historyCheckbox').prop('checked', $(this).is(':checked'));
+                    updateBulkButtons();
                 });
 
                 // Baris & centangan berganti tiap kali tabel di-redraw (ganti
                 // halaman/filter/search) -- reset seleksi supaya tidak nyangkut
                 // ID dari halaman sebelumnya yang sudah tidak terlihat.
                 historyTable.on('draw', function() {
-                    $('#selectAllHistoryRestore').prop('checked', false);
-                    updateBulkRestoreButton();
+                    $('#selectAllHistory').prop('checked', false);
+                    updateBulkButtons();
                 });
 
                 function showRestoreReportAlert(icon, title, rawText) {
@@ -703,7 +719,7 @@
                 }
 
                 $('#bulkRestoreBtn').on('click', function() {
-                    const ids = $('.historyRestoreCheckbox:checked').map(function() {
+                    const ids = $('.historyCheckbox[data-removed="1"]:checked').map(function() {
                         return $(this).val();
                     }).get();
 
@@ -764,6 +780,79 @@
                             },
                             complete: function() {
                                 $('#bulkRestoreBtn').prop('disabled', false);
+                            }
+                        });
+                    });
+                });
+
+                // ============ BULK DESTROY (hapus permanen history) ============
+                $('#bulkDestroyBtn').on('click', function() {
+                    const ids = $('.historyCheckbox:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+
+                    if (ids.length === 0) {
+                        return;
+                    }
+
+                    const activeCount = $('.historyCheckbox[data-active="1"]:checked').length;
+                    const activeNote = activeCount > 0 ?
+                        `<br><small class="text-danger">${activeCount} di antaranya masih aktif (datanya masih ada di Staging In). Hanya history-nya yang dihapus, datanya tetap ada.</small>` :
+                        '';
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Hapus History?',
+                        html: `Yakin mau menghapus <b>${ids.length}</b> history terpilih beserta seluruh timeline-nya?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>${activeNote}`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Hapus',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function(result) {
+                        if (!result.isConfirmed) {
+                            return;
+                        }
+
+                        $('#bulkDestroyBtn').prop('disabled', true);
+
+                        $.ajax({
+                            url: "{{ route('stagings-in-history.bulk-destroy') }}",
+                            method: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                ids: ids
+                            },
+                            success: function(res) {
+                                historyTable.ajax.reload(null, false);
+
+                                if (res.errors && res.errors.length > 0) {
+                                    const rawText = res.message + '\n\n' + res.errors.join('\n\n');
+                                    showRestoreReportAlert(
+                                        res.deleted > 0 ? 'warning' : 'error',
+                                        res.deleted > 0 ? 'Sebagian Berhasil Dihapus' : 'Gagal Dihapus',
+                                        rawText
+                                    );
+                                } else {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: res.message,
+                                        showConfirmButton: false,
+                                        timer: 2000
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal Menghapus Data',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                        'Terjadi kesalahan saat menghapus data.'
+                                });
+                            },
+                            complete: function() {
+                                $('#bulkDestroyBtn').prop('disabled', false);
                             }
                         });
                     });

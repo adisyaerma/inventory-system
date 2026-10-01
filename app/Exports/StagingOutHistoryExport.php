@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\StagingOutHistory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -21,52 +22,90 @@ class StagingOutHistoryExport implements FromQuery, WithHeadings, WithMapping
 
     public function query()
     {
+        // Subquery event TERAKHIR per history -- sama persis dengan
+        // StagingOutHistoryController::baseQuery(), supaya filter "event"
+        // berarti "event terakhir" (bukan "pernah punya event ini").
+        $latestDetail = DB::table('staging_out_history_details as d')
+            ->select('d.staging_out_history_id', 'd.event_type')
+            ->whereRaw('d.id = (
+                select max(d2.id) from staging_out_history_details d2
+                where d2.staging_out_history_id = d.staging_out_history_id
+            )');
+
         $query = StagingOutHistory::query()
             ->select('staging_out_histories.*')
             ->leftJoin('items', 'items.id', '=', 'staging_out_histories.item_id')
+            ->leftJoinSub($latestDetail, 'ld', function ($join) {
+                $join->on('ld.staging_out_history_id', '=', 'staging_out_histories.id');
+            })
             ->addSelect([
                 'items.item_code_internal as item_code',
                 'items.name as item_name',
             ])
             ->orderByDesc('staging_out_histories.id');
 
-        if ($this->request->filled('status')) {
-            match ($this->request->status) {
+        self::applyFilters($query, $this->request);
+        self::applySearch($query, $this->request->input('search'));
+
+        return $query;
+    }
+
+    /**
+     * SATU-SATUNYA tempat definisi filter status / event / rentang tanggal.
+     * Dipanggil oleh export ini DAN oleh StagingOutHistoryController::data(),
+     * sehingga tabel & file Excel dijamin memakai logika yang sama.
+     *
+     * Query wajib sudah di-join ke `items` dan subquery `ld`
+     * (lihat baseQuery() di controller / query() di atas).
+     */
+    public static function applyFilters($query, Request $request): void
+    {
+        if ($request->filled('status')) {
+            match ($request->status) {
                 'aktif' => $query->where('staging_out_histories.is_active', true)
                     ->whereNull('staging_out_histories.delivery_date'),
-                'selesai' => $query->where('staging_out_histories.is_active', true)
-                    ->whereNotNull('staging_out_histories.delivery_date'),
-                'dihapus' => $query->where('staging_out_histories.is_active', false),
+                // Selesai = delivery_date terisi, apapun is_active-nya.
+                'selesai' => $query->whereNotNull('staging_out_histories.delivery_date'),
+                // Dihapus = hilang sebelum sempat terkirim.
+                'dihapus' => $query->where('staging_out_histories.is_active', false)
+                    ->whereNull('staging_out_histories.delivery_date'),
                 default => null,
             };
         }
 
-        if ($this->request->filled('event')) {
-            $query->whereHas('details', function ($q) {
-                $q->where('event_type', $this->request->event);
-            });
+        if ($request->filled('event')) {
+            $query->where('ld.event_type', $request->event);
         }
 
-        if ($this->request->filled('start_date')) {
-            $query->whereDate('staging_out_histories.delivery_instruction_date', '>=', $this->request->start_date);
+        if ($request->filled('start_date')) {
+            $query->whereDate('staging_out_histories.delivery_instruction_date', '>=', $request->start_date);
         }
 
-        if ($this->request->filled('end_date')) {
-            $query->whereDate('staging_out_histories.delivery_instruction_date', '<=', $this->request->end_date);
+        if ($request->filled('end_date')) {
+            $query->whereDate('staging_out_histories.delivery_instruction_date', '<=', $request->end_date);
+        }
+    }
+
+    /**
+     * Pencarian kata kunci -- juga dipakai bersama oleh tabel & export.
+     * `ilike` supaya tidak case-sensitive di PostgreSQL (sama seperti
+     * perilaku pencarian bawaan DataTables).
+     */
+    public static function applySearch($query, $keyword): void
+    {
+        $keyword = trim((string) $keyword);
+
+        if ($keyword === '') {
+            return;
         }
 
-        if ($this->request->filled('search')) {
-            $keyword = $this->request->search;
-
-            $query->where(function ($q) use ($keyword) {
-                $q->where('items.name', 'like', "%{$keyword}%")
-                    ->orWhere('items.item_code_internal', 'like', "%{$keyword}%")
-                    ->orWhere('staging_out_histories.so_number', 'like', "%{$keyword}%")
-                    ->orWhere('staging_out_histories.customer', 'like', "%{$keyword}%");
-            });
-        }
-
-        return $query;
+        $query->where(function ($q) use ($keyword) {
+            $q->where('items.name', 'ilike', "%{$keyword}%")
+                ->orWhere('items.item_code_internal', 'ilike', "%{$keyword}%")
+                ->orWhere('staging_out_histories.so_number', 'ilike', "%{$keyword}%")
+                ->orWhere('staging_out_histories.customer', 'ilike', "%{$keyword}%")
+                ->orWhere('staging_out_histories.line_item', 'ilike', "%{$keyword}%");
+        });
     }
 
     public function headings(): array

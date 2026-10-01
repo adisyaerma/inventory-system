@@ -273,6 +273,12 @@ Route::patch('stagings-out/{stagingOut}/location', [StagingOutController::class,
 
 Route::post('stagings-out/import-stock', [StagingOutController::class, 'importStock'])
     ->name('stagings-out.import-stock');
+
+Route::post('stagings-in-history/bulk-destroy', [StagingInHistoryController::class, 'bulkDestroy'])
+    ->name('stagings-in-history.bulk-destroy');
+
+Route::post('stagings-out-history/bulk-destroy', [StagingOutHistoryController::class, 'bulkDestroy'])
+    ->name('stagings-out-history.bulk-destroy');
     
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
