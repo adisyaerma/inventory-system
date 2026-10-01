@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StagingIn;
+use App\Models\StagingInHistory;
+use App\Models\StagingInHistoryDetail;
 use App\Models\StagingOut;
-use App\Models\StockMutation;
+use App\Models\StagingOutHistory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -39,6 +41,13 @@ class DashboardController extends Controller
      *   ?chart_period=...
      */
     private const PERIODS = ['today', 'week', 'month'];
+
+    /**
+     * Event yang menandai siklus staging in "selesai" (barang pindah ke
+     * stok / staging out). Sama dengan StagingInHistoryController::
+     * COMPLETED_EVENTS — kalau di sana berubah, ubah di sini juga.
+     */
+    private const STAGING_IN_COMPLETED_EVENTS = ['moved_to_stock', 'moved_to_staging_out'];
 
     private const PERIOD_LABELS = [
         'today' => 'Hari Ini',
@@ -125,23 +134,44 @@ class DashboardController extends Controller
 
         // ============================================================
         // 1. KARTU RINGKASAN (Staging In / Staging Out / Stok / Lokasi)
-        //    Angka utama tetap total keseluruhan (snapshot saat ini —
-        //    tabel staging & stok memang bersifat transient/berjalan,
-        //    bukan angka historis). Yang berubah mengikuti filter
-        //    periode masing-masing kartu adalah komponen pertumbuhan
-        //    di bawahnya.
+        //    - Total Item (Staging In & Out): kondisi SAAT INI, dari
+        //      tabel staging_ins / staging_outs (barang yang masih ada).
+        //    - Mutasi (Masuk/Keluar periode) : dari tabel HISTORY
+        //      (staging_in_histories / staging_out_histories), karena baris
+        //      di tabel asli hilang begitu barang dipindah/dikirim, sedangkan
+        //      history permanen. Dihitung dari qty awal history yang DIBUAT
+        //      pada periode kartu, dengan status Aktif + Selesai (yang
+        //      Dihapus tidak dihitung, sama dengan halaman History).
+        //    - Persentase: mutasi periode dibanding total history sebelum
+        //      periode itu (keduanya dari history, jadi konsisten).
+        //    Kartu Stok & Lokasi tidak berubah.
         // ============================================================
 
         $stagingInQty = StagingIn::sum('qty');
-        $stagingInAddedInPeriod = StagingIn::whereBetween('created_at', [$stagingInPeriodStart, $stagingInPeriodEnd])->sum('qty');
-        $stagingInGrowth = $this->growthPercent($stagingInQty, $stagingInAddedInPeriod);
+        $stagingInAddedInPeriod = (int) $this->stagingInHistoryCounted()
+            ->whereBetween('staging_in_histories.created_at', [$stagingInPeriodStart, $stagingInPeriodEnd])
+            ->sum('initial_qty');
+        $stagingInGrowth = $this->growthPercent(
+            (int) $this->stagingInHistoryCounted()->sum('initial_qty'),
+            $stagingInAddedInPeriod
+        );
 
         $stagingOutQty = StagingOut::sum('qty');
-        $stagingOutAddedInPeriod = StagingOut::whereBetween('created_at', [$stagingOutPeriodStart, $stagingOutPeriodEnd])->sum('qty');
-        $stagingOutGrowth = $this->growthPercent($stagingOutQty, $stagingOutAddedInPeriod);
+        $stagingOutAddedInPeriod = (int) $this->stagingOutHistoryCounted()
+            ->whereBetween('staging_out_histories.created_at', [$stagingOutPeriodStart, $stagingOutPeriodEnd])
+            ->sum('initial_qty');
+        $stagingOutGrowth = $this->growthPercent(
+            (int) $this->stagingOutHistoryCounted()->sum('initial_qty'),
+            $stagingOutAddedInPeriod
+        );
 
         $stockTotal = LocationStock::sum('quantity');
-        $stockAddedInPeriod = StockMutation::whereBetween('created_at', [$stockPeriodStart, $stockPeriodEnd])->sum('qty_in');
+        // Mutasi ke stok = qty yang dipindahkan dari staging in ke stok pada
+        // periode kartu, dibaca dari event 'moved_to_stock' di history.
+        $stockAddedInPeriod = (int) $this->movedToStockEvents()
+            ->whereBetween('created_at', [$stockPeriodStart, $stockPeriodEnd])
+            ->selectRaw('COALESCE(SUM(ABS(qty_change)), 0) as total')
+            ->value('total');
         $stockGrowth = $this->growthPercent($stockTotal, $stockAddedInPeriod);
 
         $totalLocations = Location::count();
@@ -382,9 +412,57 @@ class DashboardController extends Controller
         ));
     }
 
+    /**
+     * Event "mutasi ke stok": barang staging in yang dipindahkan ke stok,
+     * dicatat di history (event_type 'moved_to_stock'). History permanen,
+     * jadi angkanya tidak hilang walau baris staging_ins sudah dihapus.
+     */
+    private function movedToStockEvents()
+    {
+        return StagingInHistoryDetail::query()->where('event_type', 'moved_to_stock');
+    }
+
     private function stagingInBase()
     {
         return StagingIn::query();
+    }
+
+    /**
+     * History staging in yang dihitung di kartu dashboard: Aktif (baris
+     * masih ada) + Selesai (event terakhir moved_to_stock /
+     * moved_to_staging_out). History "Dihapus" (deleted, bulk_deleted,
+     * reset_by_import) tidak dihitung — itu bukan barang yang benar-benar
+     * masuk lalu keluar, dan reset_by_import bisa menggandakan angka.
+     */
+    private function stagingInHistoryCounted()
+    {
+        $placeholders = implode(',', array_fill(0, count(self::STAGING_IN_COMPLETED_EVENTS), '?'));
+
+        return StagingInHistory::query()->where(function ($q) use ($placeholders) {
+            $q->where('staging_in_histories.is_active', true)
+                ->orWhereRaw(
+                    '(select d.event_type from staging_in_history_details d
+                      where d.staging_in_history_id = staging_in_histories.id
+                      order by d.id desc limit 1) in ('.$placeholders.')',
+                    self::STAGING_IN_COMPLETED_EVENTS
+                );
+        });
+    }
+
+    /**
+     * History staging out yang dihitung di kartu dashboard: Aktif +
+     * Selesai (kolom tanggal kirim di TABEL HISTORY terisi, apa pun
+     * is_active-nya; di history namanya masih delivery_date, sedangkan di
+     * tabel staging_outs sudah delivery_receipt_date). Yang tidak dihitung
+     * hanya "Dihapus" = is_active false DAN belum terkirim —
+     * definisi yang sama dengan StagingOutHistoryController.
+     */
+    private function stagingOutHistoryCounted()
+    {
+        return StagingOutHistory::query()->where(function ($q) {
+            $q->where('staging_out_histories.is_active', true)
+                ->orWhereNotNull('staging_out_histories.delivery_date');
+        });
     }
 
     /**
@@ -476,7 +554,8 @@ class DashboardController extends Controller
     /**
      * Bangun label sumbu-x beserta 3 seri data (staging in, staging out,
      * mutasi ke stok) untuk grafik Ringkasan Aktivitas, dengan
-     * granularitas yang menyesuaikan periode filter.
+     * granularitas yang menyesuaikan periode filter. Ketiga seri dihitung
+     * dari tabel history (mutasi ke stok = event 'moved_to_stock').
      *
      * Catatan: query per-bucket (bukan satu query GROUP BY) dipertahankan
      * senada dengan pola yang sudah dipakai sebelumnya di controller ini;
@@ -494,17 +573,24 @@ class DashboardController extends Controller
             // supaya query ini portable lintas driver database (MySQL,
             // PostgreSQL, SQLite, dll) — HOUR() adalah fungsi khusus MySQL
             // dan tidak dikenali PostgreSQL.
+            // Staging In/Out dari tabel HISTORY (permanen), bukan tabel
+            // staging_ins/staging_outs yang barisnya hilang saat barang
+            // dipindah/dikirim.
             $stagingIn = $hours->map(
-                fn ($h) => StagingIn::whereBetween('created_at', $this->hourRange($start, $h))->count()
+                fn ($h) => $this->stagingInHistoryCounted()
+                    ->whereBetween('staging_in_histories.created_at', $this->hourRange($start, $h))
+                    ->count()
             )->values();
 
             $stagingOut = $hours->map(
-                fn ($h) => StagingOut::whereBetween('created_at', $this->hourRange($start, $h))->count()
+                fn ($h) => $this->stagingOutHistoryCounted()
+                    ->whereBetween('staging_out_histories.created_at', $this->hourRange($start, $h))
+                    ->count()
             )->values();
 
             $mutation = $hours->map(
-                fn ($h) => StockMutation::whereBetween('created_at', $this->hourRange($start, $h))
-                    ->where('qty_in', '>', 0)
+                fn ($h) => $this->movedToStockEvents()
+                    ->whereBetween('created_at', $this->hourRange($start, $h))
                     ->count()
             )->values();
 
@@ -516,15 +602,19 @@ class DashboardController extends Controller
         $labels = $days->map(fn ($d) => $d->translatedFormat('d M'))->values();
 
         $stagingIn = $days->map(
-            fn ($d) => StagingIn::whereDate('created_at', $d)->count()
+            fn ($d) => $this->stagingInHistoryCounted()
+                ->whereDate('staging_in_histories.created_at', $d)
+                ->count()
         )->values();
 
         $stagingOut = $days->map(
-            fn ($d) => StagingOut::whereDate('created_at', $d)->count()
+            fn ($d) => $this->stagingOutHistoryCounted()
+                ->whereDate('staging_out_histories.created_at', $d)
+                ->count()
         )->values();
 
         $mutation = $days->map(
-            fn ($d) => StockMutation::whereDate('created_at', $d)->where('qty_in', '>', 0)->count()
+            fn ($d) => $this->movedToStockEvents()->whereDate('created_at', $d)->count()
         )->values();
 
         return [$labels, $stagingIn, $stagingOut, $mutation];
@@ -546,10 +636,9 @@ class DashboardController extends Controller
     /**
      * Persentase pertumbuhan kasar: proporsi penambahan dalam periode
      * terpilih (hari ini/minggu ini/bulan ini) terhadap total di luar
-     * periode itu. Tabel staging bersifat transient (baris dihapus
-     * setelah selesai diproses) sehingga ini adalah pendekatan, bukan
-     * snapshot historis yang presisi — kalau butuh angka historis yang
-     * akurat, sebaiknya ditambahkan tabel snapshot harian terpisah.
+     * periode itu. Untuk kartu Staging In/Out, total & penambahan sama-sama
+     * dari tabel history (permanen), jadi hasilnya akurat. Untuk kartu Stok
+     * & Lokasi tetap pendekatan kasar dari snapshot saat ini.
      */
     private function growthPercent($total, $addedInPeriod): float
     {
