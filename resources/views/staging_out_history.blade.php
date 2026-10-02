@@ -1005,7 +1005,6 @@
                             <tr><td class="text-muted small">Line Item</td><td class="text-end small">${info.line_item}</td></tr>
                             <tr><td class="text-muted small">Sumber Barang</td><td class="text-end small">${escapeHtml(info.sumber_barang)}</td></tr>
                             <tr><td class="text-muted small">Tgl Instruksi Kirim</td><td class="text-end small">${formatDateOnly(info.delivery_instruction_date)}</td></tr>
-                            <tr><td class="text-muted small">Initial Qty</td><td class="text-end small">${info.initial_qty}</td></tr>
                             <tr><td class="text-muted small">Qty Saat Ini</td><td class="text-end small">${info.current_qty}</td></tr>
                             <tr><td class="text-muted small">Created At</td><td class="text-end small">${formatDateTime(info.created_at)}</td></tr>
                         `);
