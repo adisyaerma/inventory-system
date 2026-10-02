@@ -709,9 +709,15 @@
                     }
 
                     const activeCount = $('.historyCheckbox[data-active="1"]:checked').length;
-                    const activeNote = activeCount > 0 ?
-                        `<br><small class="text-danger">${activeCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>` :
-                        '';
+                    const stockCount = $('.historyCheckbox[data-cancel-stock="1"]:checked').length;
+                    const otherActiveCount = activeCount - stockCount;
+
+                    let activeNote = '';
+
+
+                    if (otherActiveCount > 0) {
+                        activeNote += `<br><small class="text-danger">${otherActiveCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>`;
+                    }
 
                     Swal.fire({
                         icon: 'warning',
@@ -893,6 +899,10 @@
                     },
                 };
 
+                function escapeHtml(value) {
+                    return $('<div>').text(value ?? '').html();
+                }
+
                 function metaDescription(item) {
                     const meta = item.meta || {};
 
@@ -921,7 +931,16 @@
                     }
 
                     if (item.event_type === 'created') {
-                        return `<div class="small mt-2">Qty: ${item.qty_after ?? '-'} PCS</div>`;
+                        let source = '';
+
+                        if (meta.source_type === 'stock') {
+                            const locationName = meta.location_name || (meta.location_id ? `Lokasi #${meta.location_id}` : '-');
+                            source = `<div>Diambil dari stok: <span class="fw-semibold">${escapeHtml(locationName)}</span> (${meta.lot ? 'Lot ' + escapeHtml(meta.lot) : 'Tanpa Lot'})</div>`;
+                        } else if (meta.source_type === 'external') {
+                            source = '<div>Sumber: Eksternal</div>';
+                        }
+
+                        return `<div class="small mt-2"><div>Qty: ${item.qty_after ?? '-'} PCS</div>${source}</div>`;
                     }
 
                     return '';
@@ -984,6 +1003,7 @@
                         $('#detailInfoAwal').html(`
                             <tr><td class="text-muted small">Customer</td><td class="text-end small">${info.customer}</td></tr>
                             <tr><td class="text-muted small">Line Item</td><td class="text-end small">${info.line_item}</td></tr>
+                            <tr><td class="text-muted small">Sumber Barang</td><td class="text-end small">${escapeHtml(info.sumber_barang)}</td></tr>
                             <tr><td class="text-muted small">Tgl Instruksi Kirim</td><td class="text-end small">${formatDateOnly(info.delivery_instruction_date)}</td></tr>
                             <tr><td class="text-muted small">Initial Qty</td><td class="text-end small">${info.initial_qty}</td></tr>
                             <tr><td class="text-muted small">Qty Saat Ini</td><td class="text-end small">${info.current_qty}</td></tr>

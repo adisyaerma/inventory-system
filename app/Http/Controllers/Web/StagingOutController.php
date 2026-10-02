@@ -13,10 +13,12 @@ use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StockMutation;
 use App\Services\StagingOutHistoryService;
+use App\Services\StagingOutStockService;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -481,26 +483,53 @@ class StagingOutController extends Controller
         }
 
         $request->validate([
-            'file' => ['nullable', 'file', 'mimes:xlsx,xls', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:5120'],
+            'mode' => ['required', Rule::in(['reset', 'append'])],
         ], [
-            'file.nullable' => 'File wajib diupload',
+            'file.required' => 'File wajib diupload',
             'file.mimes' => 'File harus berformat .xlsx atau .xls',
             'file.max' => 'Ukuran file maksimal 5MB',
+            'mode.required' => 'Pilih mode import terlebih dahulu (reset atau tambahkan)',
+            'mode.in' => 'Mode import tidak valid',
         ]);
 
+        $isReset = $request->mode === 'reset';
+
         try {
-            // Catat semua baris yang akan hilang SEBELUM di-truncate, supaya
-            // history-nya kebentuk dari data yang masih ada.
-            $existing = StagingOut::all();
 
-            DB::transaction(function () use ($existing) {
-                $this->history->logResetByImport($existing);
-            });
+            if ($isReset) {
 
-            // TRUNCATE memicu implicit commit di MySQL, jadi sengaja
-            // dijalankan di luar transaction di atas.
-            StagingOut::query()->truncate();
+                // Catat dulu seluruh data lama ke history SEBELUM dihapus,
+                // dan hapus di dalam transaction yang sama supaya history
+                // dan data utamanya selalu konsisten.
+                //
+                // PENTING: pakai delete(), BUKAN truncate(). truncate()
+                // me-reset counter auto-increment ID, sehingga baris baru
+                // bisa mendapat ID yang dulu pernah dipakai baris lama dan
+                // history barunya "nyasar" ke thread history lama.
+                // delete() tidak menyentuh counter, jadi ID baru selalu
+                // lanjut dan tidak pernah bentrok.
+                DB::transaction(function () {
+                    $existing = StagingOut::all();
 
+                    $this->history->logResetByImport($existing);
+
+                    // Baris yang barangnya diambil dari stok ikut dihapus,
+                    // jadi transaksinya harus dibatalkan juga: qty
+                    // dikembalikan ke stok & mutasi keluarnya dihapus.
+                    foreach ($existing as $staging) {
+                        if ($staging->source_type === 'stock' && $staging->item_id && $staging->location_id) {
+                            $this->reverseStockOut($staging);
+                        }
+                    }
+
+                    StagingOut::query()->delete();
+                });
+            }
+
+            // Mode 'append' sengaja TIDAK menghapus data lama — baris dari
+            // file Excel ditambahkan sebagai data baru di atas data yang
+            // sudah ada.
             Excel::import(app(StagingOutImport::class), $request->file('file'));
         } catch (\Exception $e) {
             return redirect()
@@ -510,7 +539,9 @@ class StagingOutController extends Controller
 
         return redirect()
             ->route('stagings-out.index')
-            ->with('success', 'Data staging berhasil diimpor');
+            ->with('success', $isReset
+                ? 'Data staging lama berhasil diganti dengan data dari file'
+                : 'Data staging berhasil ditambahkan dari file');
     }
 
     /**
@@ -717,111 +748,28 @@ class StagingOutController extends Controller
     }
 
     /**
-     * Kebalikan dari applyStockOut(): mengembalikan qty ke location_stock,
+     * Kebalikan dari applyStockOut(): mengembalikan qty ke location_stock
      * DAN menghapus baris stock_mutations yang tadinya dibuat
      * applyStockOut() untuk staging out ini -- BUKAN membuat mutasi
-     * pembalik baru ("Pembatalan/Perubahan ...").
+     * pembalik baru. Logikanya ada di StagingOutStockService supaya
+     * dipakai sama persis oleh halaman History (hapus history).
      *
-     * Kenapa dihapus, bukan dibuatkan entri pembalik: kalau staging out
-     * yang sumbernya stock diedit atau dihapus, riwayat mutasinya harus
-     * ikut berubah/hilang juga -- bukan malah numpuk jadi 2 baris
-     * (baris asli + baris "pembatalan") yang bikin ledger stock mutation
-     * kelihatan ada transaksi masuk padahal sebenarnya cuma
-     * koreksi/pembatalan staging out yang salah input.
-     *
-     * Dipanggil saat staging out (yang sumbernya stock) diedit datanya
-     * atau dihapus. Untuk kasus EDIT, urutannya di update(): reverseStockOut()
-     * (hapus mutasi lama + kembalikan qty) -> $stagingOut->update(...) ->
-     * applyStockOut() (buat mutasi baru + potong qty lagi dengan data
-     * terbaru) -- efeknya di tabel stock_mutations terlihat seperti
-     * "diedit" (baris lama hilang, baris baru sesuai data terkini),
-     * walau secara teknis implementasinya hapus+buat baru.
+     * Dipakai saat staging out (yang sumbernya stock) diedit datanya,
+     * dihapus (satuan / massal), atau ikut terhapus oleh import reset.
+     * Untuk kasus EDIT, urutannya di update(): reverseStockOut() ->
+     * $stagingOut->update(...) -> applyStockOut().
      */
     protected function reverseStockOut(StagingOut $stagingOut): void
     {
-        if (! $stagingOut->item_id || ! $stagingOut->location_id) {
-            return;
-        }
-
-        $stock = $this->lockLocationStock((int) $stagingOut->item_id, (int) $stagingOut->location_id, $stagingOut->lot ?: null);
-
-        if (! $stock) {
-            $stock = LocationStock::create([
-                'item_id' => $stagingOut->item_id,
-                'location_id' => $stagingOut->location_id,
-                'lot' => $stagingOut->lot,
-                'opening_balance' => 0,
-                'quantity' => 0,
-            ]);
-        }
-
-        $stock->quantity = (float) $stock->quantity + (float) $stagingOut->qty;
-        $stock->save();
-
-        $this->deleteStockOutMutation($stagingOut);
+        app(StagingOutStockService::class)->reverse($stagingOut);
     }
 
     /**
      * Teks description untuk baris stock_mutations: "<no SO> - <customer>".
-     * Bagian yang kosong dilewati; kalau dua-duanya kosong dipakai
-     * "Staging Out" saja. ID staging out sengaja TIDAK ditulis lagi.
      */
     protected function stockOutDescription(StagingOut $stagingOut): string
     {
-        $parts = array_filter([
-            trim((string) $stagingOut->so_number),
-            trim((string) $stagingOut->customer),
-        ], fn ($part) => $part !== '');
-
-        return $parts ? implode(' - ', $parts) : 'Staging Out';
-    }
-
-    /**
-     * Cari & hapus baris stock_mutations yang dibuat applyStockOut()
-     * untuk staging out ini.
-     *
-     * Karena description tidak lagi memuat ID staging out, baris yang
-     * tepat dicari lewat kombinasi item/lokasi/lot + description
-     * (no SO - customer) + qty_out, lalu HANYA satu baris terbaru yang
-     * dihapus (kalau ada beberapa baris identik, yang terhapus cukup
-     * satu, sesuai jumlah staging out-nya).
-     *
-     * Baris lama yang dibuat sebelum perubahan ini (atau oleh import)
-     * masih berformat "Staging Out #<id> ...", jadi dicek dulu lewat
-     * penanda lama itu -- wajib diikuti spasi/akhir teks supaya "#123"
-     * tidak ikut kena kalau yang dicari "#1234".
-     */
-    protected function deleteStockOutMutation(StagingOut $stagingOut): void
-    {
-        $base = fn () => StockMutation::where('item_id', $stagingOut->item_id)
-            ->where('location_id', $stagingOut->location_id)
-            ->where('lot', $stagingOut->lot);
-
-        // 1. Format lama: "Staging Out #<id> ..."
-        $marker = 'Staging Out #'.$stagingOut->id;
-
-        $deleted = $base()
-            ->where(function ($q) use ($marker) {
-                $q->where('description', $marker)
-                    ->orWhere('description', 'like', $marker.' %');
-            })
-            ->delete();
-
-        if ($deleted > 0) {
-            return;
-        }
-
-        // 2. Format baru: "<no SO> - <customer>". PostgreSQL tidak
-        //    mendukung DELETE ... LIMIT, jadi ambil id-nya dulu.
-        $mutationId = $base()
-            ->where('description', $this->stockOutDescription($stagingOut))
-            ->where('qty_out', $stagingOut->qty)
-            ->orderByDesc('id')
-            ->value('id');
-
-        if ($mutationId) {
-            StockMutation::whereKey($mutationId)->delete();
-        }
+        return app(StagingOutStockService::class)->description($stagingOut);
     }
 
     /**

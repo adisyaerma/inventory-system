@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StagingIn;
 use App\Models\StagingInHistory;
 use App\Models\StagingInHistoryDetail;
+use Illuminate\Support\Collection;
 
 /**
  * Titik satu-satunya untuk menulis ke staging_in_histories /
@@ -120,7 +121,7 @@ class StagingInHistoryService
      * Catat kejadian "bulk_deleted" untuk banyak baris sekaligus.
      * $stagings harus koleksi yang SUDAH di-load sebelum di-destroy.
      *
-     * @param  \Illuminate\Support\Collection<int, StagingIn>  $stagings
+     * @param  Collection<int, StagingIn>  $stagings
      */
     public function logBulkDeleted($stagings): void
     {
@@ -142,7 +143,7 @@ class StagingInHistoryService
      * Catat kejadian "reset_by_import" untuk semua baris staging_in yang
      * ada SEBELUM tabel di-truncate oleh proses import.
      *
-     * @param  \Illuminate\Support\Collection<int, StagingIn>  $stagings
+     * @param  Collection<int, StagingIn>  $stagings
      */
     public function logResetByImport($stagings): void
     {
@@ -173,16 +174,27 @@ class StagingInHistoryService
         foreach ($validated as $field => $newValue) {
             $oldValue = $staging->getOriginal($field);
 
-            // Bandingkan sebagai string supaya date/casted value tidak
-            // dianggap "berubah" gara-gara beda tipe.
-            if ((string) $oldValue !== (string) $newValue) {
+            if ($this->normalize($oldValue) !== $this->normalize($newValue)) {
                 $changes[$field] = [
-                    'old' => $oldValue,
+                    'old' => $oldValue instanceof \DateTimeInterface ? $oldValue->format('Y-m-d') : $oldValue,
                     'new' => $newValue,
                 ];
             }
         }
 
         return $changes;
+    }
+
+    private function normalize($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return (string) $value;
     }
 }

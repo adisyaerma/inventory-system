@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Titik satu-satunya untuk menulis ke staging_out_histories /
@@ -49,8 +50,43 @@ class StagingOutHistoryService
             'qty_before' => 0,
             'qty_change' => $staging->qty,
             'qty_after' => $staging->qty,
+            // Snapshot asal barang (eksternal / stok + lokasi + lot), supaya
+            // halaman history tetap bisa menampilkan "diambil dari lokasi
+            // mana" walau baris staging_out aslinya sudah dihapus.
+            'meta' => $this->sourceMeta($staging),
             'performed_by' => auth()->id(),
         ]);
+    }
+
+    /**
+     * Snapshot asal barang untuk disimpan di meta event "created".
+     * Format stok : ['source_type' => 'stock', 'location_id', 'location_name', 'lot']
+     * Format lain : ['source_type' => 'external']
+     */
+    public function sourceMeta(StagingOut $staging): array
+    {
+        if ($staging->source_type !== 'stock') {
+            return ['source_type' => 'external'];
+        }
+
+        return [
+            'source_type' => 'stock',
+            'location_id' => $staging->location_id,
+            'location_name' => $this->locationName($staging->location_id),
+            'lot' => $staging->lot ?: null,
+        ];
+    }
+
+    /**
+     * Nama lokasi dari tabel locations (null kalau id kosong / tidak ada).
+     */
+    public function locationName($locationId): ?string
+    {
+        if (! $locationId) {
+            return null;
+        }
+
+        return DB::table('locations')->where('id', $locationId)->value('location_name');
     }
 
     /**

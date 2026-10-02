@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
+use App\Services\StagingOutHistoryService;
+use App\Services\StagingOutStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,18 @@ class StagingOutHistoryController extends Controller
                 where d2.staging_out_history_id = d.staging_out_history_id
             )');
 
+        // Meta event "created" (snapshot asal barang: stok/eksternal +
+        // lokasi + lot) -- dipakai untuk menandai history Selesai yang
+        // barangnya diambil dari stok.
+        $createdDetail = DB::table('staging_out_history_details as c')
+            ->select('c.staging_out_history_id', 'c.meta as created_meta')
+            ->where('c.event_type', 'created')
+            ->whereRaw('c.id = (
+                select min(c2.id) from staging_out_history_details c2
+                where c2.staging_out_history_id = c.staging_out_history_id
+                and c2.event_type = ?
+            )', ['created']);
+
         return StagingOutHistory::query()
             ->select('staging_out_histories.*')
             ->leftJoin('items', 'items.id', '=', 'staging_out_histories.item_id')
@@ -120,14 +134,19 @@ class StagingOutHistoryController extends Controller
             ->leftJoinSub($latestDetail, 'ld', function ($join) {
                 $join->on('ld.staging_out_history_id', '=', 'staging_out_histories.id');
             })
+            ->leftJoinSub($createdDetail, 'cd', function ($join) {
+                $join->on('cd.staging_out_history_id', '=', 'staging_out_histories.id');
+            })
             ->addSelect([
                 'items.item_code_internal as item_code',
                 'items.name as item_name',
                 'staging_outs.qty as running_qty',
+                'staging_outs.source_type as running_source_type',
                 'ld.event_type as last_event_type',
                 'ld.qty_after as last_qty_after',
                 'ld.meta as last_meta',
                 'ld.event_at as last_event_at',
+                'cd.created_meta as created_meta',
             ]);
     }
 
@@ -150,8 +169,27 @@ class StagingOutHistoryController extends Controller
                 // Semua baris bisa dicentang. data-active=1 menandai history
                 // yang barisnya masih ada di Staging Out (peringatan tambahan
                 // di konfirmasi Hapus).
+                //
+                // data-cancel-stock=1 menandai history yang barangnya diambil
+                // dari stok DAN transaksinya akan dibatalkan kalau dihapus:
+                //  - Aktif  : baris Staging Out masih ada & sumbernya stok.
+                //  - Selesai: baris sudah tidak ada, asal barang dibaca dari
+                //             snapshot di event "created".
+                // "Dihapus" tidak ikut (stoknya sudah dikembalikan dulu).
+                if ($row->is_active) {
+                    $cancelsStock = $row->running_source_type === 'stock';
+                } else {
+                    $createdMeta = is_string($row->created_meta)
+                        ? json_decode($row->created_meta, true)
+                        : $row->created_meta;
+
+                    $cancelsStock = (bool) $row->delivery_date
+                        && ($createdMeta['source_type'] ?? null) === 'stock';
+                }
+
                 return '<input type="checkbox" class="form-check-input historyCheckbox"
                     data-active="'.($row->is_active ? '1' : '0').'"
+                    data-cancel-stock="'.($cancelsStock ? '1' : '0').'"
                     value="'.$row->id.'">';
             })
 
@@ -226,8 +264,27 @@ class StagingOutHistoryController extends Controller
 
     /**
      * Hapus PERMANEN sejumlah history sekaligus (beserta seluruh detail/
-     * timeline-nya). Semua status boleh dihapus, termasuk yang masih
-     * Aktif. Data staging_outs itu sendiri tidak disentuh.
+     * timeline-nya). Semua status boleh dihapus.
+     *
+     * Kalau barangnya diambil dari STOK, transaksinya dibatalkan: qty
+     * dikembalikan ke location_stocks dan mutasi keluar di stock_mutations
+     * dihapus. Berlaku untuk:
+     *  - Aktif   : baris Staging Out masih ada -> dibatalkan lewat baris itu,
+     *              dan baris Staging Out-nya ikut dihapus (kalau dibiarkan,
+     *              ia terlihat mengambil stok padahal stoknya sudah kembali).
+     *  - Selesai : baris Staging Out sudah tidak ada (terkirim / auto-archive,
+     *              mis. salah input) -> lokasi, lot, dan qty akhir
+     *              direkonstruksi dari timeline history, lalu stok
+     *              dikembalikan.
+     * Yang TIDAK dibatalkan:
+     *  - Dihapus : stoknya sudah dikembalikan saat baris itu dihapus dari
+     *              halaman Staging Out.
+     *  - Eksternal : tidak pernah menyentuh stok.
+     *
+     * History lama (dibuat sebelum asal barang dicatat) yang berstatus
+     * Selesai tidak punya data lokasi, jadi stoknya tidak bisa dikembalikan
+     * otomatis. History-nya tetap dihapus dan hal ini dilaporkan di
+     * 'errors' supaya bisa dikoreksi manual.
      */
     public function bulkDestroy(Request $request)
     {
@@ -237,24 +294,236 @@ class StagingOutHistoryController extends Controller
         ]);
 
         $deleted = 0;
+        $cancelled = 0;
+        $warnings = [];
 
-        DB::transaction(function () use ($request, &$deleted) {
+        try {
+            DB::transaction(function () use ($request, &$deleted, &$cancelled, &$warnings) {
 
-            $ids = StagingOutHistory::whereIn('id', $request->ids)
-                ->lockForUpdate()
-                ->pluck('id');
+                $histories = StagingOutHistory::with('details')
+                    ->whereIn('id', $request->ids)
+                    ->lockForUpdate()
+                    ->get();
 
-            StagingOutHistoryDetail::whereIn('staging_out_history_id', $ids)->delete();
+                $stock = app(StagingOutStockService::class);
+                $stagingIdsToDelete = [];
 
-            $deleted = StagingOutHistory::whereIn('id', $ids)->delete();
-        });
+                foreach ($histories as $history) {
+
+                    // 1) AKTIF: baris Staging Out masih ada. Baris dicari
+                    //    HANYA kalau history masih aktif, supaya ID yang
+                    //    kebetulan dipakai ulang baris lain tidak ikut kena.
+                    if ($history->is_active && $history->staging_out_id) {
+                        $staging = StagingOut::lockForUpdate()->find($history->staging_out_id);
+
+                        if ($staging && $stock->isStockSourced($staging)) {
+                            $stock->reverse($staging);
+                            $stagingIdsToDelete[] = $staging->id;
+                            $cancelled++;
+                        }
+
+                        continue;
+                    }
+
+                    // 2) SELESAI: baris Staging Out sudah tidak ada, jadi
+                    //    direkonstruksi dari timeline history.
+                    if ($history->delivery_date) {
+                        $info = $this->reconstructSource($history);
+                        $label = 'SO '.($history->so_number ?: '-').' (history #'.$history->id.')';
+
+                        if (! $info['source']) {
+                            $warnings[] = $label.': asal barang tidak tercatat di history lama, jadi stok tidak bisa dikembalikan otomatis. Cek manual kalau barangnya dari stok.';
+
+                            continue;
+                        }
+
+                        if ($info['source']['type'] !== 'stock') {
+                            continue;
+                        }
+
+                        if (! $history->item_id || ! $info['source']['location_id']) {
+                            $warnings[] = $label.': data lokasi stok tidak lengkap, jadi stok tidak bisa dikembalikan otomatis.';
+
+                            continue;
+                        }
+
+                        $transient = new StagingOut;
+                        $transient->forceFill([
+                            'id' => $history->staging_out_id,
+                            'source_type' => 'stock',
+                            'item_id' => $history->item_id,
+                            'location_id' => $info['source']['location_id'],
+                            'lot' => $info['source']['lot'],
+                            'qty' => $info['qty'] ?? $history->initial_qty,
+                            'so_number' => $history->so_number,
+                            'customer' => $history->customer,
+                        ]);
+
+                        $stock->reverse($transient);
+                        $cancelled++;
+                    }
+
+                    // 3) DIHAPUS (belum terkirim): stok sudah kembali, tidak
+                    //    ada yang perlu dibatalkan.
+                }
+
+                $ids = $histories->pluck('id');
+
+                StagingOutHistoryDetail::whereIn('staging_out_history_id', $ids)->delete();
+
+                $deleted = StagingOutHistory::whereIn('id', $ids)->delete();
+
+                // Dihapus SETELAH history-nya hilang, supaya tidak
+                // bentrok dengan relasi staging_out_id di header history.
+                if (! empty($stagingIdsToDelete)) {
+                    StagingOut::whereIn('id', $stagingIdsToDelete)->delete();
+                }
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+
+        $message = $deleted.' history berhasil dihapus.';
+
+        if ($cancelled > 0) {
+            $message .= ' '.$cancelled.' transaksi stok dibatalkan (qty dikembalikan ke stok dan mutasi keluar dihapus).';
+        }
 
         return response()->json([
             'success' => true,
             'deleted' => $deleted,
-            'errors' => [],
-            'message' => $deleted.' history berhasil dihapus.',
+            'cancelled' => $cancelled,
+            'errors' => $warnings,
+            'message' => $message,
         ]);
+    }
+
+    /**
+     * Rekonstruksi asal barang & qty akhir dari timeline sebuah history.
+     *
+     * - source: snapshot di event "created" ('source_type', 'location_id',
+     *   'lot'), lalu diterapkan perubahan source_type / location_id / lot
+     *   dari event "updated" berikutnya. null kalau history ini dibuat
+     *   sebelum snapshot dicatat.
+     * - qty: qty_after dari event created / updated TERAKHIR, yaitu qty
+     *   yang dipotong dari stok (sama dengan qty_out di stock_mutations).
+     *
+     * @return array{source: ?array{type: string, location_id: ?int, lot: ?string}, qty: ?int}
+     */
+    private function reconstructSource(StagingOutHistory $history): array
+    {
+        $source = null;
+        $qty = null;
+
+        foreach ($history->details->sortBy('id') as $detail) {
+            $meta = $detail->meta;
+            $meta = is_string($meta) ? json_decode($meta, true) : $meta;
+            $meta = $meta ?: [];
+
+            if ($detail->event_type === 'created') {
+                $qty = $detail->qty_after;
+
+                if (isset($meta['source_type'])) {
+                    $source = [
+                        'type' => $meta['source_type'],
+                        'location_id' => $meta['location_id'] ?? null,
+                        'lot' => $meta['lot'] ?? null,
+                    ];
+                }
+
+                continue;
+            }
+
+            if ($detail->event_type !== 'updated') {
+                continue;
+            }
+
+            if ($detail->qty_after !== null) {
+                $qty = $detail->qty_after;
+            }
+
+            if (! $source) {
+                continue;
+            }
+
+            if (isset($meta['source_type']['new'])) {
+                $source['type'] = $meta['source_type']['new'];
+            }
+
+            if (array_key_exists('location_id', $meta)) {
+                $source['location_id'] = $meta['location_id']['new'] ?? null;
+            }
+
+            if (array_key_exists('lot', $meta)) {
+                $source['lot'] = $meta['lot']['new'] ?? null;
+            }
+
+            if ($source['type'] !== 'stock') {
+                $source['location_id'] = null;
+                $source['lot'] = null;
+            }
+        }
+
+        return ['source' => $source, 'qty' => $qty !== null ? (int) $qty : null];
+    }
+
+    /**
+     * Tentukan asal barang untuk 1 history (dipakai panel detail):
+     * ['type' => 'stock'|'external', 'location' => ?string, 'lot' => ?string],
+     * atau null kalau tidak diketahui (history lama tanpa snapshot yang
+     * baris aslinya sudah tidak ada).
+     *
+     * Baris staging_out masih ada: dibaca dari baris itu (kondisi terkini).
+     * Sudah tidak ada: direkonstruksi dari timeline.
+     */
+    private function resolveSource(StagingOutHistory $history, ?StagingOut $staging): ?array
+    {
+        $service = app(StagingOutHistoryService::class);
+
+        if ($history->is_active && $staging) {
+            if ($staging->source_type !== 'stock') {
+                return ['type' => 'external', 'location' => null, 'lot' => null];
+            }
+
+            return [
+                'type' => 'stock',
+                'location' => $service->locationName($staging->location_id),
+                'lot' => $staging->lot ?: null,
+            ];
+        }
+
+        $source = $this->reconstructSource($history)['source'];
+
+        if (! $source) {
+            return null;
+        }
+
+        return [
+            'type' => $source['type'],
+            'location' => $service->locationName($source['location_id']),
+            'lot' => $source['lot'],
+        ];
+    }
+
+    /**
+     * Teks asal barang untuk panel detail.
+     */
+    private function sourceLabel(?array $source): string
+    {
+        if (! $source) {
+            return '-';
+        }
+
+        if ($source['type'] !== 'stock') {
+            return 'Eksternal';
+        }
+
+        $label = 'Stok - '.($source['location'] ?: 'lokasi tidak diketahui');
+
+        return $label.' ('.($source['lot'] ? 'Lot '.$source['lot'] : 'Tanpa Lot').')';
     }
 
     /**
@@ -395,9 +664,13 @@ class StagingOutHistoryController extends Controller
 
         $status = $this->statusMeta($history->is_active, $history->delivery_date);
 
+        $staging = $history->is_active ? StagingOut::find($history->staging_out_id) : null;
+
         $currentQty = $history->is_active
-            ? (int) optional(StagingOut::find($history->staging_out_id))->qty
+            ? (int) optional($staging)->qty
             : (int) ($lastDetail->qty_after ?? $history->initial_qty);
+
+        $source = $this->resolveSource($history, $staging);
 
         return response()->json([
             'id' => $history->id,
@@ -409,6 +682,7 @@ class StagingOutHistoryController extends Controller
                 'customer' => $history->customer ?: '-',
                 'line_item' => $history->line_item ?: '-',
                 'delivery_instruction_date' => optional($history->delivery_instruction_date)->format('d M Y') ?: '-',
+                'sumber_barang' => $this->sourceLabel($source),
                 'initial_qty' => number_format($history->initial_qty, 0, ',', '.').' PCS',
                 'current_qty' => number_format($currentQty, 0, ',', '.').' PCS',
                 'created_by' => optional($history->creator)->name ?: '-',
@@ -420,6 +694,19 @@ class StagingOutHistoryController extends Controller
                 'delivery_date' => optional($history->delivery_date)->format('d M Y') ?: '-',
             ],
             'timeline' => $history->details->map(function ($detail) {
+                $meta = $detail->meta;
+
+                // Perubahan lokasi stok pada event "updated" disimpan sebagai
+                // id; tampilkan sebagai nama lokasi supaya terbaca.
+                if ($detail->event_type === 'updated' && is_array($meta) && isset($meta['location_id'])) {
+                    $service = app(StagingOutHistoryService::class);
+
+                    $meta['location_id'] = [
+                        'old' => $service->locationName($meta['location_id']['old'] ?? null),
+                        'new' => $service->locationName($meta['location_id']['new'] ?? null),
+                    ];
+                }
+
                 return [
                     'id' => $detail->id,
                     'event_type' => $detail->event_type,
@@ -427,7 +714,7 @@ class StagingOutHistoryController extends Controller
                     'qty_before' => $detail->qty_before,
                     'qty_change' => $detail->qty_change,
                     'qty_after' => $detail->qty_after,
-                    'meta' => $detail->meta,
+                    'meta' => $meta,
                     'notes' => $detail->notes,
                     'performed_by' => optional($detail->performedBy)->name ?: 'System',
                     'created_at' => $detail->created_at->format('d M Y, H:i'),
