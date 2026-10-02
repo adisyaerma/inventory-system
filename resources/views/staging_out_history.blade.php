@@ -710,10 +710,14 @@
 
                     const activeCount = $('.historyCheckbox[data-active="1"]:checked').length;
                     const stockCount = $('.historyCheckbox[data-cancel-stock="1"]:checked').length;
-                    const otherActiveCount = activeCount - stockCount;
+                    const stockActiveCount = $('.historyCheckbox[data-active="1"][data-cancel-stock="1"]:checked').length;
+                    const otherActiveCount = activeCount - stockActiveCount;
 
                     let activeNote = '';
 
+                    if (stockCount > 0) {
+                        activeNote += `<br><small class="text-danger">${stockCount} di antaranya barangnya diambil dari stok. Transaksinya akan dibatalkan: qty dikembalikan ke stok dan mutasi keluar di stock mutations dihapus (baris di Staging Out ikut dihapus kalau masih ada).</small>`;
+                    }
 
                     if (otherActiveCount > 0) {
                         activeNote += `<br><small class="text-danger">${otherActiveCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>`;
@@ -1005,6 +1009,7 @@
                             <tr><td class="text-muted small">Line Item</td><td class="text-end small">${info.line_item}</td></tr>
                             <tr><td class="text-muted small">Sumber Barang</td><td class="text-end small">${escapeHtml(info.sumber_barang)}</td></tr>
                             <tr><td class="text-muted small">Tgl Instruksi Kirim</td><td class="text-end small">${formatDateOnly(info.delivery_instruction_date)}</td></tr>
+                            <tr><td class="text-muted small">Initial Qty</td><td class="text-end small">${info.initial_qty}</td></tr>
                             <tr><td class="text-muted small">Qty Saat Ini</td><td class="text-end small">${info.current_qty}</td></tr>
                             <tr><td class="text-muted small">Created At</td><td class="text-end small">${formatDateTime(info.created_at)}</td></tr>
                         `);
