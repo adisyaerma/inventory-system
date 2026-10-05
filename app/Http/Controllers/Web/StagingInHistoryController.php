@@ -198,6 +198,12 @@ class StagingInHistoryController extends Controller
 
             // Pencarian global DataTables diganti dengan logika bersama
             // (sama dengan export). Keyword = search[value] dari DataTables.
+            //
+            // Argumen ke-2 HARUS false: kalau true, Yajra tetap menjalankan
+            // pencarian global bawaannya (LIKE ke SEMUA kolom yang searchable,
+            // termasuk kolom hasil addColumn seperti item_so yang bukan kolom
+            // database) lalu menggabungkannya dengan AND ke filter di bawah ini,
+            // sehingga pencarian kode/nama barang tidak pernah lolos.
             ->filter(function ($query) use ($request) {
                 $keyword = trim((string) $request->input('search.value'));
 
@@ -221,7 +227,7 @@ class StagingInHistoryController extends Controller
                         ->orWhereRaw('LOWER(items.item_code_internal) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(items.name) LIKE ?', [$like]);
                 });
-            }, true)
+            }, false)
 
             ->editColumn('arrival_date', function ($row) {
                 return $row->arrival_date ? $row->arrival_date->format('d M Y') : '-';
