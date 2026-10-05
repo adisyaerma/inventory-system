@@ -93,6 +93,15 @@
                     </div>
                     <div class="float-end mt-3">
                         <span class="text-muted small me-2" id="recordCountLabel"></span>
+                        <button type="button" class="btn-sm btn btn-danger d-none me-1" id="bulkRestoreBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d="M3.578 6.487A8 8 0 1 1 2.5 10.5M7.5 6.5h-4v-4" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Pulihkan (<span id="bulkRestoreCount">0</span>)</span>
+                        </button>
                         <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="bulkDestroyBtn">
                             <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                                 <path d="M0 0h24v24H0z" fill="none" />
@@ -322,6 +331,25 @@
             }
         </script>
         <style>
+            /* Toast SweetAlert2: paksa latar & warna teks supaya tidak "putih
+               tanpa tulisan" kalau CSS tema/layout menimpa warna teksnya. */
+            .swal2-container {
+                z-index: 9999999 !important;
+            }
+
+            .swal2-popup.swal2-toast {
+                background: #fff !important;
+                color: #566a7f !important;
+                box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .2) !important;
+            }
+
+            .swal2-popup.swal2-toast .swal2-title,
+            .swal2-popup.swal2-toast .swal2-html-container {
+                color: #566a7f !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+
             .icon-box-history {
                 border-radius: 14px;
                 width: 52px;
@@ -638,8 +666,14 @@
                 }
 
                 // ============ CHECKBOX BARIS & BULK DESTROY ============
+                // Pulihkan hanya menghitung baris berstatus "Selesai"
+                // (data-restorable="1"); Hapus menghitung semua yang tercentang.
                 function updateBulkButtons() {
+                    const restoreCount = $('.historyCheckbox[data-restorable="1"]:checked').length;
                     const deleteCount = $('.historyCheckbox:checked').length;
+
+                    $('#bulkRestoreCount').text(restoreCount);
+                    $('#bulkRestoreBtn').toggleClass('d-none', restoreCount === 0);
 
                     $('#bulkDestroyCount').text(deleteCount);
                     $('#bulkDestroyBtn').toggleClass('d-none', deleteCount === 0);
@@ -697,6 +731,81 @@
                         }
                     });
                 }
+
+                // ============ BULK RESTORE (Selesai -> kembali ke Staging Out) ============
+                $('#bulkRestoreBtn').on('click', function() {
+                    const ids = $('.historyCheckbox[data-restorable="1"]:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+
+                    if (ids.length === 0) {
+                        return;
+                    }
+
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Pulihkan Data?',
+                        html: `Yakin mau memulihkan <b>${ids.length}</b> data terpilih kembali ke Staging Out?` +
+                            `<br><small class="text-muted">Tgl resi pengiriman akan dikosongkan sehingga datanya bisa diedit lagi. Stok tidak berubah.</small>`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Pulihkan',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(function(result) {
+                        if (!result.isConfirmed) {
+                            return;
+                        }
+
+                        $('#bulkRestoreBtn').prop('disabled', true);
+
+                        $.ajax({
+                            url: "{{ route('stagings-out-history.bulk-restore') }}",
+                            method: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                ids: ids
+                            },
+                            success: function(res) {
+                                historyTable.ajax.reload(null, false);
+
+                                if (res.errors && res.errors.length > 0) {
+                                    const rawText = res.message + '\n\n' + res.errors.join('\n\n');
+                                    showRestoreReportAlert(
+                                        res.restored > 0 ? 'warning' : 'error',
+                                        res.restored > 0 ? 'Sebagian Berhasil Dipulihkan' : 'Gagal Dipulihkan',
+                                        rawText
+                                    );
+                                } else {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'success',
+                                        title: res.message || 'Proses berhasil.',
+                                        showConfirmButton: false,
+                                        timer: 3500,
+                                        timerProgressBar: true,
+                                        background: '#fff',
+                                        color: '#566a7f',
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                        }
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal Memulihkan Data',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                        'Terjadi kesalahan saat memulihkan data.'
+                                });
+                            },
+                            complete: function() {
+                                $('#bulkRestoreBtn').prop('disabled', false);
+                            }
+                        });
+                    });
+                });
 
                 // ============ BULK DESTROY (hapus permanen history) ============
                 $('#bulkDestroyBtn').on('click', function() {
@@ -760,9 +869,15 @@
                                         toast: true,
                                         position: 'top-end',
                                         icon: 'success',
-                                        title: res.message,
+                                        title: res.message || 'Data berhasil dihapus.',
                                         showConfirmButton: false,
-                                        timer: 2000
+                                        timer: 3500,
+                                        timerProgressBar: true,
+                                        background: '#fff',
+                                        color: '#566a7f',
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                        }
                                     });
                                 }
                             },
@@ -901,6 +1016,10 @@
                         color: 'danger',
                         icon: 'bi-arrow-counterclockwise'
                     },
+                    restored: {
+                        color: 'info',
+                        icon: 'bi-arrow-counterclockwise'
+                    },
                 };
 
                 function escapeHtml(value) {
@@ -909,6 +1028,12 @@
 
                 function metaDescription(item) {
                     const meta = item.meta || {};
+
+                    if (item.event_type === 'restored') {
+                        return meta.cleared_delivery_receipt_date ?
+                            `<div class="small mt-2">Tgl resi pengiriman dikosongkan (sebelumnya <span class="fw-semibold">${formatDateOnly(meta.cleared_delivery_receipt_date)}</span>)</div>` :
+                            '';
+                    }
 
                     if (item.event_type === 'picking_confirmed') {
                         return meta.picking_date ?

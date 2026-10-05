@@ -2,20 +2,19 @@
 
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\ItemController;
+use App\Http\Controllers\Web\ItemHistoryController;
 use App\Http\Controllers\Web\LocationController;
 use App\Http\Controllers\Web\LocationStockController;
 use App\Http\Controllers\Web\ScanBarcodeController;
 use App\Http\Controllers\Web\StagingInController;
+use App\Http\Controllers\Web\StagingInHistoryController;
 use App\Http\Controllers\Web\StagingOutController;
+use App\Http\Controllers\Web\StagingOutHistoryController;
 use App\Http\Controllers\Web\StockMutationController;
 use App\Http\Controllers\Web\VendorController;
-use App\Http\Controllers\Web\StagingInHistoryController;
-use App\Http\Controllers\Web\StagingOutHistoryController;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Web\ItemHistoryController;
-
 
 // ===locations===
 
@@ -279,7 +278,10 @@ Route::post('stagings-in-history/bulk-destroy', [StagingInHistoryController::cla
 
 Route::post('stagings-out-history/bulk-destroy', [StagingOutHistoryController::class, 'bulkDestroy'])
     ->name('stagings-out-history.bulk-destroy');
-    
+
+Route::post('stagings-out-history/bulk-restore', [StagingOutHistoryController::class, 'bulkRestore'])
+    ->name('stagings-out-history.bulk-restore');
+
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::get('stagings-in-history', [StagingInHistoryController::class, 'index'])->name('stagings-in-history.index');
@@ -301,4 +303,3 @@ Route::prefix('item-history')->name('item-history.')->group(function () {
     Route::get('/{item}/timeline', [ItemHistoryController::class, 'timeline'])->name('timeline');
     Route::get('/{item}/export', [ItemHistoryController::class, 'export'])->name('export');
 });
- 

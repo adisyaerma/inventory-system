@@ -338,6 +338,25 @@
             }
         </script>
         <style>
+            /* Toast SweetAlert2: paksa latar & warna teks supaya tidak "putih
+               tanpa tulisan" kalau CSS tema/layout menimpa warna teksnya. */
+            .swal2-container {
+                z-index: 9999999 !important;
+            }
+
+            .swal2-popup.swal2-toast {
+                background: #fff !important;
+                color: #566a7f !important;
+                box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .2) !important;
+            }
+
+            .swal2-popup.swal2-toast .swal2-title,
+            .swal2-popup.swal2-toast .swal2-html-container {
+                color: #566a7f !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+
             .icon-box-history {
                 border-radius: 14px;
                 width: 52px;
@@ -764,9 +783,15 @@
                                         toast: true,
                                         position: 'top-end',
                                         icon: 'success',
-                                        title: res.message,
+                                        title: res.message || 'Proses berhasil.',
                                         showConfirmButton: false,
-                                        timer: 2000
+                                        timer: 3500,
+                                        timerProgressBar: true,
+                                        background: '#fff',
+                                        color: '#566a7f',
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                        }
                                     });
                                 }
                             },
@@ -837,9 +862,15 @@
                                         toast: true,
                                         position: 'top-end',
                                         icon: 'success',
-                                        title: res.message,
+                                        title: res.message || 'Proses berhasil.',
                                         showConfirmButton: false,
-                                        timer: 2000
+                                        timer: 3500,
+                                        timerProgressBar: true,
+                                        background: '#fff',
+                                        color: '#566a7f',
+                                        didOpen: () => {
+                                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                                        }
                                     });
                                 }
                             },

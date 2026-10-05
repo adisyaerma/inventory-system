@@ -43,6 +43,17 @@ class StagingOutHistoryController extends Controller
      */
     private const REMOVED_EVENTS = ['deleted', 'bulk_deleted', 'reset_by_import'];
 
+    /**
+     * Label & warna untuk event 'restored' (pemulihan dari Selesai ke
+     * Staging Out). Dipakai sebagai tambahan di atas
+     * StagingOutHistoryDetail::EVENT_TYPES / ::EVENT_COLORS, jadi event ini
+     * tetap tampil rapi walau belum didaftarkan di model. Kalau nanti
+     * didaftarkan di model, nilai di model yang dipakai.
+     */
+    private const EXTRA_EVENT_TYPES = ['restored' => 'Dipulihkan'];
+
+    private const EXTRA_EVENT_COLORS = ['restored' => 'info'];
+
     public function index(Request $request)
     {
         $totalHistory = StagingOutHistory::count();
@@ -69,7 +80,7 @@ class StagingOutHistoryController extends Controller
             'dihapus' => 'Dihapus',
         ];
 
-        $eventOptions = StagingOutHistoryDetail::EVENT_TYPES;
+        $eventOptions = StagingOutHistoryDetail::EVENT_TYPES + self::EXTRA_EVENT_TYPES;
 
         return view('staging_out_history', compact(
             'totalHistory',
@@ -187,9 +198,15 @@ class StagingOutHistoryController extends Controller
                         && ($createdMeta['source_type'] ?? null) === 'stock';
                 }
 
+                // data-restorable=1 menandai history berstatus "Selesai"
+                // (sudah terkirim & barisnya sudah tidak ada di Staging Out):
+                // hanya ini yang ikut dihitung/dikirim tombol Pulihkan.
+                $restorable = ! $row->is_active && (bool) $row->delivery_date;
+
                 return '<input type="checkbox" class="form-check-input historyCheckbox"
                     data-active="'.($row->is_active ? '1' : '0').'"
                     data-cancel-stock="'.($cancelsStock ? '1' : '0').'"
+                    data-restorable="'.($restorable ? '1' : '0').'"
                     value="'.$row->id.'">';
             })
 
@@ -206,7 +223,28 @@ class StagingOutHistoryController extends Controller
             // Pencarian global DataTables diganti dengan logika bersama
             // (sama dengan export). Keyword = search[value] dari DataTables.
             ->filter(function ($query) use ($request) {
-                StagingOutHistoryExport::applySearch($query, $request->input('search.value'));
+                $keyword = trim((string) $request->input('search.value'));
+
+                if ($keyword === '') {
+                    StagingOutHistoryExport::applySearch($query, $keyword);
+
+                    return;
+                }
+
+                // Pencarian bawaan (StagingOutHistoryExport::applySearch) tetap
+                // dipakai apa adanya, lalu DITAMBAH (OR) pencarian ke kode
+                // barang & nama barang dari tabel items yang sudah di-join.
+                // LOWER() + LIKE supaya tidak peka huruf besar/kecil di DB
+                // apa pun (LIKE di PostgreSQL peka huruf besar/kecil).
+                $like = '%'.addcslashes(mb_strtolower($keyword), '\\%_').'%';
+
+                $query->where(function ($search) use ($keyword, $like) {
+                    $search->where(function ($existing) use ($keyword) {
+                        StagingOutHistoryExport::applySearch($existing, $keyword);
+                    })
+                        ->orWhereRaw('LOWER(items.item_code_internal) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(items.name) LIKE ?', [$like]);
+                });
             }, true)
 
             ->editColumn('line_item', function ($row) {
@@ -260,6 +298,216 @@ class StagingOutHistoryController extends Controller
             ])
 
             ->make(true);
+    }
+
+    /**
+     * Pulihkan sejumlah history berstatus "Selesai" sekaligus -- dipanggil
+     * dari tombol "Pulihkan" setelah user centang baris-baris di tabel
+     * (pola sama dengan bulkRestore di Staging In History).
+     *
+     * Tujuannya: barang yang sudah terlanjur "terkirim" (mis. salah input)
+     * dikembalikan ke Staging Out supaya bisa diedit lagi seperti biasa.
+     *
+     * Untuk setiap history yang valid (is_active=false DAN delivery_date
+     * terisi, yaitu status "Selesai"):
+     * 1. Rekonstruksi data staging_out persis sebelum diarsipkan (lihat
+     *    reconstructSnapshot()) dari header + detail history-nya sendiri,
+     *    karena baris staging_outs aslinya sudah hilang.
+     * 2. Buat BARIS BARU di staging_outs dari snapshot itu, dengan
+     *    delivery_receipt_date DIKOSONGKAN. No DO & tgl picking tetap
+     *    dipertahankan. Baris staging_outs lain tidak disentuh.
+     * 3. History yang sama "dihidupkan" lagi: staging_out_id diarahkan ke
+     *    baris baru, is_active=true, delivery_date dikosongkan -> status
+     *    kembali "Aktif".
+     * 4. Dicatat 1 detail baru event_type 'restored' di timeline.
+     *
+     * STOK TIDAK DISENTUH. Kalau barangnya diambil dari stok, potongan
+     * stok & mutasi keluarnya dari saat pertama dibuat masih berlaku
+     * (barang memang sudah dipotong), jadi baris pulihan hanya
+     * "menyambung" ke transaksi itu: source_type/lokasi/lot disalin, tanpa
+     * memotong stok lagi. Kalau nanti baris pulihan dihapus atau diubah,
+     * pembatalan/penyesuaian stoknya berjalan normal seperti baris lain.
+     *
+     * Yang dilewati dan dilaporkan sebagai error per-baris (tidak
+     * menggagalkan baris lain): status "Aktif" (barisnya masih ada) dan
+     * "Dihapus" (belum pernah terkirim; stoknya sudah dikembalikan saat
+     * dihapus, jadi memulihkannya butuh memotong stok lagi -- belum
+     * didukung).
+     *
+     * History lama yang dibuat sebelum asal barang dicatat tidak punya data
+     * lokasi stok, jadi dipulihkan sebagai barang Eksternal (tanpa
+     * keterkaitan ke stok) dan hal ini dilaporkan di 'errors'.
+     */
+    public function bulkRestore(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:staging_out_histories,id',
+        ]);
+
+        $restored = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($request, &$restored, &$errors) {
+
+            $histories = StagingOutHistory::whereIn('id', $request->ids)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($histories as $history) {
+
+                $label = ($history->so_number ?: 'History #'.$history->id);
+
+                if ($history->is_active) {
+                    $errors[] = "{$label}: dilewati -- statusnya Aktif, datanya masih ada di Staging Out.";
+
+                    continue;
+                }
+
+                if (! $history->delivery_date) {
+                    $errors[] = "{$label}: dilewati -- statusnya \"Dihapus\", hanya history berstatus \"Selesai\" yang bisa dipulihkan.";
+
+                    continue;
+                }
+
+                try {
+
+                    // Dibungkus DB::transaction() TERPISAH per baris (nested)
+                    // supaya Laravel memakai SAVEPOINT: kegagalan satu baris
+                    // tidak meng-abort seluruh transaksi luar (Postgres).
+                    $note = null;
+
+                    DB::transaction(function () use ($history, &$note) {
+
+                        // Detail dimuat kronologis (lama -> baru) untuk replay.
+                        $history->load(['details' => function ($query) {
+                            $query->reorder()->orderBy('created_at')->orderBy('id');
+                        }]);
+
+                        $snapshot = $this->reconstructSnapshot($history);
+
+                        if ($snapshot['source_known'] === false) {
+                            $note = 'asal barang tidak tercatat di history lama, dipulihkan sebagai barang Eksternal (tidak terhubung ke stok).';
+                        }
+
+                        $newStaging = StagingOut::create([
+                            'so_number' => $snapshot['so_number'],
+                            'customer' => $snapshot['customer'],
+                            'source_type' => $snapshot['source_type'],
+                            'item_id' => $snapshot['item_id'],
+                            'line_item' => $snapshot['line_item'],
+                            'qty' => $snapshot['qty'],
+                            'location_id' => $snapshot['location_id'],
+                            'lot' => $snapshot['lot'],
+                            'delivery_instruction_date' => $snapshot['delivery_instruction_date'],
+                            'picking_date' => $snapshot['picking_date'],
+                            'do_number' => $snapshot['do_number'],
+                            // Inti pemulihan: tgl resi pengiriman dikosongkan.
+                            'delivery_receipt_date' => null,
+                        ]);
+
+                        $previousReceiptDate = $history->delivery_date instanceof \DateTimeInterface
+                            ? $history->delivery_date->format('Y-m-d')
+                            : $history->delivery_date;
+
+                        $history->staging_out_id = $newStaging->id;
+                        $history->is_active = true;
+                        $history->delivery_date = null;
+                        $history->save();
+
+                        StagingOutHistoryDetail::create([
+                            'staging_out_history_id' => $history->id,
+                            'event_type' => 'restored',
+                            'qty_before' => 0,
+                            'qty_change' => $snapshot['qty'],
+                            'qty_after' => $snapshot['qty'],
+                            'meta' => [
+                                'restored_staging_out_id' => $newStaging->id,
+                                'cleared_delivery_receipt_date' => $previousReceiptDate,
+                            ],
+                            'notes' => 'Dipulihkan ke Staging Out (baris baru #'.$newStaging->id.'), tgl resi pengiriman dikosongkan.',
+                            'performed_by' => auth()->id(),
+                        ]);
+                    });
+
+                    $restored++;
+
+                    if ($note) {
+                        $errors[] = "{$label}: berhasil dipulihkan, tapi {$note}";
+                    }
+
+                } catch (\Throwable $e) {
+                    $errors[] = "{$label}: gagal dipulihkan -- ".$e->getMessage();
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'restored' => $restored,
+            'errors' => $errors,
+            'message' => $restored.' data berhasil dipulihkan'
+                .(count($errors) ? ', '.count($errors).' catatan/baris dilewati.' : '.'),
+        ]);
+    }
+
+    /**
+     * Rekonstruksi kondisi staging_out PERSIS SEBELUM diarsipkan, dengan
+     * "memutar ulang" detail history (kronologis) di atas snapshot awal
+     * (kolom header staging_out_histories = data saat pertama dibuat):
+     *
+     * - Field yang tidak disinkronkan ke header (so_number, customer,
+     *   line_item, tgl instruksi kirim, item) diambil dari 'new' pada
+     *   event 'updated' yang terakhir mengubahnya.
+     * - picking_date & do_number dibaca dari header, karena header selalu
+     *   disinkronkan ke nilai terbaru (lihat
+     *   StagingOutHistoryService::HEADER_SYNC_MAP).
+     * - Asal barang (stok/eksternal + lokasi + lot) dan qty akhir dipakai
+     *   dari reconstructSource() yang sudah ada.
+     * - delivery_receipt_date SENGAJA tidak disalin (inti pemulihan).
+     *
+     * 'source_known' = false kalau history dibuat sebelum snapshot asal
+     * barang dicatat (maka dianggap Eksternal).
+     */
+    private function reconstructSnapshot(StagingOutHistory $history): array
+    {
+        $snapshot = [
+            'item_id' => $history->item_id,
+            'so_number' => $history->so_number,
+            'customer' => $history->customer,
+            'line_item' => $history->line_item,
+            'delivery_instruction_date' => $history->delivery_instruction_date,
+        ];
+
+        foreach ($history->details as $detail) {
+            if ($detail->event_type !== 'updated' || ! $detail->meta) {
+                continue;
+            }
+
+            $meta = is_string($detail->meta) ? json_decode($detail->meta, true) : $detail->meta;
+
+            foreach ((array) $meta as $field => $change) {
+                if (array_key_exists($field, $snapshot) && is_array($change) && array_key_exists('new', $change)) {
+                    $snapshot[$field] = $change['new'];
+                }
+            }
+        }
+
+        $info = $this->reconstructSource($history);
+        $source = $info['source'];
+
+        $isStock = $source && $source['type'] === 'stock'
+            && $snapshot['item_id'] && $source['location_id'];
+
+        return $snapshot + [
+            'picking_date' => $history->picking_date,
+            'do_number' => $history->do_number,
+            'source_known' => $source !== null,
+            'source_type' => $isStock ? 'stock' : 'external',
+            'location_id' => $isStock ? $source['location_id'] : null,
+            'lot' => $isStock ? $source['lot'] : null,
+            'qty' => $info['qty'] ?? (int) $history->initial_qty,
+        ];
     }
 
     /**
@@ -611,8 +859,8 @@ class StagingOutHistoryController extends Controller
             return '-';
         }
 
-        $label = StagingOutHistoryDetail::EVENT_TYPES[$eventType] ?? $eventType;
-        $color = StagingOutHistoryDetail::EVENT_COLORS[$eventType] ?? 'secondary';
+        $label = StagingOutHistoryDetail::EVENT_TYPES[$eventType] ?? self::EXTRA_EVENT_TYPES[$eventType] ?? $eventType;
+        $color = StagingOutHistoryDetail::EVENT_COLORS[$eventType] ?? self::EXTRA_EVENT_COLORS[$eventType] ?? 'secondary';
 
         $subtitle = $this->eventSubtitle($eventType, $row->last_meta);
 
@@ -643,6 +891,7 @@ class StagingOutHistoryController extends Controller
                 ->implode(', ') ?: null,
             'picking_confirmed' => isset($meta['picking_date']) ? 'Picking '.$meta['picking_date'] : null,
             'delivered' => isset($meta['do_number']) ? 'DO '.$meta['do_number'] : null,
+            'restored' => 'Tgl resi pengiriman dikosongkan',
             default => null,
         };
     }
@@ -710,7 +959,7 @@ class StagingOutHistoryController extends Controller
                 return [
                     'id' => $detail->id,
                     'event_type' => $detail->event_type,
-                    'label' => StagingOutHistoryDetail::EVENT_TYPES[$detail->event_type] ?? $detail->event_type,
+                    'label' => StagingOutHistoryDetail::EVENT_TYPES[$detail->event_type] ?? self::EXTRA_EVENT_TYPES[$detail->event_type] ?? $detail->event_type,
                     'qty_before' => $detail->qty_before,
                     'qty_change' => $detail->qty_change,
                     'qty_after' => $detail->qty_after,

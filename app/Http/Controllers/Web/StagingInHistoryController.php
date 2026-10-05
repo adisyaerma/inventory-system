@@ -199,7 +199,28 @@ class StagingInHistoryController extends Controller
             // Pencarian global DataTables diganti dengan logika bersama
             // (sama dengan export). Keyword = search[value] dari DataTables.
             ->filter(function ($query) use ($request) {
-                StagingInHistoryExport::applySearch($query, $request->input('search.value'));
+                $keyword = trim((string) $request->input('search.value'));
+
+                if ($keyword === '') {
+                    StagingInHistoryExport::applySearch($query, $keyword);
+
+                    return;
+                }
+
+                // Pencarian bawaan (StagingInHistoryExport::applySearch) tetap
+                // dipakai apa adanya, lalu DITAMBAH (OR) pencarian ke kode
+                // barang & nama barang dari tabel items yang sudah di-join.
+                // LOWER() + LIKE supaya tidak peka huruf besar/kecil di DB
+                // apa pun (LIKE di PostgreSQL peka huruf besar/kecil).
+                $like = '%'.addcslashes(mb_strtolower($keyword), '\\%_').'%';
+
+                $query->where(function ($search) use ($keyword, $like) {
+                    $search->where(function ($existing) use ($keyword) {
+                        StagingInHistoryExport::applySearch($existing, $keyword);
+                    })
+                        ->orWhereRaw('LOWER(items.item_code_internal) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(items.name) LIKE ?', [$like]);
+                });
             }, true)
 
             ->editColumn('arrival_date', function ($row) {
