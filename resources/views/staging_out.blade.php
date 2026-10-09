@@ -155,6 +155,16 @@
                 <small class="text-muted">Kelola data staging out</small>
             </div>
             <div class="float-end mt-3">
+                <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="btnBulkDelete">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <path d="M0 0h24v24H0z" fill="none" />
+                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="1.5"
+                            d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                    </svg>
+                    <span class="d-none d-md-inline ms-1">Hapus (<span id="selectedCount">0</span>)</span>
+                </button>
+
                 <button type="button" class="btn-sm btn border-secondary bg-white border me-1" data-bs-toggle="modal"
                     data-bs-target="#importStagingOutModal">
                     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
@@ -443,345 +453,550 @@
                 <div class="modal fade" id="addStagingOut" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="addStagingOutLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-lg">
+                    <style>
+                        #addStagingOut .modal-content {
+                            border: 0;
+                            border-radius: 1.5rem;
+                            overflow: hidden;
+                            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+                        }
+
+                        /* ---------- HERO (header + No. PO + tanggal) ---------- */
+                        #addStagingOut .as-hero {
+                            padding: 1.5rem 2rem 1.25rem;
+                            background: #fff;
+                            border-bottom: 1px solid #eceef5;
+                        }
+
+                        #addStagingOut .as-hero-icon {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 1rem;
+                            display: grid;
+                            place-items: center;
+                            font-size: 1.5rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStagingOut .as-hero h4 {
+                            color: #2b3350;
+                            letter-spacing: -.01em;
+                        }
+
+                        #addStagingOut .as-hero small {
+                            color: #8a93a8;
+                        }
+
+                        #addStagingOut .as-po-card {
+                            margin: 1.25rem 2rem 0;
+                            padding: 1.1rem 1.25rem;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        /* ---------- BODY ---------- */
+                        #addStagingOut .as-body {
+                            padding: 1.5rem 2rem .5rem;
+                            background: #f5f6fb;
+                        }
+
+                        #addStagingOut .as-label {
+                            display: block;
+                            margin-bottom: .3rem;
+                            font-size: .68rem;
+                            font-weight: 700;
+                            letter-spacing: .06em;
+                            text-transform: uppercase;
+                            color: #8a93a8;
+                        }
+
+                        #addStagingOut .as-field {
+                            position: relative;
+                        }
+
+                        #addStagingOut .as-field>i {
+                            position: absolute;
+                            left: .8rem;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            color: #a5adc2;
+                            font-size: 1.05rem;
+                            pointer-events: none;
+                        }
+
+                        #addStagingOut .as-input,
+                        #addStagingOut .as-select {
+                            width: 100%;
+                            border: 1.5px solid #e6e9f2;
+                            background: #f8f9fd;
+                            border-radius: .75rem;
+                            padding: .5rem .8rem;
+                            font-size: .875rem;
+                            color: #2b3350;
+                            transition: border-color .15s, box-shadow .15s, background .15s;
+                        }
+
+                        #addStagingOut .as-field>i+.as-input,
+                        #addStagingOut .as-field>i+.as-select {
+                            padding-left: 2.35rem;
+                        }
+
+                        #addStagingOut .as-input:focus,
+                        #addStagingOut .as-select:focus {
+                            outline: 0;
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #addStagingOut .as-input-lg {
+                            padding-top: .65rem;
+                            padding-bottom: .65rem;
+                            font-weight: 600;
+                        }
+
+                        #addStagingOut .as-hint {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .3rem;
+                            margin-top: .35rem;
+                            font-size: .72rem;
+                            color: #7c3aed;
+                        }
+
+                        /* ---------- DAFTAR BARANG ---------- */
+                        #addStagingOut .as-section-title {
+                            display: flex;
+                            align-items: center;
+                            gap: .6rem;
+                            font-weight: 700;
+                            color: #2b3350;
+                        }
+
+                        #addStagingOut .as-count {
+                            min-width: 1.6rem;
+                            height: 1.6rem;
+                            padding: 0 .5rem;
+                            display: inline-grid;
+                            place-items: center;
+                            border-radius: 50rem;
+                            font-size: .75rem;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                        }
+
+                        #addStagingOut .add-item-row {
+                            position: relative;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            padding: 1.1rem 1.25rem 1.25rem 1.6rem;
+                            margin-bottom: 1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                            transition: box-shadow .2s;
+                            animation: asRowIn .28s ease both;
+                        }
+
+                        #addStagingOut .add-item-row::before {
+                            content: "";
+                            position: absolute;
+                            left: 0;
+                            top: 1rem;
+                            bottom: 1rem;
+                            width: 5px;
+                            border-radius: 0 6px 6px 0;
+                            background: linear-gradient(180deg, #4f46e5, #db2777);
+                        }
+
+                        #addStagingOut .add-item-row:hover {
+                            box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
+                        }
+
+                        #addStagingOut .add-item-row:focus-within {
+                            z-index: 5;
+                        }
+
+                        @keyframes asRowIn {
+                            from {
+                                opacity: 0;
+                                transform: translateY(8px);
+                            }
+
+                            to {
+                                opacity: 1;
+                                transform: none;
+                            }
+                        }
+
+                        #addStagingOut .as-row-badge {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .5rem;
+                            font-weight: 700;
+                            font-size: .85rem;
+                            color: #2b3350;
+                        }
+
+                        #addStagingOut .as-row-badge .row-number {
+                            width: 1.8rem;
+                            height: 1.8rem;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .6rem;
+                            font-size: .8rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStagingOut .btnRemoveItemRow {
+                            width: 2rem;
+                            height: 2rem;
+                            padding: 0;
+                            display: grid;
+                            place-items: center;
+                            border: 0;
+                            border-radius: .65rem;
+                            color: #e11d48;
+                            background: #fff1f4;
+                        }
+
+                        #addStagingOut .btnRemoveItemRow:hover:not(:disabled) {
+                            color: #fff;
+                            background: #e11d48;
+                        }
+
+                        #addStagingOut .btnRemoveItemRow:disabled {
+                            opacity: .35;
+                        }
+
+                        #addStagingOut .as-add-btn {
+                            width: 100%;
+                            padding: .8rem;
+                            border: 2px dashed #c7cbe6;
+                            border-radius: 1rem;
+                            background: transparent;
+                            color: #5b57d6;
+                            font-weight: 600;
+                            font-size: .875rem;
+                            transition: all .15s;
+                        }
+
+                        #addStagingOut .as-add-btn:hover {
+                            border-color: #7c3aed;
+                            background: #fff;
+                            color: #7c3aed;
+                            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+                        }
+
+                        #addStagingOut .as-pill-btn {
+                            border: 0;
+                            border-radius: 50rem;
+                            padding: .4rem 1rem;
+                            font-size: .8rem;
+                            font-weight: 600;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStagingOut .as-pill-btn:hover {
+                            color: #fff;
+                            background: #4f46e5;
+                        }
+
+                        /* ---------- FOOTER ---------- */
+                        #addStagingOut .as-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: .6rem;
+                            padding: 1rem 2rem 1.4rem;
+                            background: #f5f6fb;
+                        }
+
+                        #addStagingOut .as-btn-save {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.6rem;
+                            font-weight: 600;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+                        }
+
+                        #addStagingOut .as-btn-save:hover {
+                            color: #fff;
+                            filter: brightness(1.08);
+                        }
+
+                        #addStagingOut .as-btn-cancel {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.3rem;
+                            font-weight: 600;
+                            color: #5a6482;
+                            background: #e9ebf5;
+                        }
+
+                        /* ---------- TOM SELECT biar senada ---------- */
+                        #addStagingOut .ts-wrapper .ts-control {
+                            min-height: 40px;
+                            border: 1.5px solid #e6e9f2;
+                            border-radius: .75rem;
+                            background: #f8f9fd;
+                            padding: .45rem .8rem;
+                            box-shadow: none;
+                        }
+
+                        #addStagingOut .ts-wrapper.focus .ts-control {
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #addStagingOut .ts-dropdown {
+                            z-index: 1070;
+                            border-radius: .75rem;
+                            border: 0;
+                            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                            overflow: hidden;
+                        }
+
+                        #addStagingOut .ts-dropdown .active {
+                            background: #eef0ff;
+                            color: #4f46e5;
+                        }
+
+                        /* ---------- Toggle sumber barang per baris ---------- */
+                        #addStagingOut .as-seg {
+                            display: inline-flex;
+                            gap: 2px;
+                            padding: 3px;
+                            border-radius: .8rem;
+                            background: #eef0f7;
+                        }
+
+                        #addStagingOut .as-seg input {
+                            position: absolute;
+                            opacity: 0;
+                            pointer-events: none;
+                        }
+
+                        #addStagingOut .as-seg label {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .35rem;
+                            margin: 0;
+                            padding: .3rem .85rem;
+                            border-radius: .6rem;
+                            font-size: .78rem;
+                            font-weight: 600;
+                            color: #7a839c;
+                            cursor: pointer;
+                            transition: all .15s;
+                        }
+
+                        #addStagingOut .as-seg input:checked+label {
+                            color: #4f46e5;
+                            background: #fff;
+                            box-shadow: 0 2px 8px -2px rgba(43, 51, 80, .25);
+                        }
+
+                        #addStagingOut .as-stock-box {
+                            padding: .9rem 1rem;
+                            border-radius: .9rem;
+                            background: #f3f4ff;
+                            border: 1px dashed #c7cbf0;
+                        }
+                    </style>
+
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                         <div class="modal-content">
 
-                            <form action="{{ route('stagings-out.store') }}" method="POST" id="formStagingOut">
+                            <form action="{{ route('stagings-out.store') }}" method="POST" id="formStagingOut"
+                                class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
 
                                 @csrf
 
-                                <div class="modal-header border-0 pb-0">
+                                {{-- ================= HEADER (putih polos) ================= --}}
+                                <div class="as-hero flex-shrink-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="as-hero-icon"><i class="bx bx-package"></i></div>
+                                            <div>
+                                                <h4 class="mb-0 fw-bold" id="addStagingOutLabel">Tambah Item Staging Out</h4>
+                                                <small>Satu SO, banyak barang — isi sekali saja.</small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                </div>
 
-                                    <div>
+                                {{-- ================= No. SO & Tgl Instruksi Kirim (diisi 1x) ================= --}}
+                                <div class="as-po-card flex-shrink-0">
+                                    <div class="row g-3">
+                                        <div class="col-md-7">
+                                            <label class="as-label">No. SO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-receipt"></i>
+                                                <input type="text" class="as-input as-input-lg" name="so_number"
+                                                    placeholder="Contoh: SO-2026-0001">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="as-label">Tgl Instruksi Kirim</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-calendar"></i>
+                                                <input type="date" class="as-input as-input-lg" id="addInstructionDate"
+                                                    value="{{ now()->format('Y-m-d') }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                        <h4 class="mb-1 fw-bold">
-                                            Tambah Item Staging Out
-                                        </h4>
+                                {{-- ================= DAFTAR BARANG ================= --}}
+                                <div class="as-body flex-grow-1 overflow-auto">
 
-                                        <small class="text-muted">
-                                            Tambahkan data pengiriman barang keluar (SO).
-                                        </small>
-
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="as-section-title">
+                                            <span>Daftar Barang</span>
+                                            <span class="as-count" id="addItemCount">1</span>
+                                        </div>
+                                        <button type="button" class="as-pill-btn btnAddItemRow">
+                                            <i class="bx bx-plus"></i> Tambah Barang
+                                        </button>
                                     </div>
 
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal">
+                                    <div id="addItemRows"></div>
+
+                                    <button type="button" class="as-add-btn btnAddItemRow mb-3">
+                                        <i class="bx bx-plus-circle me-1"></i> Tambah barang lainnya
                                     </button>
 
                                 </div>
 
-                                <div class="modal-body p-4">
-
-                                    {{-- ================= SUMBER BARANG ================= --}}
-                                    <div class="mb-4">
-
-                                        <label class="form-label fw-semibold d-block mb-2">
-                                            Sumber Barang
-                                        </label>
-
-                                        <div class="row g-2">
-
-                                            <div class="col-6">
-                                                <input type="radio" class="btn-check" name="source_type"
-                                                    id="addSourceExternal" value="external" autocomplete="off" checked>
-                                                <label class="btn btn-outline-secondary w-100 d-flex flex-column align-items-center py-3"
-                                                    for="addSourceExternal">
-                                                    <i class="bx bx-package fs-3 mb-1"></i>
-                                                    Barang Eksternal
-                                                    <small class="text-muted fw-normal">Bukan dari stok gudang</small>
-                                                </label>
-                                            </div>
-
-                                            <div class="col-6">
-                                                <input type="radio" class="btn-check" name="source_type"
-                                                    id="addSourceStock" value="stock" autocomplete="off">
-                                                <label class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3"
-                                                    for="addSourceStock">
-                                                    <i class="bx bx-archive-in fs-3 mb-1"></i>
-                                                    Dari Stok
-                                                    <small class="text-muted fw-normal">Ambil dari lokasi stok</small>
-                                                </label>
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                    <div class="row g-4">
-
-                                        {{-- ================= LEFT ================= --}}
-                                        <div class="col-lg-6">
-
-                                            <div class="card shadow border-0 rounded-4 h-100">
-
-                                                <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                                    <h5 class="fw-bold mb-0">
-                                                        <i class="bi bi-box-seam text-primary me-2"></i>
-                                                        Informasi Barang
-                                                    </h5>
-
-                                                    <small class="text-muted">
-                                                        Lengkapi informasi barang yang akan dikirim.
-                                                    </small>
-
-                                                </div>
-
-                                                <div class="card-body px-4 pb-4">
-
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            No. SO
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-receipt"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="so_number" placeholder="Contoh: SO-2026-0001">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Customer
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-buildings"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="customer" placeholder="Contoh: PT. ABC">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Kode Barang
-                                                        </label>
-
-                                                        <select id="addItemSelect" placeholder="Cari kode / nama barang..."></select>
-
-                                                        <input type="hidden" name="item_id" id="addItemId">
-
-                                                    </div>
-
-                                                    <div id="addStockFields" class="d-none">
-
-                                                        <div class="mb-3">
-
-                                                            <label class="form-label fw-semibold">
-                                                                Lokasi
-                                                            </label>
-
-                                                            <select class="form-select form-select-sm"
-                                                                name="location_id" id="addLocationSelect" disabled>
-                                                                <option value="">-- Pilih Lokasi --</option>
-                                                            </select>
-
-                                                        </div>
-
-                                                        <div class="mb-3">
-
-                                                            <label class="form-label fw-semibold">
-                                                                Lot
-                                                            </label>
-
-                                                            <select class="form-select form-select-sm" name="lot"
-                                                                id="addLotSelect" disabled>
-                                                                <option value="">-- Pilih Lot --</option>
-                                                            </select>
-
-                                                            <small class="text-success d-block mt-1"
-                                                                id="addQtyMaxHint"></small>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Line Item
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-package"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="line_item"
-                                                                placeholder="Contoh: 10">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Qty
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-cube-alt"></i>
-                                                            </span>
-
-                                                            <input type="number" class="form-control form-control-sm"
-                                                                name="qty" id="addQtyInput" min="0" placeholder="0">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-
-                                        {{-- ================= RIGHT ================= --}}
-                                        <div class="col-lg-6">
-
-                                            <div class="card shadow border-0 rounded-4 h-100">
-
-                                                <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                                    <h5 class="fw-bold mb-0">
-                                                        <i class="bi bi-truck text-success me-2"></i>
-                                                        Jadwal &amp; Pengiriman
-                                                    </h5>
-
-                                                    <small class="text-muted">
-                                                        Tentukan jadwal instruksi, picking, dan pengiriman.
-                                                    </small>
-
-                                                </div>
-
-                                                <div class="card-body px-4 pb-4">
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Tgl Instruksi Kirim
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-calendar"></i>
-                                                            </span>
-
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                name="delivery_instruction_date"
-                                                                value="{{ now()->format('Y-m-d') }}">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Tgl Picking
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-calendar-check"></i>
-                                                            </span>
-
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                name="picking_date">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            No. DO
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-file"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="do_number" placeholder="Opsional">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div>
-
-                                                        <label class="form-label fw-semibold">
-                                                            Tgl Resi Pengiriman
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-receipt"></i>
-                                                            </span>
-
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                name="delivery_receipt_date">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer border-0 pt-0">
-
-                                    <button type="button" class="btn  btn-outline-secondary" data-bs-dismiss="modal">
-
-                                        Batal
-
+                                <div class="as-footer flex-shrink-0">
+                                    <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                                    <button type="submit" class="as-btn-save" id="btnSaveStagingOut">
+                                        <i class="bx bx-save me-1"></i> Simpan Staging Out
                                     </button>
-
-                                    <button type="submit" class="btn  btn-primary px-4">
-
-                                        <i class="bx bx-save me-1"></i>
-
-                                        Simpan Staging Out
-
-                                    </button>
-
                                 </div>
 
                             </form>
+
+                            {{-- Template 1 baris barang. __INDEX__ diganti lewat JS. --}}
+                            <template id="addItemRowTemplate">
+                                <div class="add-item-row">
+
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                                            <span class="as-row-badge">
+                                                <span class="row-number"></span> Barang
+                                            </span>
+
+                                            <div class="as-seg">
+                                                <input type="radio" name="items[__INDEX__][source_type]"
+                                                    id="srcExt___INDEX__" value="external" class="src-external" checked>
+                                                <label for="srcExt___INDEX__"><i class="bx bx-package"></i> Eksternal</label>
+
+                                                <input type="radio" name="items[__INDEX__][source_type]"
+                                                    id="srcStock___INDEX__" value="stock" class="src-stock">
+                                                <label for="srcStock___INDEX__"><i class="bx bx-archive-in"></i> Dari Stok</label>
+                                            </div>
+                                        </div>
+
+                                        <button type="button" class="btnRemoveItemRow" title="Hapus barang ini">
+                                            <i class="bx bx-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="row g-3">
+
+                                        <div class="col-lg-6">
+                                            <label class="as-label">Kode Barang</label>
+                                            <select class="item-select" name="items[__INDEX__][item_id]"
+                                                placeholder="Cari kode / nama barang..."></select>
+                                        </div>
+
+                                        <div class="col-6 col-lg-3">
+                                            <label class="as-label">Line Item</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-hash"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][line_item]"
+                                                    placeholder="Contoh: 10">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-6 col-lg-3">
+                                            <label class="as-label">Qty</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-cube-alt"></i>
+                                                <input type="number" class="as-input row-qty"
+                                                    name="items[__INDEX__][qty]" min="0" placeholder="0">
+                                            </div>
+                                        </div>
+
+                                        {{-- Lokasi & Lot: hanya muncul kalau sumbernya "Dari Stok" --}}
+                                        <div class="col-12 stock-fields d-none">
+                                            <div class="as-stock-box">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="as-label">Lokasi</label>
+                                                        <select class="as-select row-location"
+                                                            name="items[__INDEX__][location_id]" disabled>
+                                                            <option value="">-- Pilih Lokasi --</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="as-label">Lot</label>
+                                                        <select class="as-select row-lot" name="items[__INDEX__][lot]"
+                                                            disabled>
+                                                            <option value="">-- Pilih Lot --</option>
+                                                        </select>
+                                                        <small class="text-success d-block mt-1 row-qty-hint"></small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-4">
+                                            <label class="as-label">Customer</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-buildings"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][customer]"
+                                                    placeholder="Contoh: PT. ABC">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-4">
+                                            <label class="as-label">Tgl Instruksi Kirim</label>
+                                            <input type="date" class="as-input row-instruction-date"
+                                                name="items[__INDEX__][delivery_instruction_date]">
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-4">
+                                            <label class="as-label">Tgl Picking</label>
+                                            <input type="date" class="as-input"
+                                                name="items[__INDEX__][picking_date]">
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="as-label">No. DO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-file"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][do_number]"
+                                                    placeholder="Opsional">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="as-label">Tgl Resi Pengiriman</label>
+                                            <input type="date" class="as-input"
+                                                name="items[__INDEX__][delivery_receipt_date]">
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </template>
 
                         </div>
                     </div>
@@ -1100,14 +1315,6 @@
 
             </div>
 
-            <div id="bulkActionBar"
-                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
-                <span><span id="selectedCount">0</span> data dipilih</span>
-                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
-                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
-                </button>
-            </div>
-
             <table class="table table-bordered" id="stagingOut">
                 <thead>
                     <tr>
@@ -1153,334 +1360,501 @@
     <div class="modal fade" id="editStagingOutModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-hidden="true">
 
-        <div class="modal-dialog modal-lg">
+        <style>
+                        #editStagingOutModal .modal-content {
+                            border: 0;
+                            border-radius: 1.5rem;
+                            overflow: hidden;
+                            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+                        }
+
+                        #editStagingOutModal .as-hero {
+                            padding: 1.5rem 2rem 1.25rem;
+                            background: #fff;
+                            border-bottom: 1px solid #eceef5;
+                        }
+
+                        #editStagingOutModal .as-hero-icon {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 1rem;
+                            display: grid;
+                            place-items: center;
+                            font-size: 1.5rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingOutModal .as-hero h4 {
+                            color: #2b3350;
+                            letter-spacing: -.01em;
+                        }
+
+                        #editStagingOutModal .as-hero small {
+                            color: #8a93a8;
+                        }
+
+                        #editStagingOutModal .as-body {
+                            padding: 1.5rem 2rem .5rem;
+                            background: #f5f6fb;
+                        }
+
+                        #editStagingOutModal .as-label {
+                            display: block;
+                            margin-bottom: .3rem;
+                            font-size: .68rem;
+                            font-weight: 700;
+                            letter-spacing: .06em;
+                            text-transform: uppercase;
+                            color: #8a93a8;
+                        }
+
+                        #editStagingOutModal .as-field {
+                            position: relative;
+                        }
+
+                        #editStagingOutModal .as-field>i {
+                            position: absolute;
+                            left: .8rem;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            color: #a5adc2;
+                            font-size: 1.05rem;
+                            pointer-events: none;
+                        }
+
+                        #editStagingOutModal .as-input,
+                        #editStagingOutModal .as-select {
+                            width: 100%;
+                            border: 1.5px solid #e6e9f2;
+                            background: #f8f9fd;
+                            border-radius: .75rem;
+                            padding: .5rem .8rem;
+                            font-size: .875rem;
+                            color: #2b3350;
+                            transition: border-color .15s, box-shadow .15s, background .15s;
+                        }
+
+                        #editStagingOutModal .as-field>i+.as-input,
+                        #editStagingOutModal .as-field>i+.as-select {
+                            padding-left: 2.35rem;
+                        }
+
+                        #editStagingOutModal .as-input:focus,
+                        #editStagingOutModal .as-select:focus {
+                            outline: 0;
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #editStagingOutModal .as-input-lg {
+                            padding-top: .65rem;
+                            padding-bottom: .65rem;
+                            font-weight: 600;
+                        }
+
+                        #editStagingOutModal .as-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: .6rem;
+                            padding: 1rem 2rem 1.4rem;
+                            background: #f5f6fb;
+                        }
+
+                        #editStagingOutModal .as-btn-save {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.6rem;
+                            font-weight: 600;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+                        }
+
+                        #editStagingOutModal .as-btn-save:hover {
+                            color: #fff;
+                            filter: brightness(1.08);
+                        }
+
+                        #editStagingOutModal .as-btn-cancel {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.3rem;
+                            font-weight: 600;
+                            color: #5a6482;
+                            background: #e9ebf5;
+                        }
+
+                        #editStagingOutModal .ts-wrapper .ts-control {
+                            min-height: 40px;
+                            border: 1.5px solid #e6e9f2;
+                            border-radius: .75rem;
+                            background: #f8f9fd;
+                            padding: .45rem .8rem;
+                            box-shadow: none;
+                        }
+
+                        #editStagingOutModal .ts-wrapper.focus .ts-control {
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #editStagingOutModal .ts-dropdown {
+                            z-index: 1070;
+                            border-radius: .75rem;
+                            border: 0;
+                            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                            overflow: hidden;
+                        }
+
+                        #editStagingOutModal .ts-dropdown .active {
+                            background: #eef0ff;
+                            color: #4f46e5;
+                        }
+
+                        #editStagingOutModal .as-hint {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .3rem;
+                            margin-top: .35rem;
+                            font-size: .72rem;
+                            color: #7c3aed;
+                        }
+
+                        #editStagingOutModal .as-help {
+                            display: block;
+                            margin-top: .35rem;
+                            font-size: .74rem;
+                            color: #8a93a8;
+                        }
+
+                        /* Kartu seksi */
+                        #editStagingOutModal .as-card {
+                            position: relative;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            padding: 1.25rem 1.4rem 1.4rem 1.7rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        #editStagingOutModal .as-card::before {
+                            content: "";
+                            position: absolute;
+                            left: 0;
+                            top: 1.1rem;
+                            bottom: 1.1rem;
+                            width: 5px;
+                            border-radius: 0 6px 6px 0;
+                            background: linear-gradient(180deg, #4f46e5, #db2777);
+                        }
+
+                        #editStagingOutModal .as-card-title {
+                            display: flex;
+                            align-items: center;
+                            gap: .7rem;
+                            margin-bottom: 1.1rem;
+                        }
+
+                        #editStagingOutModal .as-card-title strong {
+                            display: block;
+                            color: #2b3350;
+                            font-size: .98rem;
+                        }
+
+                        #editStagingOutModal .as-card-title small {
+                            color: #8a93a8;
+                        }
+
+                        #editStagingOutModal .as-card-icon {
+                            width: 2.4rem;
+                            height: 2.4rem;
+                            flex-shrink: 0;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .8rem;
+                            font-size: 1.2rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingOutModal .as-card-icon.is-pink {
+                            color: #db2777;
+                            background: #fdf0f7;
+                        }
+
+                        /* Kotak Lokasi & Lot (khusus Dari Stok) */
+                        #editStagingOutModal .as-stock-box {
+                            padding: .9rem 1rem;
+                            border-radius: .9rem;
+                            background: #f3f4ff;
+                            border: 1px dashed #c7cbf0;
+                        }
+
+                        /* Pilihan sumber barang */
+                        #editStagingOutModal .as-source {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: .8rem;
+                            margin-bottom: 1.25rem;
+                        }
+
+                        #editStagingOutModal .as-source>div {
+                            position: relative;
+                        }
+
+                        #editStagingOutModal .as-source input {
+                            position: absolute;
+                            opacity: 0;
+                            pointer-events: none;
+                        }
+
+                        #editStagingOutModal .as-source label {
+                            display: flex;
+                            align-items: center;
+                            gap: .85rem;
+                            height: 100%;
+                            margin: 0;
+                            padding: .9rem 1.1rem;
+                            background: #fff;
+                            border: 2px solid #e6e9f2;
+                            border-radius: 1rem;
+                            cursor: pointer;
+                            transition: all .15s;
+                        }
+
+                        #editStagingOutModal .as-source label:hover {
+                            border-color: #b9b4f7;
+                        }
+
+                        #editStagingOutModal .as-source input:checked+label {
+                            border-color: #7c3aed;
+                            background: #f6f3ff;
+                            box-shadow: 0 10px 22px -12px rgba(124, 58, 237, .55);
+                        }
+
+                        #editStagingOutModal .as-source-icon {
+                            width: 2.5rem;
+                            height: 2.5rem;
+                            flex-shrink: 0;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .85rem;
+                            font-size: 1.25rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                            transition: all .15s;
+                        }
+
+                        #editStagingOutModal .as-source input:checked+label .as-source-icon {
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                        }
+
+                        #editStagingOutModal .as-source strong {
+                            display: block;
+                            color: #2b3350;
+                            font-size: .9rem;
+                        }
+
+                        #editStagingOutModal .as-source small {
+                            color: #8a93a8;
+                        }
+        </style>
+
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
 
-                <form id="formEditStagingOut">
+                <form id="formEditStagingOut" class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
+
                     @csrf
                     @method('PUT')
 
                     <input type="hidden" name="id" id="editId">
 
-                    <div class="modal-header border-0 pb-0">
-
-                        <div>
-
-                            <h4 class="mb-1 fw-bold">
-                                Edit Item Staging Out
-                            </h4>
-
-                            <small class="text-muted">
-                                Ubah data pengiriman barang keluar (SO).
-                            </small>
-
+                    <div class="as-hero flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="as-hero-icon"><i class="bx bx-edit"></i></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Edit Item Staging Out</h4>
+                                    <small>Ubah data pengiriman barang keluar (SO).</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-
                     </div>
 
-                    <div class="modal-body p-4">
+                    <div class="as-body flex-grow-1 overflow-auto">
 
                         {{-- ================= SUMBER BARANG ================= --}}
-                        <div class="mb-4">
+                        <label class="as-label">Sumber Barang</label>
 
-                            <label class="form-label fw-semibold d-block mb-2">
-                                Sumber Barang
-                            </label>
-
-                            <div class="row g-2">
-
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="source_type"
-                                        id="editSourceExternal" value="external" autocomplete="off" checked>
-                                    <label class="btn btn-outline-secondary w-100 d-flex flex-column align-items-center py-3"
-                                        for="editSourceExternal">
-                                        <i class="bx bx-package fs-3 mb-1"></i>
-                                        Barang Eksternal
-                                        <small class="text-muted fw-normal">Bukan dari stok gudang</small>
-                                    </label>
-                                </div>
-
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="source_type"
-                                        id="editSourceStock" value="stock" autocomplete="off">
-                                    <label class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3"
-                                        for="editSourceStock">
-                                        <i class="bx bx-archive-in fs-3 mb-1"></i>
-                                        Dari Stok
-                                        <small class="text-muted fw-normal">Ambil dari lokasi stok</small>
-                                    </label>
-                                </div>
-
+                        <div class="as-source">
+                            <div>
+                                <input type="radio" name="source_type" id="editSourceExternal" value="external"
+                                    autocomplete="off" checked>
+                                <label for="editSourceExternal">
+                                    <span class="as-source-icon"><i class="bx bx-package"></i></span>
+                                    <span>
+                                        <strong>Barang Eksternal</strong>
+                                        <small>Bukan dari stok gudang</small>
+                                    </span>
+                                </label>
                             </div>
 
+                            <div>
+                                <input type="radio" name="source_type" id="editSourceStock" value="stock"
+                                    autocomplete="off">
+                                <label for="editSourceStock">
+                                    <span class="as-source-icon"><i class="bx bx-archive-in"></i></span>
+                                    <span>
+                                        <strong>Dari Stok</strong>
+                                        <small>Ambil dari lokasi stok</small>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
 
-                        <div class="row g-4">
+                        <div class="row g-4 mb-3">
 
                             {{-- ================= LEFT ================= --}}
                             <div class="col-lg-6">
+                                <div class="as-card h-100">
 
-                                <div class="card shadow border-0 rounded-4 h-100">
-
-                                    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                        <h5 class="fw-bold mb-0">
-                                            <i class="bi bi-box-seam text-primary me-2"></i>
-                                            Informasi Barang
-                                        </h5>
-
-                                        <small class="text-muted">
-                                            Lengkapi informasi barang yang dikirim.
-                                        </small>
-
+                                    <div class="as-card-title">
+                                        <div class="as-card-icon"><i class="bx bx-package"></i></div>
+                                        <div>
+                                            <strong>Informasi Barang</strong>
+                                            <small>Lengkapi informasi barang yang dikirim.</small>
+                                        </div>
                                     </div>
 
-                                    <div class="card-body px-4 pb-4">
+                                    <div class="row g-3">
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                No. SO
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-receipt"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="so_number" id="editSoNumber">
-
+                                        <div class="col-12">
+                                            <label class="as-label">No. SO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-receipt"></i>
+                                                <input type="text" class="as-input" name="so_number"
+                                                    id="editSoNumber">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Customer
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-buildings"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="customer" id="editCustomer">
-
+                                        <div class="col-12">
+                                            <label class="as-label">Customer</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-buildings"></i>
+                                                <input type="text" class="as-input" name="customer"
+                                                    id="editCustomer">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Kode Barang
-                                            </label>
-
+                                        <div class="col-12">
+                                            <label class="as-label">Kode Barang</label>
                                             <select id="editItemSelect" placeholder="Cari kode / nama barang..."></select>
-
                                             <input type="hidden" name="item_id" id="editItemId">
-
                                         </div>
 
-                                        <div id="editStockFields" class="d-none">
-
-                                            <div class="mb-3">
-
-                                                <label class="form-label fw-semibold">
-                                                    Lokasi
-                                                </label>
-
-                                                <select class="form-select form-select-sm" name="location_id"
-                                                    id="editLocationSelect" disabled>
-                                                    <option value="">-- Pilih Lokasi --</option>
-                                                </select>
-
+                                        <div class="col-12 d-none" id="editStockFields">
+                                            <div class="as-stock-box">
+                                                <div class="row g-3">
+                                                    <div class="col-12">
+                                                        <label class="as-label">Lokasi</label>
+                                                        <select class="as-select" name="location_id"
+                                                            id="editLocationSelect" disabled>
+                                                            <option value="">-- Pilih Lokasi --</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="as-label">Lot</label>
+                                                        <select class="as-select" name="lot" id="editLotSelect"
+                                                            disabled>
+                                                            <option value="">-- Pilih Lot --</option>
+                                                        </select>
+                                                        <small class="text-success d-block mt-1"
+                                                            id="editQtyMaxHint"></small>
+                                                    </div>
+                                                </div>
                                             </div>
-
-                                            <div class="mb-3">
-
-                                                <label class="form-label fw-semibold">
-                                                    Lot
-                                                </label>
-
-                                                <select class="form-select form-select-sm" name="lot"
-                                                    id="editLotSelect" disabled>
-                                                    <option value="">-- Pilih Lot --</option>
-                                                </select>
-
-                                                <small class="text-success d-block mt-1" id="editQtyMaxHint"></small>
-
-                                            </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Line Item
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-package"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="line_item" id="editLineItem">
-
+                                        <div class="col-md-6">
+                                            <label class="as-label">Line Item</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-hash"></i>
+                                                <input type="text" class="as-input" name="line_item"
+                                                    id="editLineItem">
                                             </div>
-
                                         </div>
 
-                                        <div class="">
-
-                                            <label class="form-label fw-semibold">
-                                                Qty
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-cube-alt"></i>
-                                                </span>
-
-                                                <input type="number" class="form-control form-control-sm" name="qty"
-                                                    min="0" id="editQty">
-
+                                        <div class="col-md-6">
+                                            <label class="as-label">Qty</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-cube-alt"></i>
+                                                <input type="number" class="as-input" name="qty" min="0"
+                                                    id="editQty">
                                             </div>
-
                                         </div>
 
                                     </div>
-
                                 </div>
-
                             </div>
 
                             {{-- ================= RIGHT ================= --}}
                             <div class="col-lg-6">
+                                <div class="as-card h-100">
 
-                                <div class="card shadow border-0 rounded-4 h-100">
-
-                                    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                        <h5 class="fw-bold mb-0">
-                                            <i class="bi bi-truck text-success me-2"></i>
-                                            Jadwal &amp; Pengiriman
-                                        </h5>
-
-                                        <small class="text-muted">
-                                            Tentukan jadwal instruksi, picking, dan pengiriman.
-                                        </small>
-
-                                    </div>
-
-                                    <div class="card-body px-4 pb-4">
-
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Tgl Instruksi Kirim
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-calendar"></i>
-                                                </span>
-
-                                                <input type="date" class="form-control form-control-sm"
-                                                    name="delivery_instruction_date" id="editDeliveryInstructionDate">
-
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Tgl Picking
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-calendar-check"></i>
-                                                </span>
-
-                                                <input type="date" class="form-control form-control-sm"
-                                                    name="picking_date" id="editPickingDate">
-
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                No. DO
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-file"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="do_number" id="editDoNumber" placeholder="Opsional">
-
-                                            </div>
-
-                                        </div>
-
+                                    <div class="as-card-title">
+                                        <div class="as-card-icon is-pink"><i class="bx bx-trip"></i></div>
                                         <div>
+                                            <strong>Jadwal &amp; Pengiriman</strong>
+                                            <small>Tentukan jadwal instruksi, picking, dan pengiriman.</small>
+                                        </div>
+                                    </div>
 
-                                            <label class="form-label fw-semibold">
-                                                Tgl Resi Pengiriman
-                                            </label>
+                                    <div class="row g-3">
 
-                                            <div class="input-group">
+                                        <div class="col-md-6">
+                                            <label class="as-label">Tgl Instruksi Kirim</label>
+                                            <input type="date" class="as-input" name="delivery_instruction_date"
+                                                id="editDeliveryInstructionDate">
+                                        </div>
 
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-receipt"></i>
-                                                </span>
+                                        <div class="col-md-6">
+                                            <label class="as-label">Tgl Picking</label>
+                                            <input type="date" class="as-input" name="picking_date"
+                                                id="editPickingDate">
+                                        </div>
 
-                                                <input type="date" class="form-control form-control-sm"
-                                                    name="delivery_receipt_date" id="editDeliveryReceiptDate">
-
+                                        <div class="col-12">
+                                            <label class="as-label">No. DO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-file"></i>
+                                                <input type="text" class="as-input" name="do_number"
+                                                    id="editDoNumber" placeholder="Opsional">
                                             </div>
+                                        </div>
 
+                                        <div class="col-12">
+                                            <label class="as-label">Tgl Resi Pengiriman</label>
+                                            <input type="date" class="as-input" name="delivery_receipt_date"
+                                                id="editDeliveryReceiptDate">
                                         </div>
 
                                     </div>
-
                                 </div>
-
                             </div>
-                        </div>
 
+                        </div>
                     </div>
 
-                    <div class="modal-footer border-0 pt-0">
-
-                        <button type="button" class="btn  btn-outline-secondary" data-bs-dismiss="modal">
-                            Batal
+                    <div class="as-footer flex-shrink-0">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="as-btn-save btnSaveEdit">
+                            <i class="bx bx-save me-1"></i> Simpan Perubahan
                         </button>
-
-                        <button type="submit" class="btn  btn-primary px-4 btnSaveEdit">
-                            <i class="bx bx-save me-1"></i>
-                            Simpan Perubahan
-                        </button>
-
                     </div>
 
                 </form>
@@ -2331,19 +2705,6 @@
                     };
                 }
 
-                let addSourceType = setupSourceType({
-                    stockFieldsSel: '#addStockFields',
-                    extRadioSel: '#addSourceExternal',
-                    stockRadioSel: '#addSourceStock',
-                    locationSelectSel: '#addLocationSelect',
-                    lotSelectSel: '#addLotSelect',
-                    qtyInputSel: '#addQtyInput',
-                    qtyHintSel: '#addQtyMaxHint',
-                    getItemId: function() {
-                        return $('#addItemId').val();
-                    }
-                });
-
                 let editSourceType = setupSourceType({
                     stockFieldsSel: '#editStockFields',
                     extRadioSel: '#editSourceExternal',
@@ -2396,129 +2757,769 @@
                     });
                 }
 
-                let addItemSelect = initItemSelect('#addItemSelect', '#addItemId', function(itemId) {
-                    addSourceType.loadLocations(itemId);
-                });
                 let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', function(itemId) {
                     editSourceType.loadLocations(itemId);
                 });
 
-                $('#addStagingOut').on('hidden.bs.modal', function() {
-                    addItemSelect.clear();
-                    $('#addItemId').val('');
-                    addSourceType.reset();
+                // ================= ALERT HELPER (SweetAlert) =================
+                // Satu pintu untuk semua notifikasi form: selalu tampil di atas modal,
+                // menampilkan SEMUA masalah sekaligus (bukan cuma yang pertama),
+                // menandai kolom yang bermasalah, dan punya fallback kalau
+                // SweetAlert gagal dimuat.
+                function escHtml(text) {
+                    return $('<div>').text(text == null ? '' : text).html();
+                }
+
+                function swalAvailable() {
+                    return typeof Swal !== 'undefined';
+                }
+
+                function showToast(icon, title, timer) {
+                    if (!swalAvailable()) {
+                        alert(title);
+                        return;
+                    }
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icon,
+                        title: title,
+                        timer: timer || 2500,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                }
+
+                function problemsHtml(intro, groups) {
+                    let html = '<div class="swal-problems">';
+
+                    if (intro) {
+                        html += '<p class="swal-problems-intro">' + escHtml(intro) + '</p>';
+                    }
+
+                    groups.forEach(function(g) {
+                        html += '<div class="swal-problem-group">';
+
+                        if (g.title) {
+                            html += '<div class="swal-problem-title">' + escHtml(g.title) + '</div>';
+                        }
+
+                        html += '<ul>' + g.items.map(function(item) {
+                            return '<li>' + escHtml(item) + '</li>';
+                        }).join('') + '</ul></div>';
+                    });
+
+                    return html + '</div>';
+                }
+
+                function showProblems(opts) {
+                    if (!swalAvailable()) {
+                        const lines = [];
+                        opts.groups.forEach(function(g) {
+                            if (g.title) lines.push(g.title + ':');
+                            g.items.forEach(function(item) {
+                                lines.push('- ' + item);
+                            });
+                        });
+                        alert((opts.title || 'Data belum lengkap') + '\n\n' + lines.join('\n'));
+                        return Promise.resolve({
+                            isConfirmed: true
+                        });
+                    }
+
+                    return Swal.fire({
+                        icon: opts.icon || 'warning',
+                        title: opts.title || 'Data belum lengkap',
+                        html: problemsHtml(opts.intro, opts.groups),
+                        confirmButtonText: opts.confirmText || 'Lengkapi Data',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    });
+                }
+
+                function showSimpleAlert(icon, title, text, confirmText, footer) {
+                    if (!swalAvailable()) {
+                        alert(title + '\n\n' + text);
+                        return Promise.resolve({
+                            isConfirmed: true
+                        });
+                    }
+
+                    return Swal.fire({
+                        icon: icon,
+                        title: title,
+                        text: text,
+                        footer: footer || undefined,
+                        confirmButtonText: confirmText || 'Mengerti',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    });
+                }
+
+                // Data yang tidak wajib tapi masih kosong: tanya dulu, jangan diam-diam disimpan.
+                function confirmEmpty(intro, groups) {
+                    if (!swalAvailable()) {
+                        return Promise.resolve(window.confirm(intro + '\n\n' + groups[0].items.join('\n')));
+                    }
+
+                    return Swal.fire({
+                        icon: 'question',
+                        title: 'Ada data yang masih kosong',
+                        html: problemsHtml(intro, groups),
+                        showCancelButton: true,
+                        reverseButtons: true,
+                        confirmButtonText: 'Tetap Simpan',
+                        cancelButtonText: 'Lengkapi Dulu',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    }).then(function(result) {
+                        return result.isConfirmed;
+                    });
+                }
+
+                function markInvalid($el) {
+                    $el = $($el);
+                    $el.addClass('as-invalid');
+                    $el.siblings('.ts-wrapper').addClass('as-invalid-wrap');
+                }
+
+                function clearInvalid() {
+                    $('.as-invalid').removeClass('as-invalid');
+                    $('.as-invalid-wrap').removeClass('as-invalid-wrap');
+                }
+
+                function focusFirst($el) {
+                    $el = $($el);
+
+                    if (!$el.length) return;
+
+                    const ts = $el[0].tomselect;
+                    const target = ts ? ts.wrapper : $el[0];
+
+                    if (target && target.scrollIntoView) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+
+                    setTimeout(function() {
+                        if (ts) ts.focus();
+                        else $el.trigger('focus');
+                    }, 250);
+                }
+
+                // Kolom yang tadinya merah jadi normal lagi begitu user mengisinya.
+                $(document).on('input change', '.as-invalid', function() {
+                    $(this).removeClass('as-invalid');
+                    $(this).siblings('.ts-wrapper').removeClass('as-invalid-wrap');
                 });
 
-                // ================= TAMBAH (AJAX) =================
+                $(document).on('hidden.bs.modal', '.modal', clearInvalid);
+
+                // checks: [{ el, target?, when?, validate: ($el, val) => 'pesan error' | null }]
+                function collectChecks(checks) {
+                    clearInvalid();
+
+                    const found = [];
+
+                    checks.forEach(function(c) {
+                        if (c.when && !c.when()) return;
+
+                        const $el = $(c.el);
+                        const raw = $el.val();
+                        const msg = c.validate($el, $.trim(raw == null ? '' : String(raw)));
+
+                        if (msg) {
+                            found.push({
+                                message: msg,
+                                $el: $(c.target || c.el)
+                            });
+                        }
+                    });
+
+                    return found;
+                }
+
+                // true = ada masalah (alert sudah ditampilkan), proses simpan harus dihentikan.
+                function reportChecks(found, title) {
+                    if (!found.length) return false;
+
+                    found.forEach(function(f) {
+                        markInvalid(f.$el);
+                    });
+
+                    showProblems({
+                        title: title || 'Data belum lengkap',
+                        intro: 'Lengkapi data berikut sebelum menyimpan:',
+                        groups: [{
+                            title: null,
+                            items: found.map(function(f) {
+                                return f.message;
+                            })
+                        }]
+                    }).then(function() {
+                        focusFirst(found[0].$el);
+                    });
+
+                    return true;
+                }
+
+                function requiredCheck(message) {
+                    return function($el, val) {
+                        return val === '' ? message : null;
+                    };
+                }
+
+                // Qty angka bulat >= 1, dan tidak boleh melebihi atribut max (kalau ada).
+                function qtyCheck(label, maxLabel) {
+                    return function($el, val) {
+                        if (val === '') return label + ' belum diisi.';
+                        if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return label + ' harus berupa angka bulat.';
+                        if (Number(val) < 1) return label + ' minimal 1.';
+
+                        const max = parseFloat($el.attr('max'));
+
+                        if (!isNaN(max) && Number(val) > max) {
+                            return label + ' melebihi ' + (maxLabel || 'stok yang tersedia') + '. Maksimal: ' + max + '.';
+                        }
+
+                        return null;
+                    };
+                }
+
+                // list: [{row|null, message}] -> grup per "Barang ke-N"
+                function rowGroups(list) {
+                    const general = [];
+                    const perRow = {};
+
+                    list.forEach(function(p) {
+                        if (p.row == null) {
+                            general.push(p.message);
+                        } else {
+                            (perRow[p.row] = perRow[p.row] || []).push(p.message);
+                        }
+                    });
+
+                    const hasRows = Object.keys(perRow).length > 0;
+                    const groups = [];
+
+                    if (general.length) {
+                        groups.push({
+                            title: hasRows ? 'Data umum' : null,
+                            items: general
+                        });
+                    }
+
+                    Object.keys(perRow).sort(function(a, b) {
+                        return a - b;
+                    }).forEach(function(k) {
+                        groups.push({
+                            title: 'Barang ke-' + k,
+                            items: perRow[k]
+                        });
+                    });
+
+                    return groups;
+                }
+
+                // list: [{field, row|null}] -> "Customer belum diisi pada barang ke-1, 3"
+                function missingGroups(list, totalRows) {
+                    const byField = {};
+                    const order = [];
+
+                    list.forEach(function(p) {
+                        if (!byField[p.field]) {
+                            byField[p.field] = {
+                                rows: [],
+                                general: false
+                            };
+                            order.push(p.field);
+                        }
+
+                        if (p.row == null) byField[p.field].general = true;
+                        else byField[p.field].rows.push(p.row);
+                    });
+
+                    return [{
+                        title: null,
+                        items: order.map(function(field) {
+                            const d = byField[field];
+
+                            if (d.general) return field + ' belum diisi';
+
+                            const all = totalRows > 1 && d.rows.length === totalRows;
+
+                            return field + ' belum diisi pada ' +
+                                (all ? 'semua barang' : 'barang ke-' + d.rows.join(', '));
+                        })
+                    }];
+                }
+
+                function looksTechnical(msg) {
+                    return !msg || msg.length > 220 ||
+                        /SQLSTATE|Exception|Stack trace|vendor[\\\/]|\.php|Call to|Undefined|Trying to/i.test(msg);
+                }
+
+                // Pesan error dari server -> alert yang jelas & ramah.
+                function showAjaxError(xhr) {
+                    const json = xhr.responseJSON || {};
+                    const status = xhr.status;
+                    const msg = json.message;
+
+                    if (status === 422 && json.errors) {
+                        const general = [];
+                        const perRow = [];
+
+                        $.each(json.errors, function(key, msgs) {
+                            const m = key.match(/^items\.(\d+)\./);
+
+                            $.each(msgs, function(_, text) {
+                                if (m) perRow.push({
+                                    row: parseInt(m[1], 10) + 1,
+                                    message: text
+                                });
+                                else general.push({
+                                    row: null,
+                                    message: text
+                                });
+                            });
+                        });
+
+                        // buang pesan kembar
+                        const seen = {};
+                        const all = general.concat(perRow).filter(function(p) {
+                            const k = p.row + '|' + p.message;
+                            if (seen[k]) return false;
+                            seen[k] = true;
+                            return true;
+                        });
+
+                        return showProblems({
+                            title: 'Data belum bisa disimpan',
+                            intro: 'Periksa kembali data berikut:',
+                            groups: rowGroups(all),
+                            confirmText: 'Mengerti'
+                        });
+                    }
+
+                    if (status === 0) {
+                        return showSimpleAlert('error', 'Tidak ada koneksi',
+                            'Tidak dapat terhubung ke server. Periksa koneksi internet kamu, lalu coba lagi.');
+                    }
+
+                    if (status === 419 || status === 401) {
+                        return showSimpleAlert('warning', 'Sesi sudah berakhir',
+                            'Halaman sudah terlalu lama dibuka atau kamu sudah logout. Muat ulang halaman, lalu coba lagi.',
+                            'Muat Ulang').then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if (status === 403) {
+                        return showSimpleAlert('error', 'Tidak punya akses',
+                            'Akun kamu tidak memiliki izin untuk melakukan aksi ini.');
+                    }
+
+                    if (status === 404) {
+                        return showSimpleAlert('warning', 'Data tidak ditemukan',
+                            'Data ini mungkin sudah dihapus atau dipindahkan oleh pengguna lain. Muat ulang halaman untuk melihat data terbaru.');
+                    }
+
+                    if (msg && !looksTechnical(msg)) {
+                        return showSimpleAlert(status === 422 ? 'warning' : 'error',
+                            status === 422 ? 'Data belum bisa disimpan' : 'Data gagal disimpan', msg);
+                    }
+
+                    return showSimpleAlert('error', 'Terjadi kesalahan di server',
+                        'Data belum tersimpan. Coba lagi beberapa saat lagi; kalau masih berulang, hubungi admin.',
+                        'Mengerti', msg ? 'Detail: ' + msg.substring(0, 180) : '');
+                }
+
+                // Nomor di name="items[N]" tidak selalu urut kalau ada baris yang dihapus.
+                // Dirapikan sebelum divalidasi/dikirim supaya "Barang ke-N" dari server
+                // sama persis dengan urutan di layar.
+                function reindexAddRows() {
+                    $('#addItemRows').children('.add-item-row').each(function(i) {
+                        $(this).find('[name^="items["]').each(function() {
+                            this.name = this.name.replace(/^items\[\d+\]/, 'items[' + i + ']');
+                        });
+                    });
+                }
+
+                // ================= TAMBAH: 1 SO, BANYAK BARANG =================
+                const $addRows = $('#addItemRows');
+                const addRowTemplate = $('#addItemRowTemplate').html();
+                let addRowCounter = 0;
+
+                // Logika per baris: toggle Eksternal/Stok, Lokasi -> Lot, dan batas Qty.
+                function initOutRow($row) {
+
+                    const $stockRadio = $row.find('.src-stock');
+                    const $extRadio = $row.find('.src-external');
+                    const $stockFields = $row.find('.stock-fields');
+                    const $loc = $row.find('.row-location');
+                    const $lot = $row.find('.row-lot');
+                    const $qty = $row.find('.row-qty');
+                    const $hint = $row.find('.row-qty-hint');
+                    const $item = $row.find('.item-select');
+
+                    function currentItemId() {
+                        return $item.val() || '';
+                    }
+
+                    function resetLot() {
+                        $lot.html('<option value="">-- Pilih Lot --</option>').prop('disabled', true);
+                        $hint.text('');
+                        $qty.removeAttr('max');
+                    }
+
+                    function resetLocationLot() {
+                        $loc.html('<option value="">-- Pilih Lokasi --</option>').prop('disabled', true);
+                        resetLot();
+                    }
+
+                    function loadLocations(itemId) {
+                        resetLocationLot();
+
+                        if (!itemId) return;
+
+                        $.getJSON("{{ route('stagings-out.search-location-for-item') }}", {
+                            item_id: itemId
+                        }).then(function(res) {
+                            $loc.prop('disabled', false);
+
+                            res.forEach(function(loc) {
+                                $loc.append($('<option>', {
+                                    value: loc.id,
+                                    text: loc.text + ' (stok: ' + loc.total_quantity + ')'
+                                }));
+                            });
+                        });
+                    }
+
+                    function loadLots(itemId, locationId) {
+                        resetLot();
+
+                        if (!itemId || !locationId) return;
+
+                        $.getJSON("{{ route('stagings-out.search-lot-for-item-location') }}", {
+                            item_id: itemId,
+                            location_id: locationId
+                        }).then(function(res) {
+                            $lot.prop('disabled', false);
+
+                            res.forEach(function(lotRow) {
+                                $lot.append($('<option>', {
+                                    value: lotRow.id,
+                                    text: lotRow.text + ' (stok: ' + lotRow.quantity + ')',
+                                    'data-qty': lotRow.quantity
+                                }));
+                            });
+
+                            // Cuma 1 lot -> langsung dipilihkan.
+                            if (res.length === 1) {
+                                $lot.val(res[0].id).trigger('change');
+                            }
+                        });
+                    }
+
+                    $extRadio.add($stockRadio).on('change', function() {
+                        const isStock = $stockRadio.is(':checked');
+                        $stockFields.toggleClass('d-none', !isStock);
+
+                        if (isStock) {
+                            loadLocations(currentItemId());
+                        } else {
+                            resetLocationLot();
+                        }
+                    });
+
+                    $loc.on('change', function() {
+                        loadLots(currentItemId(), $(this).val());
+                    });
+
+                    $lot.on('change', function() {
+                        const q = $(this).find(':selected').data('qty');
+
+                        if (q !== undefined && q !== '' && q !== null) {
+                            $qty.attr('max', q);
+                            $hint.text('Stok tersedia: ' + q);
+                        } else {
+                            $qty.removeAttr('max');
+                            $hint.text('');
+                        }
+                    });
+
+                    const ts = new TomSelect($item[0], {
+                        valueField: 'id',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        preload: true,
+                        create: false,
+                        maxOptions: 20,
+                        placeholder: 'Cari kode / nama barang...',
+                        load: function(query, callback) {
+                            $.ajax({
+                                url: "{{ route('stagings-out.search-stock') }}",
+                                type: 'GET',
+                                data: {
+                                    q: query
+                                },
+                                success: function(res) {
+                                    callback(res);
+                                },
+                                error: function() {
+                                    callback();
+                                }
+                            });
+                        },
+                        onChange: function(value) {
+                            if ($stockRadio.is(':checked')) {
+                                loadLocations(value || '');
+                            }
+                        }
+                    });
+
+                    $row.data('ts', ts);
+                }
+
+                function refreshAddRows() {
+                    const $rows = $addRows.children('.add-item-row');
+
+                    $rows.each(function(i) {
+                        $(this).find('.row-number').text(i + 1);
+                    });
+
+                    $('#addItemCount').text($rows.length);
+                    $rows.find('.btnRemoveItemRow').prop('disabled', $rows.length === 1);
+                }
+
+                function addItemRow() {
+                    const index = addRowCounter++;
+                    const $row = $(addRowTemplate.replace(/__INDEX__/g, index));
+
+                    // Baris baru langsung memakai tgl instruksi kirim di atas.
+                    $row.find('.row-instruction-date').val($('#addInstructionDate').val());
+
+                    $addRows.append($row);
+                    initOutRow($row);
+                    refreshAddRows();
+
+                    return $row;
+                }
+
+                function resetAddForm() {
+                    $addRows.children('.add-item-row').each(function() {
+                        const ts = $(this).data('ts');
+                        if (ts) ts.destroy();
+                    });
+
+                    $addRows.empty();
+                    $('#formStagingOut')[0].reset();
+
+                    addItemRow();
+                }
+
+                // Tgl instruksi kirim diisi 1x -> semua baris ikut menyesuaikan,
+                // setelah itu tiap baris tetap bisa diubah manual.
+                $('#addInstructionDate').on('input change', function() {
+                    $addRows.find('.row-instruction-date').val(this.value);
+                });
+
+                $(document).on('click', '.btnAddItemRow', function() {
+                    const $row = addItemRow();
+                    $row[0].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                });
+
+                $(document).on('click', '.btnRemoveItemRow', function() {
+                    const $row = $(this).closest('.add-item-row');
+                    const ts = $row.data('ts');
+
+                    if (ts) ts.destroy();
+                    $row.remove();
+
+                    refreshAddRows();
+                });
+
+                $('#addStagingOut').on('hidden.bs.modal', resetAddForm);
+
+                resetAddForm();
+
+                // ================= TAMBAH: validasi & simpan (AJAX) =================
+                // Wajib (menghentikan simpan): Barang & Qty >= 1 di tiap baris, plus
+                // Lokasi/Lot/stok untuk sumber "Dari Stok".
+                // Boleh kosong tapi ditanyakan dulu: No. SO, Customer, Tgl Instruksi Kirim.
+                function collectAddProblems() {
+                    clearInvalid();
+
+                    const blocking = [];
+                    const soft = [];
+                    const $rows = $addRows.children('.add-item-row');
+
+                    const $so = $('#formStagingOut [name="so_number"]');
+
+                    if (!$.trim($so.val())) {
+                        soft.push({
+                            field: 'No. SO',
+                            row: null,
+                            $el: $so
+                        });
+                    }
+
+                    $rows.each(function(i) {
+                        const $row = $(this);
+                        const no = i + 1;
+
+                        const isStock = $row.find('.src-stock').is(':checked');
+                        const $item = $row.find('.item-select');
+                        const $qty = $row.find('.row-qty');
+                        const $loc = $row.find('.row-location');
+                        const $lot = $row.find('.row-lot');
+                        const $cust = $row.find('input[name$="[customer]"]');
+                        const $date = $row.find('.row-instruction-date');
+
+                        if (!$item.val()) {
+                            blocking.push({
+                                row: no,
+                                message: 'Barang belum dipilih. Cari dan pilih barang dari daftar.',
+                                $el: $item
+                            });
+                        }
+
+                        if (isStock && $item.val() && !$loc.val()) {
+                            const noStock = $loc.find('option').length <= 1 && !$loc.prop('disabled');
+
+                            blocking.push({
+                                row: no,
+                                message: noStock ?
+                                    'Barang ini tidak memiliki stok di lokasi mana pun. Ganti barang atau pilih sumber Eksternal.' :
+                                    'Lokasi belum dipilih. Pilih lokasi yang memiliki stok barang ini.',
+                                $el: $loc
+                            });
+                        }
+
+                        if (isStock && $loc.val() && !$lot.prop('disabled') &&
+                            $lot.find('option').length > 1 && $lot[0].selectedIndex === 0) {
+                            blocking.push({
+                                row: no,
+                                message: 'Lot belum dipilih. Pilih lot yang akan dikeluarkan.',
+                                $el: $lot
+                            });
+                        }
+
+                        const qtyMsg = qtyCheck('Qty', 'sisa stok pada lot ini')($qty, $.trim($qty.val()));
+
+                        if (qtyMsg) {
+                            blocking.push({
+                                row: no,
+                                message: qtyMsg,
+                                $el: $qty
+                            });
+                        }
+
+                        if (!$.trim($cust.val())) {
+                            soft.push({
+                                field: 'Customer',
+                                row: no,
+                                $el: $cust
+                            });
+                        }
+
+                        if (!$date.val()) {
+                            soft.push({
+                                field: 'Tgl Instruksi Kirim',
+                                row: no,
+                                $el: $date
+                            });
+                        }
+                    });
+
+                    return {
+                        blocking: blocking,
+                        soft: soft,
+                        total: $rows.length
+                    };
+                }
+
+                function saveAddForm($form) {
+                    const $btn = $('#btnSaveStagingOut').prop('disabled', true);
+
+                    $.ajax({
+                        url: "{{ route('stagings-out.store') }}",
+                        method: "POST",
+                        data: $form.serialize(),
+
+                        success: function(response) {
+                            $('#addStagingOut').modal('hide'); // form di-reset oleh hidden.bs.modal
+                            table.ajax.reload(null, false);
+                            showToast('success', response.message, 3000);
+                        },
+
+                        error: function(xhr) {
+                            showAjaxError(xhr);
+                        },
+
+                        complete: function() {
+                            $btn.prop('disabled', false);
+                        }
+                    });
+                }
+
                 $(document).on('submit', '#formStagingOut', function(e) {
 
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Validasi ringan di sisi client untuk sumber "Stok" —
-                    // validasi yang sesungguhnya (dan anti race-condition)
-                    // tetap dilakukan di server pada StagingOutController::store().
-                    if ($('#addSourceStock').is(':checked')) {
+                    const $form = $(this);
 
-                        if (!$('#addItemId').val()) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Barang belum dipilih',
-                                text: 'Pilih barang terlebih dahulu untuk sumber stok.'
-                            });
-                            return;
-                        }
+                    reindexAddRows();
 
-                        if (!$('#addLocationSelect').val()) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Lokasi belum dipilih',
-                                text: 'Pilih lokasi yang memiliki stok barang ini.'
-                            });
-                            return;
-                        }
+                    const r = collectAddProblems();
 
-                        let qtyVal = parseFloat($('#addQtyInput').val() || 0);
-                        let maxVal = parseFloat($('#addQtyInput').attr('max'));
+                    if (r.blocking.length) {
+                        r.blocking.forEach(function(p) {
+                            markInvalid(p.$el);
+                        });
 
-                        if (!qtyVal || qtyVal <= 0) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Qty belum diisi',
-                                text: 'Qty wajib diisi dan lebih dari 0.'
-                            });
-                            return;
-                        }
+                        showProblems({
+                            title: 'Data belum lengkap',
+                            intro: 'Lengkapi data berikut sebelum menyimpan:',
+                            groups: rowGroups(r.blocking)
+                        }).then(function() {
+                            focusFirst(r.blocking[0].$el);
+                        });
 
-                        if (!isNaN(maxVal) && qtyVal > maxVal) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Qty melebihi stok',
-                                text: 'Sisa stok pada lot ini hanya ' + maxVal + '.'
-                            });
-                            return;
-                        }
+                        return;
                     }
 
-                    $.ajax({
-                        url: "{{ route('stagings-out.store') }}",
-                        method: "POST",
-                        data: $(this).serialize(),
-
-                        success: function(response) {
-
-                            $('#addStagingOut').modal('hide');
-                            $('#formStagingOut')[0].reset();
-                            addItemSelect.clear();
-                            $('#addItemId').val('');
-                            addSourceType.reset();
-
-                            table.ajax.reload(null, false);
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: response.message,
-                                timer: 2000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
-
-                        },
-
-                        error: function(xhr) {
-
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
+                    if (r.soft.length) {
+                        confirmEmpty('Data berikut belum diisi. Mau tetap disimpan?',
+                            missingGroups(r.soft, r.total)).then(function(ok) {
+                            if (ok) {
+                                saveAddForm($form);
+                            } else {
+                                r.soft.forEach(function(p) {
+                                    markInvalid(p.$el);
+                                });
+                                focusFirst(r.soft[0].$el);
                             }
+                        });
 
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                        return;
+                    }
 
-                        }
-                    });
+                    saveAddForm($form);
 
                 });
 
@@ -2610,47 +3611,27 @@
 
                     let id = $('#editId').val();
 
-                    if ($('#editSourceStock').is(':checked')) {
+                    const editIsStock = function() {
+                        return $('#editSourceStock').is(':checked');
+                    };
 
-                        if (!$('#editItemId').val()) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Barang belum dipilih',
-                                text: 'Pilih barang terlebih dahulu untuk sumber stok.'
-                            });
-                            return;
+                    if (reportChecks(collectChecks([{
+                            el: '#editItemId',
+                            target: '#editItemSelect',
+                            when: editIsStock,
+                            validate: requiredCheck('Barang belum dipilih. Pilih barang terlebih dahulu untuk sumber stok.')
+                        },
+                        {
+                            el: '#editLocationSelect',
+                            when: editIsStock,
+                            validate: requiredCheck('Lokasi belum dipilih. Pilih lokasi yang memiliki stok barang ini.')
+                        },
+                        {
+                            el: '#editQty',
+                            when: editIsStock,
+                            validate: qtyCheck('Qty', 'sisa stok pada lot ini')
                         }
-
-                        if (!$('#editLocationSelect').val()) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Lokasi belum dipilih',
-                                text: 'Pilih lokasi yang memiliki stok barang ini.'
-                            });
-                            return;
-                        }
-
-                        let qtyVal = parseFloat($('#editQty').val() || 0);
-                        let maxVal = parseFloat($('#editQty').attr('max'));
-
-                        if (!qtyVal || qtyVal <= 0) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Qty belum diisi',
-                                text: 'Qty wajib diisi dan lebih dari 0.'
-                            });
-                            return;
-                        }
-
-                        if (!isNaN(maxVal) && qtyVal > maxVal) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Qty melebihi stok',
-                                text: 'Sisa stok pada lot ini hanya ' + maxVal + '.'
-                            });
-                            return;
-                        }
-                    }
+                    ]))) return;
 
                     $.ajax({
 
@@ -2689,30 +3670,7 @@
 
                             $('.btnSaveEdit').prop('disabled', false);
 
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                            showAjaxError(xhr);
 
                         }
 
@@ -2757,6 +3715,11 @@
                     e.stopPropagation();
 
                     let id = $('#confirmPickingId').val();
+
+                    if (reportChecks(collectChecks([{
+                            el: '#confirmPickingDate',
+                            validate: requiredCheck('Tanggal picking belum diisi.')
+                        }]), 'Tanggal belum diisi')) return;
 
                     $.ajax({
 
@@ -2803,30 +3766,7 @@
                                 .html(
                                 '<i class="bi bi-check2-circle me-1"></i> Konfirmasi Picking');
 
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                            showAjaxError(xhr);
 
                         }
 
@@ -2863,6 +3803,11 @@
                     e.stopPropagation();
 
                     let id = $('#confirmDeliveryId').val();
+
+                    if (reportChecks(collectChecks([{
+                            el: '#confirmDeliveryDate',
+                            validate: requiredCheck('Tanggal resi pengiriman belum diisi.')
+                        }]), 'Tanggal belum diisi')) return;
                     let btnHtml = '<i class="bx bx-check-circle me-1"></i> Konfirmasi Kirim';
 
                     $.ajax({
@@ -2906,30 +3851,7 @@
 
                             $('.btnSaveConfirmDelivery').prop('disabled', false).html(btnHtml);
 
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                            showAjaxError(xhr);
 
                         }
 
@@ -3097,6 +4019,59 @@
             }
         </style>
 
+        {{-- Alert (SweetAlert) & penanda kolom bermasalah --}}
+        <style>
+            /* Selalu di atas modal Bootstrap, backdrop, dan navbar */
+            .swal2-container {
+                z-index: 2000000 !important;
+            }
+
+            .swal-problems {
+                text-align: left;
+                font-size: .92rem;
+            }
+
+            .swal-problems-intro {
+                margin: 0 0 .75rem;
+                color: #6b7385;
+            }
+
+            .swal-problem-group {
+                margin-bottom: .6rem;
+                padding: .7rem .95rem;
+                border-radius: .75rem;
+                background: #f7f8fc;
+                border-left: 4px solid #f59e0b;
+            }
+
+            .swal-problem-title {
+                margin-bottom: .25rem;
+                font-weight: 700;
+                color: #2b3350;
+            }
+
+            .swal-problem-group ul {
+                margin: 0;
+                padding-left: 1.1rem;
+            }
+
+            .swal-problem-group li {
+                margin: .15rem 0;
+            }
+
+            .as-invalid {
+                border-color: #e11d48 !important;
+                background-color: #fff5f7 !important;
+                box-shadow: 0 0 0 4px rgba(225, 29, 72, .10) !important;
+            }
+
+            .as-invalid-wrap .ts-control {
+                border-color: #e11d48 !important;
+                background-color: #fff5f7 !important;
+                box-shadow: 0 0 0 4px rgba(225, 29, 72, .10) !important;
+            }
+        </style>
+
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         @if (session('success'))
@@ -3206,7 +4181,7 @@
 
             function toggleBulkActionBar() {
                 $('#selectedCount').text(selectedStagingOutIds.size);
-                $('#bulkActionBar').toggleClass('d-none', selectedStagingOutIds.size === 0);
+                $('#btnBulkDelete').toggleClass('d-none', selectedStagingOutIds.size === 0);
             }
 
             function resetStagingOutSelection() {
@@ -3252,20 +4227,23 @@
                 if (selectedStagingOutIds.size === 0) return;
 
                 Swal.fire({
-                    title: `Hapus ${selectedStagingOutIds.size} data?`,
-                    text: 'Data yang dihapus tidak dapat dikembalikan.',
                     icon: 'warning',
+                    title: 'Hapus Data?',
+                    html: `Yakin mau menghapus <b>${selectedStagingOutIds.size}</b> data terpilih?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>`,
                     showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Ya, Hapus',
                     cancelButtonText: 'Batal',
-                    reverseButtons: true
+                    confirmButtonColor: '#dc3545'
                 }).then((result) => {
 
                     if (!result.isConfirmed) return;
 
+                    $('#btnBulkDelete').prop('disabled', true);
+
                     $.ajax({
+                        complete: function() {
+                            $('#btnBulkDelete').prop('disabled', false);
+                        },
                         url: "{{ route('stagings-out.bulk-destroy') }}",
                         type: 'DELETE',
                         data: {
@@ -3283,8 +4261,11 @@
                                 position: 'top-end',
                                 icon: 'success',
                                 title: res.message,
-                                timer: 2000,
                                 showConfirmButton: false,
+                                timer: 3500,
+                                timerProgressBar: true,
+                                background: '#fff',
+                                color: '#566a7f',
                                 didOpen: () => {
                                     document.querySelector('.swal2-container').style
                                         .zIndex =
@@ -3298,8 +4279,9 @@
 
                             Swal.fire({
                                 icon: 'error',
-                                title: 'Gagal',
-                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                title: 'Gagal Menghapus Data',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                    'Terjadi kesalahan saat menghapus data.'
                             });
 
                         }

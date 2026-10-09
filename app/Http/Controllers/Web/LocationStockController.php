@@ -10,6 +10,7 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\Vendor;
+use App\Support\StockBaseline;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -142,48 +143,7 @@ class LocationStockController extends Controller
 
             ->addColumn('locations_qty', function ($row) {
 
-                if ($row->locations->isEmpty()) {
-                    return '-';
-                }
-
-                // Kelompokkan per lokasi supaya beberapa lot dalam satu
-                // lokasi yang sama ditampilkan menyatu, bukan berulang.
-                $grouped = $row->locations->groupBy('location_name');
-
-                $html = '';
-
-                foreach ($grouped as $locationName => $entries) {
-
-                    $html .= '<div class="mb-1">';
-
-                    $html .= '<div class="fw-semibold">'.e($locationName).'</div>';
-
-                    foreach ($entries as $entry) {
-
-                        $qty = number_format($entry->pivot->quantity, 0, ',', '.');
-
-                        if (! empty($entry->pivot->lot)) {
-
-                            $html .= '<div class="ps-3 small">'
-                                .'<span class="badge bg-secondary bg-opacity-10 text-secondary border">'
-                                .'Lot: '.e($entry->pivot->lot).
-                                '</span> '
-                                .'<span class="text-muted fw-bold">('.$qty.')</span>'
-                                .'</div>';
-
-                        } else {
-
-                            $html .= '<div class="ps-3 small text-muted fw-bold">('.$qty.')</div>';
-
-                        }
-
-                    }
-
-                    $html .= '</div>';
-
-                }
-
-                return $html;
+                return $this->renderLocationsQty($row);
 
             })
 
@@ -242,6 +202,89 @@ class LocationStockController extends Controller
             ->make(true);
     }
 
+    /**
+     * Kelas warna chip qty: habis (0), rendah (< LOW_STOCK_THRESHOLD), normal.
+     */
+    private function qtyChipClass($qty): string
+    {
+        $qty = (float) $qty;
+
+        if ($qty <= 0) {
+            return 'ls-qty--zero';
+        }
+
+        if ($qty < self::LOW_STOCK_THRESHOLD) {
+            return 'ls-qty--low';
+        }
+
+        return 'ls-qty--ok';
+    }
+
+    /**
+     * Tampilan kolom "Lokasi / Lot / Qty" di tabel.
+     *
+     * Satu kartu per lokasi; di dalamnya satu baris per lot. Baris tanpa
+     * lot tetap ditampilkan dengan label "Tanpa lot" supaya jelas dan
+     * sejajar dengan baris yang punya lot. Total per lokasi hanya muncul
+     * kalau lokasi itu punya lebih dari satu baris.
+     */
+    private function renderLocationsQty($row): string
+    {
+        if ($row->locations->isEmpty()) {
+            return '<span class="text-muted">-</span>';
+        }
+
+        $grouped = $row->locations->groupBy('location_name');
+
+        $html = '<div class="ls-wrap">';
+
+        foreach ($grouped as $locationName => $entries) {
+
+            $html .= '<div class="ls-loc">';
+
+            // ---- header lokasi ----
+            $html .= '<div class="ls-loc-head">'
+                .'<span class="ls-loc-name"><i class="bx bx-map-pin"></i>'.e($locationName).'</span>';
+
+            if ($entries->count() > 1) {
+                $total = number_format($entries->sum(fn ($e) => $e->pivot->quantity), 0, ',', '.');
+
+                $html .= '<span class="ls-loc-total">Total <b>'.$total.'</b></span>';
+            }
+
+            $html .= '</div>';
+
+            // ---- baris lot ----
+            $html .= '<div class="ls-lots">';
+
+            foreach ($entries as $entry) {
+
+                $rawQty = $entry->pivot->quantity;
+                $qty = number_format($rawQty, 0, ',', '.');
+                $lot = trim((string) ($entry->pivot->lot ?? ''));
+
+                $html .= '<div class="ls-lot-row">';
+
+                if ($lot !== '') {
+                    $html .= '<span class="ls-lot ls-lot--has" title="Lot: '.e($lot).'">'
+                        .'<i class="bx bx-purchase-tag-alt"></i>'.e($lot).'</span>';
+                } else {
+                    $html .= '<span class="ls-lot ls-lot--none">'
+                        .'<i class="bx bx-minus"></i>Tanpa lot</span>';
+                }
+
+                $html .= '<span class="ls-qty '.$this->qtyChipClass($rawQty).'">'.$qty.'</span>';
+
+                $html .= '</div>';
+            }
+
+            $html .= '</div>'; // .ls-lots
+            $html .= '</div>'; // .ls-loc
+        }
+
+        return $html.'</div>';
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -287,6 +330,12 @@ class LocationStockController extends Controller
                     'lot' => $lot,
                     'opening_balance' => $row['quantity'],
                     'quantity' => $row['quantity'],
+                    // Riwayat mutasi lama (kalau ada) tidak ikut dihitung.
+                    'baseline_mutation_id' => StockBaseline::current(
+                        $request->item_id,
+                        $location->id,
+                        $lot
+                    ),
                 ]);
             }
         });
@@ -332,7 +381,7 @@ class LocationStockController extends Controller
             // Catatan: sync() tidak dipakai lagi karena satu lokasi kini
             // bisa punya lebih dari satu baris (per lot). Kita cocokkan
             // baris berdasarkan (item_id, location_id, lot): baris yang
-            // masih ada di-update (opening_balance dipertahankan), baris
+            // masih ada di-update (kalau qty berubah, opening_balance & baseline di-reset), baris
             // baru dibuat, dan baris yang sudah tidak dikirim dihapus.
 
             $keepIds = [];
@@ -352,9 +401,21 @@ class LocationStockController extends Controller
 
                 if ($stock) {
 
-                    $stock->update([
-                        'quantity' => $row['quantity'],
-                    ]);
+                    if ((float) $stock->quantity !== (float) $row['quantity']) {
+
+                        // Qty diubah manual = hasil stock opname. Hitungan
+                        // saldo dimulai ulang dari qty ini; mutasi yang
+                        // sudah ada jadi riwayat lama (tidak ikut dihitung).
+                        $stock->update([
+                            'quantity' => $row['quantity'],
+                            'opening_balance' => $row['quantity'],
+                            'baseline_mutation_id' => StockBaseline::current(
+                                $item->id,
+                                $location->id,
+                                $lot
+                            ),
+                        ]);
+                    }
 
                 } else {
 
@@ -364,6 +425,11 @@ class LocationStockController extends Controller
                         'lot' => $lot,
                         'opening_balance' => $row['quantity'],
                         'quantity' => $row['quantity'],
+                        'baseline_mutation_id' => StockBaseline::current(
+                            $item->id,
+                            $location->id,
+                            $lot
+                        ),
                     ]);
 
                 }

@@ -1,6 +1,568 @@
 @extends('master')
 @section('title', 'Stok Lokasi')
 @section('content')
+    {{-- ================= TEMA MODAL (selaras Staging Out) ================= --}}
+    <style>
+        /* ---------- Kerangka modal ---------- */
+        .modal-aesthetic .modal-content {
+            border: 0;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            background: #f5f6fb;
+            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+            max-height: calc(100vh - 2rem);
+        }
+
+        /* form yang membungkus modal-content (dialog > form > content) */
+        .modal-aesthetic .modal-dialog>form {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+        }
+
+        .modal-aesthetic .modal-dialog>form>.modal-content {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+        }
+
+        /* form di dalam modal-content (content > form) */
+        .modal-aesthetic .modal-content>form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .modal-aesthetic .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        /* ---------- Header (hero) ---------- */
+        .modal-aesthetic .as-hero {
+            align-items: flex-start;
+            padding: 1.5rem 2rem 1.25rem;
+            background: #fff;
+            border: 0;
+            border-bottom: 1px solid #eceef5;
+            flex-shrink: 0;
+        }
+
+        .modal-aesthetic .as-hero-icon {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 1rem;
+            font-size: 1.5rem;
+            color: #4f46e5;
+            background: #eef0ff;
+        }
+
+        .modal-aesthetic .as-hero-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .modal-aesthetic .as-hero h4,
+        .modal-aesthetic .as-hero h5 {
+            color: #2b3350;
+            letter-spacing: -.01em;
+        }
+
+        .modal-aesthetic .as-hero small {
+            color: #8a93a8 !important;
+        }
+
+        .modal-aesthetic .as-hero .btn-close {
+            margin: 0 0 0 auto;
+            padding: .6rem;
+            border-radius: .7rem;
+            background-color: #f1f2f9;
+            background-size: .65rem;
+            opacity: .75;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .as-hero .btn-close:hover {
+            opacity: 1;
+            background-color: #e6e8f5;
+        }
+
+        /* ---------- Body & footer ---------- */
+        .modal-aesthetic .modal-body.as-body {
+            padding: 1.5rem 2rem .75rem;
+            background: #f5f6fb;
+        }
+
+        .modal-aesthetic .modal-footer.as-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: .6rem;
+            padding: 1rem 2rem 1.4rem;
+            background: #f5f6fb;
+            border: 0;
+            flex-shrink: 0;
+        }
+
+        .modal-aesthetic .as-btn-save,
+        .modal-aesthetic .as-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            font-size: .875rem;
+            line-height: 1.5;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter .15s, background .15s, box-shadow .15s;
+        }
+
+        .modal-aesthetic .as-btn-save {
+            padding: .6rem 1.6rem;
+            border-radius: .8rem;
+            color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+        }
+
+        .modal-aesthetic .as-btn-save:hover {
+            color: #fff;
+            filter: brightness(1.08);
+        }
+
+        .modal-aesthetic .as-btn-cancel {
+            padding: .6rem 1.3rem;
+            border-radius: .8rem;
+            color: #5a6482;
+            background: #e9ebf5;
+        }
+
+        .modal-aesthetic .as-btn-cancel:hover {
+            color: #2b3350;
+            background: #dfe2f0;
+        }
+
+        .modal-aesthetic .as-btn-save:disabled,
+        .modal-aesthetic .as-btn-cancel:disabled {
+            opacity: .6;
+            filter: none;
+            pointer-events: none;
+        }
+
+        /* ---------- Kartu ---------- */
+        .modal-aesthetic .as-card,
+        .modal-aesthetic .modal-body .card {
+            position: relative;
+            background: #fff;
+            border: 0 !important;
+            border-radius: 1.1rem !important;
+            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12) !important;
+            overflow: visible;
+        }
+
+        .modal-aesthetic .as-card {
+            padding: 1.25rem 1.4rem 1.4rem 1.7rem;
+        }
+
+        .modal-aesthetic .as-card::before,
+        .modal-aesthetic .modal-body .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 1.1rem;
+            bottom: 1.1rem;
+            width: 5px;
+            border-radius: 0 6px 6px 0;
+            background: linear-gradient(180deg, #4f46e5, #db2777);
+        }
+
+        .modal-aesthetic .modal-body .card>.card-header {
+            background: transparent !important;
+            border: 0 !important;
+            padding: 1.25rem 1.4rem .25rem 1.7rem !important;
+        }
+
+        .modal-aesthetic .modal-body .card>.card-body {
+            padding: 1rem 1.4rem 1.4rem 1.7rem !important;
+        }
+
+        .modal-aesthetic .as-card-title {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            margin-bottom: 1.1rem;
+        }
+
+        .modal-aesthetic .as-card-title strong {
+            display: block;
+            color: #2b3350;
+            font-size: .98rem;
+        }
+
+        .modal-aesthetic .as-card-title small {
+            color: #8a93a8;
+        }
+
+        .modal-aesthetic .as-card-icon,
+        .modal-aesthetic .modal-body h5>i {
+            width: 2.4rem;
+            height: 2.4rem;
+            flex-shrink: 0;
+            display: inline-grid;
+            place-items: center;
+            border-radius: .8rem;
+            font-size: 1.2rem;
+            color: #4f46e5 !important;
+            background: #eef0ff;
+            margin: 0 !important;
+        }
+
+        .modal-aesthetic .modal-body h5>i.text-success {
+            color: #db2777 !important;
+            background: #fdf0f7;
+        }
+
+        .modal-aesthetic .modal-body h5.fw-bold {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            color: #2b3350;
+            font-size: .98rem;
+        }
+
+        .modal-aesthetic .bg-light.rounded-3 {
+            background: #f3f4ff !important;
+            border: 1px dashed #c7cbf0;
+            border-radius: .9rem !important;
+        }
+
+        .modal-aesthetic hr {
+            border-color: #eceef5;
+            opacity: 1;
+        }
+
+        .modal-aesthetic .alert-primary {
+            color: #4f46e5;
+            background: linear-gradient(135deg, #eef0ff, #f6f3ff);
+            border: 1px dashed #c7cbf0;
+            border-radius: .9rem;
+        }
+
+        .modal-aesthetic .alert-primary h5 {
+            color: #2b3350;
+        }
+
+        /* ---------- Label ---------- */
+        .modal-aesthetic .form-label {
+            display: block;
+            margin-bottom: .3rem;
+            font-size: .68rem !important;
+            font-weight: 700 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #8a93a8 !important;
+        }
+
+        /* Baris judul kolom (Lokasi / Lot / Qty / Aksi): tetap sebaris */
+        .modal-aesthetic .row.fw-semibold.small.text-secondary {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            margin-bottom: .4rem !important;
+            padding: 0 .1rem;
+            font-size: .68rem !important;
+            font-weight: 700 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #8a93a8 !important;
+        }
+
+        .modal-aesthetic .row.fw-semibold.small.text-secondary .text-muted {
+            color: #a5adc2 !important;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        /* Subjudul di bawah judul seksi: sejajar dengan teks judul (setelah ikon) */
+        .modal-aesthetic .modal-body h5.fw-bold+small {
+            display: block;
+            margin: .2rem 0 0 3.1rem;
+            color: #8a93a8 !important;
+        }
+
+        /* Baris lokasi: semua kontrol setinggi sama */
+        .modal-aesthetic .location-item {
+            align-items: stretch !important;
+        }
+
+        .modal-aesthetic .location-item>[class*="col-"] {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .modal-aesthetic .location-item>[class*="col-"]>.form-control,
+        .modal-aesthetic .location-item>[class*="col-"]>.form-select,
+        .modal-aesthetic .location-item>[class*="col-"]>.ts-wrapper {
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .modal-aesthetic .location-item .ts-wrapper .ts-control {
+            height: 100%;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+        }
+
+        .modal-aesthetic .location-item .form-control {
+            min-height: 42px;
+        }
+
+        .modal-aesthetic .location-item .btnRemove {
+            width: 100%;
+            min-height: 42px;
+            display: grid;
+            place-items: center;
+            padding: 0;
+        }
+
+        /* ---------- Input ---------- */
+        .modal-aesthetic .form-control,
+        .modal-aesthetic .form-select {
+            border: 1.5px solid #e6e9f2;
+            background-color: #f8f9fd;
+            border-radius: .75rem;
+            padding: .5rem .8rem;
+            font-size: .875rem;
+            color: #2b3350;
+            box-shadow: none;
+            transition: border-color .15s, box-shadow .15s, background-color .15s;
+        }
+
+        .modal-aesthetic .form-select {
+            padding-right: 2.25rem;
+        }
+
+        .modal-aesthetic .form-control::placeholder {
+            color: #a5adc2;
+        }
+
+        .modal-aesthetic .form-control:focus,
+        .modal-aesthetic .form-select:focus {
+            outline: 0;
+            background-color: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .form-control.is-invalid,
+        .modal-aesthetic .form-select.is-invalid {
+            border-color: #e11d48;
+            background-color: #fff5f7;
+        }
+
+        .modal-aesthetic .location-item .form-control {
+            padding-left: .65rem;
+            padding-right: .65rem;
+        }
+
+        /* Input group: ikon + field jadi satu kapsul */
+        .modal-aesthetic .input-group {
+            flex-wrap: nowrap;
+            border: 1.5px solid #e6e9f2;
+            background: #f8f9fd;
+            border-radius: .75rem;
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+
+        .modal-aesthetic .input-group>.form-control,
+        .modal-aesthetic .input-group>.form-select,
+        .modal-aesthetic .input-group>.input-group-text {
+            border: 0 !important;
+            border-radius: 0 !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .modal-aesthetic .input-group>.input-group-text {
+            width: 2.6rem;
+            justify-content: center;
+            padding-right: .2rem;
+            font-size: 1.05rem;
+            color: #a5adc2;
+        }
+
+        .modal-aesthetic .input-group:focus-within {
+            background: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .input-group:has(.is-invalid) {
+            border-color: #e11d48;
+            background: #fff5f7;
+        }
+
+        /* ---------- Tom Select biar senada ---------- */
+        .modal-aesthetic .ts-wrapper {
+            width: 100%;
+        }
+
+        .modal-aesthetic .ts-wrapper.form-select,
+        .modal-aesthetic .ts-wrapper.form-select-sm {
+            border: 0;
+            padding: 0;
+            background: none;
+            box-shadow: none;
+        }
+
+        .modal-aesthetic .ts-wrapper .ts-control {
+            min-height: 40px;
+            border: 1.5px solid #e6e9f2;
+            border-radius: .75rem;
+            background: #f8f9fd;
+            padding: .45rem .8rem;
+            font-size: .875rem;
+            color: #2b3350;
+            box-shadow: none;
+        }
+
+        .modal-aesthetic .ts-wrapper.focus .ts-control {
+            background: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .input-group .ts-wrapper {
+            flex: 1 1 auto;
+            width: 1%;
+        }
+
+        .modal-aesthetic .input-group .ts-wrapper .ts-control,
+        .modal-aesthetic .input-group .ts-wrapper.focus .ts-control {
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .modal-aesthetic .ts-dropdown {
+            z-index: 1070;
+            border: 0;
+            border-radius: .75rem;
+            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+            overflow: hidden;
+        }
+
+        .modal-aesthetic .ts-dropdown .active {
+            background: #eef0ff;
+            color: #4f46e5;
+        }
+
+        /* ---------- Tombol kecil di dalam body ---------- */
+        .modal-aesthetic .as-pill-btn {
+            border: 0;
+            border-radius: 50rem;
+            padding: .4rem 1rem;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #4f46e5;
+            background: #eef0ff;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .as-pill-btn:hover {
+            color: #fff;
+            background: #4f46e5;
+        }
+
+        .modal-aesthetic .btnRemove {
+            border: 0;
+            border-radius: .65rem;
+            color: #e11d48;
+            background: #fff1f4;
+        }
+
+        .modal-aesthetic .btnRemove:hover {
+            color: #fff;
+            background: #e11d48;
+        }
+
+        .modal-aesthetic .modal-body .btn-outline-secondary {
+            border: 1.5px solid #dcdff0;
+            border-radius: .7rem;
+            font-weight: 600;
+            color: #5a6482;
+            background: #fff;
+        }
+
+        .modal-aesthetic .modal-body .btn-outline-secondary:hover {
+            color: #4f46e5;
+            border-color: #b9b4f7;
+            background: #f6f3ff;
+        }
+
+        /* ---------- Modal import (langkah 1, 2, ...) ---------- */
+        .modal-aesthetic .modal-body>.d-flex.gap-3 {
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            border-radius: 1.1rem;
+            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+        }
+
+        .modal-aesthetic .modal-body>hr {
+            display: none;
+        }
+
+        .modal-aesthetic .badge.rounded-circle {
+            display: inline-grid;
+            place-items: center;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+            box-shadow: 0 6px 14px -6px rgba(79, 70, 229, .7);
+        }
+
+        .modal-aesthetic .upload-box>.border {
+            border: 2px dashed #c7cbe6 !important;
+            border-radius: 1rem !important;
+            background: #f8f9fd;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .upload-box:hover>.border,
+        .modal-aesthetic .upload-box.dragover>.border {
+            border-color: #7c3aed !important;
+            background: #f6f3ff;
+            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+        }
+
+        .modal-aesthetic .upload-box svg {
+            width: 2rem;
+            height: 2rem;
+            color: #7c3aed;
+        }
+
+        @media (max-width: 575.98px) {
+            .modal-aesthetic .as-hero {
+                padding: 1.1rem 1.1rem 1rem;
+            }
+
+            .modal-aesthetic .modal-body.as-body {
+                padding: 1rem 1rem .5rem;
+            }
+
+            .modal-aesthetic .modal-footer.as-footer {
+                padding: .9rem 1rem 1.1rem;
+            }
+        }
+    </style>
+
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -9,6 +571,16 @@
             </div>
             <div class="float-end">
                 <div class="d-flex flex-wrap gap-2 justify-content-end">
+
+                    <button type="button" class="btn-sm btn btn-outline-danger d-none" id="btnBulkDelete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                        </svg>
+                        <span class="d-none d-md-inline ms-1">Hapus (<span id="selectedCount">0</span>)</span>
+                    </button>
 
                     <button type="button" class="btn-sm btn border-secondary bg-white border" data-bs-toggle="modal"
                         data-bs-target="#importLocationStockModal">
@@ -44,10 +616,10 @@
 
                 </div>
 
-                <div class="modal fade" id="addLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
+                <div class="modal fade modal-aesthetic" id="addLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-lg">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 
                         <div class="modal-content">
 
@@ -55,26 +627,18 @@
 
                                 @csrf
 
-                                <div class="modal-header border-0 pb-0">
-
-                                    <div>
-
-                                        <h4 class="mb-1 fw-bold">
-                                            Tambah Stok Barang
-                                        </h4>
-
-                                        <small class="text-muted">
-                                            Pilih barang lalu tentukan lokasi penyimpanannya.
-                                        </small>
-
+                                <div class="modal-header as-hero">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="as-hero-icon"><i class="bx bx-map-pin"></i></div>
+                                        <div>
+                                            <h4 class="mb-0 fw-bold">Tambah Stok Barang</h4>
+                                            <small>Pilih barang lalu tentukan lokasi penyimpanannya.</small>
+                                        </div>
                                     </div>
-
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal">
-                                    </button>
-
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
 
-                                <div class="modal-body p-4">
+                                <div class="modal-body as-body">
 
                                     <div class="card shadow border-0 rounded-4">
 
@@ -181,7 +745,7 @@
 
 
                                                     <button type="button" id="btnAddLocation"
-                                                        class="btn btn-sm btn-primary rounded-pill px-3">
+                                                        class="as-pill-btn">
 
                                                         <i class="bx bx-plus"></i>
                                                         Tambah
@@ -291,15 +855,15 @@
 
                                 </div>
 
-                                <div class="modal-footer border-0 pt-0">
+                                <div class="modal-footer as-footer">
 
-                                    <button type="button" class="btn  btn-outline-secondary" data-bs-dismiss="modal">
+                                    <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">
 
                                         Batal
 
                                     </button>
 
-                                    <button type="submit" class="btn  btn-primary px-4">
+                                    <button type="submit" class="as-btn-save">
 
                                         <i class="bx bx-save me-1"></i>
 
@@ -320,18 +884,18 @@
 
         </div>
 
-        <div class="modal fade" id="importLocationStockModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+        <div class="modal fade modal-aesthetic" id="importLocationStockModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <form action="{{ route('location-stock.import') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     <div class="modal-content border-0 shadow">
 
-                        <div class="modal-header border-0 px-4 pt-4">
+                        <div class="modal-header as-hero">
 
                             <div class="d-flex align-items-center gap-3">
 
-                                <div class=" rounded-3 p-2 flex-shrink-0">
+                                <div class="as-hero-icon">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
                                         height="1em" viewBox="0 0 24 24">
                                         <path d="M0 0h24v24H0z" fill="none" />
@@ -357,7 +921,7 @@
 
                         </div>
 
-                        <div class="modal-body">
+                        <div class="modal-body as-body">
 
                             {{-- STEP 1 --}}
                             <div class="d-flex gap-3">
@@ -456,12 +1020,12 @@
 
                         </div>
 
-                        <div class="modal-footer border-0">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <div class="modal-footer as-footer">
+                            <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">
                                 Batal
                             </button>
 
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="as-btn-save">
                                 <i class="bi bi-upload me-1"></i>
                                 Import Data
                             </button>
@@ -671,15 +1235,6 @@
 
             </div>
 
-            <div class="mb-2 d-none align-items-center gap-2" id="bulkActionBar">
-                <span class="small text-muted">
-                    <span id="selectedCount">0</span> data dipilih
-                </span>
-                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
-                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
-                </button>
-            </div>
-
             <table class="table table-bordered" id="locationStock">
                 <thead>
                     <tr>
@@ -714,10 +1269,10 @@
         </div>
     </div>
 
-    <div class="modal fade" id="editLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
+    <div class="modal fade modal-aesthetic" id="editLocationStockModal" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 
             <div class="modal-content">
 
@@ -726,26 +1281,18 @@
                     @csrf
                     @method('PUT')
 
-                    <div class="modal-header border-0 pb-0">
-
-                        <div>
-
-                            <h4 class="mb-1 fw-bold">
-                                Edit Stok Barang
-                            </h4>
-
-                            <small class="text-muted">
-                                Ubah lokasi penyimpanan & jumlah stok barang.
-                            </small>
-
+                    <div class="modal-header as-hero">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="as-hero-icon"><i class="bx bx-edit"></i></div>
+                            <div>
+                                <h4 class="mb-0 fw-bold">Edit Stok Barang</h4>
+                                <small>Ubah lokasi penyimpanan & jumlah stok barang.</small>
+                            </div>
                         </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal">
-                        </button>
-
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
-                    <div class="modal-body p-4">
+                    <div class="modal-body as-body">
 
                         <div class="card shadow border-0 rounded-4">
 
@@ -835,7 +1382,7 @@
 
 
                                         <button type="button" id="btnEditLocation"
-                                            class="btn btn-sm btn-primary rounded-pill px-3">
+                                            class="as-pill-btn">
 
                                             <i class="bx bx-plus"></i>
                                             Tambah
@@ -885,15 +1432,15 @@
 
                     </div>
 
-                    <div class="modal-footer border-0 pt-0">
+                    <div class="modal-footer as-footer">
 
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">
 
                             Batal
 
                         </button>
 
-                        <button type="submit" class="btn btn-primary px-4">
+                        <button type="submit" class="as-btn-save">
 
                             <i class="bx bx-save me-1"></i>
 
@@ -1271,16 +1818,139 @@
                 vertical-align: middle;
             }
 
-            #locationStock th:nth-child(6),
-            #locationStock td:nth-child(6) {
-                min-width: 250px;
+            /* Kolom ke-7 = Lokasi / Lot / Qty */
+            #locationStock th:nth-child(7),
+            #locationStock td:nth-child(7) {
+                min-width: 210px;
                 white-space: normal;
                 word-break: break-word;
             }
 
-            #locationStock th:not(:nth-child(6)),
-            #locationStock td:not(:nth-child(6)) {
+            #locationStock th:not(:nth-child(7)),
+            #locationStock td:not(:nth-child(7)) {
                 white-space: nowrap;
+            }
+
+            /* ===== Kolom Lokasi / Lot / Qty ===== */
+            #locationStock .ls-wrap {
+                display: flex;
+                flex-direction: column;
+                gap: .4rem;
+                min-width: 190px;
+            }
+
+            #locationStock .ls-loc {
+                background: #fff;
+                border: 1px solid #e6e9f2;
+                border-radius: .8rem;
+                overflow: hidden;
+            }
+
+            #locationStock .ls-loc-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: .5rem;
+                padding: .3rem .6rem;
+                background: #eef0ff;
+            }
+
+            #locationStock .ls-loc-name {
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem;
+                font-size: .78rem;
+                font-weight: 700;
+                letter-spacing: .02em;
+                color: #3b3f8f;
+            }
+
+            #locationStock .ls-loc-name i {
+                font-size: 1rem;
+                color: #4f46e5;
+            }
+
+            #locationStock .ls-loc-total {
+                font-size: .7rem;
+                font-weight: 600;
+                color: #6b73a6;
+                white-space: nowrap;
+            }
+
+            #locationStock .ls-loc-total b {
+                color: #3b3f8f;
+                font-size: .78rem;
+            }
+
+            #locationStock .ls-lots {
+                padding: .1rem .6rem;
+            }
+
+            #locationStock .ls-lot-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: .6rem;
+                padding: .3rem 0;
+            }
+
+            #locationStock .ls-lot-row+.ls-lot-row {
+                border-top: 1px dashed #e3e6f3;
+            }
+
+            #locationStock .ls-lot {
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+                max-width: 105px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: .15rem .6rem;
+                border-radius: 50rem;
+                font-size: .72rem;
+                font-weight: 600;
+            }
+
+            #locationStock .ls-lot i {
+                font-size: .85rem;
+            }
+
+            #locationStock .ls-lot--has {
+                color: #4f46e5;
+                background: #f3f4ff;
+                border: 1px solid #d9dcf7;
+            }
+
+            #locationStock .ls-lot--none {
+                color: #8a93a8;
+                background: transparent;
+                border: 1px dashed #cfd4e6;
+            }
+
+            #locationStock .ls-qty {
+                min-width: 2.6rem;
+                padding: .15rem .6rem;
+                border-radius: .55rem;
+                text-align: center;
+                font-size: .82rem;
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+            }
+
+            #locationStock .ls-qty--ok {
+                color: #146c43;
+                background: #e7f6ee;
+            }
+
+            #locationStock .ls-qty--low {
+                color: #997404;
+                background: #fff3cd;
+            }
+
+            #locationStock .ls-qty--zero {
+                color: #c0213f;
+                background: #fde8ec;
             }
         </style>
 
@@ -1361,7 +2031,7 @@
 
             function toggleBulkActionBar() {
                 $('#selectedCount').text(selectedLocationStockIds.size);
-                $('#bulkActionBar').toggleClass('d-none', selectedLocationStockIds.size === 0);
+                $('#btnBulkDelete').toggleClass('d-none', selectedLocationStockIds.size === 0);
             }
 
             function resetLocationStockSelection() {
@@ -1407,19 +2077,23 @@
                 if (selectedLocationStockIds.size === 0) return;
 
                 Swal.fire({
-                    title: `Hapus ${selectedLocationStockIds.size} data stok?`,
-                    text: 'Data yang dihapus tidak dapat dikembalikan.',
                     icon: 'warning',
+                    title: 'Hapus Data stok?',
+                    html: `Yakin mau menghapus <b>${selectedLocationStockIds.size}</b> data stok terpilih?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>`,
                     showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Ya, Hapus',
-                    cancelButtonText: 'Batal'
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#dc3545'
                 }).then((result) => {
 
                     if (!result.isConfirmed) return;
 
+                    $('#btnBulkDelete').prop('disabled', true);
+
                     $.ajax({
+                        complete: function() {
+                            $('#btnBulkDelete').prop('disabled', false);
+                        },
                         url: "{{ route('location-stock.bulk-destroy') }}",
                         type: 'DELETE',
                         data: {
@@ -1437,8 +2111,11 @@
                                 position: 'top-end',
                                 icon: 'success',
                                 title: res.message,
-                                timer: 2000,
                                 showConfirmButton: false,
+                                timer: 3500,
+                                timerProgressBar: true,
+                                background: '#fff',
+                                color: '#566a7f',
                                 didOpen: () => {
                                     document.querySelector('.swal2-container').style
                                         .zIndex =
@@ -1452,8 +2129,9 @@
 
                             Swal.fire({
                                 icon: 'error',
-                                title: 'Gagal',
-                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                title: 'Gagal Menghapus Data',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                    'Terjadi kesalahan saat menghapus data.'
                             });
 
                         }
@@ -1601,7 +2279,7 @@
 
 
                 // ==========================================================
-                // SETIAP MODAL DIBUKA
+                // SETIAP MODAL DIBUK
                 // ==========================================================
 
                 document

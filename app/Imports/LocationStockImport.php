@@ -6,6 +6,7 @@ use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\Item;
 use App\Models\Vendor;
+use App\Support\StockBaseline;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -281,6 +282,18 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                             [
                                 'opening_balance' => $entry['quantity'],
                                 'quantity' => $entry['quantity'],
+                                /*
+                                 * Garis batas stock opname: semua mutasi
+                                 * yang sudah ada sampai saat ini dianggap
+                                 * riwayat lama dan TIDAK ikut dihitung ke
+                                 * saldo. Hitungan saldo mulai dari qty
+                                 * hasil import ini.
+                                 */
+                                'baseline_mutation_id' => StockBaseline::current(
+                                    $item->id,
+                                    $location->id,
+                                    $entry['lot']
+                                ),
                             ]
                         );
                     }
@@ -415,9 +428,10 @@ class LocationStockImport implements ToCollection, WithHeadingRow
      *    => B7 : 60
      *    => O2 : 4
      *
-     * 4) Kode lokasi format RxPyLz (mis. dari sistem lain) dipetakan
-     *    ke format "r-p-l" yang dipakai di kolom location_name
-     *    R1P02L2 => 1-2-2
+     * 4) Kode lokasi format RxPyLz dipakai APA ADANYA sebagai
+     *    location_name (angka nol di depan dipertahankan, huruf
+     *    dijadikan kapital)
+     *    R7P01L1 => R7P01L1
      */
     private function expandLocationsForRow(
         $locationRaw,
@@ -573,9 +587,9 @@ class LocationStockImport implements ToCollection, WithHeadingRow
      * Ubah SATU kode lokasi (tanpa quantity) menjadi satu atau
      * beberapa nama lokasi final yang disimpan di location_name.
      *
-     * - Format RxPyLz (mis. R1P02L2) => "r-p-l" (leading zero dibuang)
-     *   R1P02L2  => 1-2-2
-     *   R2P14L3  => 2-14-3
+     * - Format RxPyLz (mis. R7P01L1) => dipakai apa adanya, hanya
+     *   dijadikan huruf kapital supaya konsisten (r7p01l1 => R7P01L1).
+     *   Angka nol di depan TIDAK dibuang.
      * - Mengandung "/" => dipecah lewat expandSlashLocation()
      * - Selain itu dipakai apa adanya (mis. B7, O2, F3)
      */
@@ -587,11 +601,9 @@ class LocationStockImport implements ToCollection, WithHeadingRow
             return ['Unlocated'];
         }
 
-        if (preg_match('/^R(\d+)P(\d+)L(\d+)$/i', $code, $m)) {
+        if (preg_match('/^R\d+P\d+L\d+$/i', $code)) {
 
-            return [
-                ((int) $m[1]) . '-' . ((int) $m[2]) . '-' . ((int) $m[3])
-            ];
+            return [strtoupper($code)];
         }
 
         if (str_contains($code, '/')) {

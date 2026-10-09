@@ -16,6 +16,7 @@ use App\Services\StagingOutHistoryService;
 use App\Services\StagingOutStockService;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -740,7 +741,8 @@ class StagingOutController extends Controller
                 ?? $stagingOut->delivery_instruction_date
                 ?? now(),
             'transaction_number' => $stagingOut->so_number,
-            'description' => $this->stockOutDescription($stagingOut),
+            // Sengaja dikosongkan: mutasi stok keluar tidak perlu memuat no. SO / customer.
+            'description' => null,
             'qty_in' => 0,
             'qty_out' => $stagingOut->qty,
             'qty_balance' => $stock->quantity,
@@ -773,73 +775,198 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Aturan validasi untuk store() banyak barang: hanya No. SO yang
+     * dikirim sekali, sisanya (termasuk tgl instruksi kirim, customer,
+     * sumber barang, dst) dikirim per barang di array `items`. Aturan per
+     * barang diturunkan dari baseValidationRules() supaya selalu sama
+     * dengan aturan update().
+     */
+    protected function batchValidationRules(): array
+    {
+        $rules = [
+            'so_number' => ['nullable', 'max:255'],
+            'items' => ['required', 'array', 'min:1'],
+        ];
+
+        foreach (Arr::except($this->baseValidationRules(), ['so_number']) as $field => $rule) {
+            $rules["items.*.{$field}"] = $rule;
+        }
+
+        // Di form tambah, tiap baris wajib punya barang & qty minimal 1.
+        $rules['items.*.item_id'] = ['required', 'exists:items,id'];
+        $rules['items.*.qty'] = ['required', 'integer', 'min:1'];
+
+        return $rules;
+    }
+
+    /**
+     * Validasi stok untuk banyak barang sekaligus. Sama seperti
+     * validateStockAvailability(), tapi dihitung akumulatif: kalau dua
+     * baris memakai item/lokasi/lot yang sama, qty keduanya dijumlahkan
+     * terhadap stok yang tersedia (bukan dicek sendiri-sendiri).
+     */
+    protected function validateBatchStockAvailability(ValidatorContract $validator, Request $request): void
+    {
+        $validator->after(function ($validator) use ($request) {
+            $used = [];
+
+            foreach ((array) $request->input('items', []) as $i => $line) {
+                if (($line['source_type'] ?? null) !== 'stock') {
+                    continue;
+                }
+
+                $key = "items.{$i}";
+                $errors = $validator->errors();
+
+                // Barang/qty yang sudah gagal di aturan dasar tidak perlu dicek stoknya
+                // (supaya pesannya tidak dobel).
+                if ($errors->has("{$key}.item_id") || $errors->has("{$key}.qty")) {
+                    continue;
+                }
+
+                $itemId = $line['item_id'] ?? null;
+                $locationId = $line['location_id'] ?? null;
+                $qty = $line['qty'] ?? null;
+                $lot = ($line['lot'] ?? null) ?: null;
+
+                if (! $locationId) {
+                    $errors->add(
+                        "{$key}.location_id",
+                        'Lokasi belum dipilih. Pilih lokasi yang memiliki stok barang ini.'
+                    );
+
+                    continue;
+                }
+
+                $stock = LocationStock::where('item_id', $itemId)
+                    ->where('location_id', $locationId)
+                    ->where('lot', $lot)
+                    ->first();
+
+                $groupKey = $itemId.'|'.$locationId.'|'.($lot ?? '');
+                $available = (float) optional($stock)->quantity - ($used[$groupKey] ?? 0);
+
+                if ((float) $qty > $available) {
+                    $left = rtrim(rtrim(number_format(max($available, 0), 2, '.', ''), '0'), '.');
+
+                    $errors->add(
+                        "{$key}.qty",
+                        $left === '' || $left === '0'
+                            ? 'Stok tidak tersedia untuk barang/lokasi/lot ini (sisa stok: 0).'
+                            : "Qty melebihi stok yang tersedia. Sisa stok: {$left}."
+                    );
+
+                    continue;
+                }
+
+                $used[$groupKey] = ($used[$groupKey] ?? 0) + (float) $qty;
+            }
+        });
+    }
+
+    /**
      * Store a newly created resource in storage.
+     *
+     * Satu SO bisa berisi banyak barang: No. SO dikirim sekali, sedangkan
+     * tiap barang dikirim di array `items` dan disimpan sebagai satu baris
+     * staging_outs. Semua barang disimpan dalam satu transaksi — kalau satu
+     * gagal (mis. stok tidak cukup), semuanya dibatalkan.
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), $this->baseValidationRules(), [
-            'item_id.exists' => 'Barang tidak ditemukan',
-            'location_id.exists' => 'Lokasi tidak ditemukan',
-            'source_type.required' => 'Sumber barang wajib dipilih',
-            'source_type.in' => 'Sumber barang tidak valid',
+        $validator = Validator::make($request->all(), $this->batchValidationRules(), [
+            'so_number.max' => 'No. SO terlalu panjang (maksimal 255 karakter).',
+
+            'items.required' => 'Belum ada barang. Tambahkan minimal satu barang.',
+            'items.min' => 'Belum ada barang. Tambahkan minimal satu barang.',
+            'items.*.source_type.required' => 'Sumber barang belum dipilih (Eksternal / Dari Stok).',
+            'items.*.source_type.in' => 'Sumber barang tidak valid.',
+            'items.*.item_id.required' => 'Barang belum dipilih.',
+            'items.*.item_id.exists' => 'Barang yang dipilih tidak ditemukan di data master.',
+            'items.*.location_id.exists' => 'Lokasi yang dipilih tidak ditemukan.',
+            'items.*.qty.required' => 'Qty belum diisi.',
+            'items.*.qty.integer' => 'Qty harus berupa angka bulat (tanpa koma).',
+            'items.*.qty.min' => 'Qty minimal 1.',
+            'items.*.customer.max' => 'Nama customer terlalu panjang (maksimal 255 karakter).',
+            'items.*.line_item.max' => 'Line item terlalu panjang (maksimal 255 karakter).',
+            'items.*.lot.max' => 'Lot terlalu panjang (maksimal 255 karakter).',
+            'items.*.do_number.max' => 'No. DO terlalu panjang (maksimal 255 karakter).',
+            'items.*.delivery_instruction_date.date' => 'Tgl instruksi kirim tidak valid.',
+            'items.*.picking_date.date' => 'Tgl picking tidak valid.',
+            'items.*.delivery_receipt_date.date' => 'Tgl resi pengiriman tidak valid.',
         ]);
 
-        $this->validateStockAvailability($validator, $request);
+        $this->validateBatchStockAvailability($validator, $request);
 
         $validated = $validator->validate();
 
-        // Barang eksternal tidak menyentuh stok — kosongkan lokasi/lot
-        // biar tidak ada data nyasar walaupun user sempat mengisinya lalu
-        // ganti pilihan ke "Eksternal".
-        if ($validated['source_type'] === 'external') {
-            $validated['location_id'] = null;
-            $validated['lot'] = null;
-        }
-
         try {
-            $justDelivered = DB::transaction(function () use ($validated) {
-                $staging = StagingOut::create($validated);
+            $deliveredCount = DB::transaction(function () use ($validated) {
+                $delivered = 0;
 
-                // Stok tetap dipotong walau langsung selesai, karena
-                // barangnya memang sudah keluar (mutasi stok tidak ikut
-                // dihapus).
-                if ($staging->source_type === 'stock') {
-                    $this->applyStockOut($staging);
-                }
+                foreach ($validated['items'] as $line) {
+                    $line['so_number'] = $validated['so_number'] ?? null;
 
-                $this->history->logCreated($staging);
-
-                // Tgl resi pengiriman sudah terisi sejak awal berarti barang
-                // sudah terkirim: cukup riwayatnya saja yang disimpan.
-                // Dicatat sebagai "delivered" (status Selesai), BUKAN
-                // logDeleted(), lalu barisnya dihapus dari tabel aktif.
-                $delivered = ! empty($validated['delivery_receipt_date']);
-
-                if ($delivered) {
-                    $this->history->logAutoDelivered(
-                        $staging,
-                        $staging->do_number,
-                        $staging->delivery_receipt_date
-                    );
-
-                    // logCreated() tidak menyinkronkan picking_date ke
-                    // header, jadi diisi di sini kalau form-nya mengisi.
-                    if (! empty($validated['picking_date'])) {
-                        StagingOutHistory::firstOrCreateForStaging($staging)
-                            ->update(['picking_date' => $validated['picking_date']]);
+                    // Barang eksternal tidak menyentuh stok — kosongkan
+                    // lokasi/lot biar tidak ada data nyasar walaupun user
+                    // sempat mengisinya lalu ganti pilihan ke "Eksternal".
+                    if ($line['source_type'] === 'external') {
+                        $line['location_id'] = null;
+                        $line['lot'] = null;
                     }
 
-                    $staging->delete();
+                    $staging = StagingOut::create($line);
+
+                    // Stok tetap dipotong walau langsung selesai, karena
+                    // barangnya memang sudah keluar (mutasi stok tidak ikut
+                    // dihapus).
+                    if ($staging->source_type === 'stock') {
+                        $this->applyStockOut($staging);
+                    }
+
+                    $this->history->logCreated($staging);
+
+                    // Tgl resi pengiriman sudah terisi sejak awal berarti
+                    // barang sudah terkirim: cukup riwayatnya saja yang
+                    // disimpan. Dicatat sebagai "delivered" (status
+                    // Selesai), BUKAN logDeleted(), lalu barisnya dihapus
+                    // dari tabel aktif.
+                    if (! empty($line['delivery_receipt_date'])) {
+                        $this->history->logAutoDelivered(
+                            $staging,
+                            $staging->do_number,
+                            $staging->delivery_receipt_date
+                        );
+
+                        // logCreated() tidak menyinkronkan picking_date ke
+                        // header, jadi diisi di sini kalau form-nya mengisi.
+                        if (! empty($line['picking_date'])) {
+                            StagingOutHistory::firstOrCreateForStaging($staging)
+                                ->update(['picking_date' => $line['picking_date']]);
+                        }
+
+                        $staging->delete();
+
+                        $delivered++;
+                    }
                 }
 
                 return $delivered;
             });
 
+            $total = count($validated['items']);
+
+            $message = $total.' barang berhasil disimpan';
+
+            if ($deliveredCount > 0) {
+                $message .= $deliveredCount === $total
+                    ? ' dan langsung dipindahkan ke history (sudah terkirim).'
+                    : ", {$deliveredCount} di antaranya langsung dipindahkan ke history (sudah terkirim).";
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => $justDelivered
-                    ? 'Data tersimpan dan langsung dipindahkan ke history (sudah terkirim).'
-                    : 'Data berhasil disimpan',
+                'message' => $message,
             ]);
 
         } catch (\Exception $e) {

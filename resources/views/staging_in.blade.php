@@ -94,6 +94,16 @@
                 <small class="text-muted">Kelola data staging</small>
             </div>
             <div class="float-end mt-3">
+                <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="btnBulkDelete">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                        <path d="M0 0h24v24H0z" fill="none" />
+                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="1.5"
+                            d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                    </svg>
+                    <span class="d-none d-md-inline ms-1">Hapus (<span id="selectedCount">0</span>)</span>
+                </button>
+
                 <button type="button" class="btn-sm btn border-secondary bg-white border me-1" data-bs-toggle="modal"
                     data-bs-target="#importStagingModal">
                     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
@@ -336,312 +346,491 @@
                 <div class="modal fade" id="addStaging" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="addStagingLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-lg">
+                    <style>
+                        #addStaging .modal-content {
+                            border: 0;
+                            border-radius: 1.5rem;
+                            overflow: hidden;
+                            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+                        }
+
+                        /* ---------- HERO (header + No. PO + tanggal) ---------- */
+                        #addStaging .as-hero {
+                            padding: 1.5rem 2rem 1.25rem;
+                            background: #fff;
+                            border-bottom: 1px solid #eceef5;
+                        }
+
+                        #addStaging .as-hero-icon {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 1rem;
+                            display: grid;
+                            place-items: center;
+                            font-size: 1.5rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStaging .as-hero h4 {
+                            color: #2b3350;
+                            letter-spacing: -.01em;
+                        }
+
+                        #addStaging .as-hero small {
+                            color: #8a93a8;
+                        }
+
+                        #addStaging .as-po-card {
+                            margin: 1.25rem 2rem 0;
+                            padding: 1.1rem 1.25rem;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        /* ---------- BODY ---------- */
+                        #addStaging .as-body {
+                            padding: 1.5rem 2rem .5rem;
+                            background: #f5f6fb;
+                        }
+
+                        #addStaging .as-label {
+                            display: block;
+                            margin-bottom: .3rem;
+                            font-size: .68rem;
+                            font-weight: 700;
+                            letter-spacing: .06em;
+                            text-transform: uppercase;
+                            color: #8a93a8;
+                        }
+
+                        #addStaging .as-field {
+                            position: relative;
+                        }
+
+                        #addStaging .as-field>i {
+                            position: absolute;
+                            left: .8rem;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            color: #a5adc2;
+                            font-size: 1.05rem;
+                            pointer-events: none;
+                        }
+
+                        #addStaging .as-input,
+                        #addStaging .as-select {
+                            width: 100%;
+                            border: 1.5px solid #e6e9f2;
+                            background: #f8f9fd;
+                            border-radius: .75rem;
+                            padding: .5rem .8rem;
+                            font-size: .875rem;
+                            color: #2b3350;
+                            transition: border-color .15s, box-shadow .15s, background .15s;
+                        }
+
+                        #addStaging .as-field>i+.as-input,
+                        #addStaging .as-field>i+.as-select {
+                            padding-left: 2.35rem;
+                        }
+
+                        #addStaging .as-input:focus,
+                        #addStaging .as-select:focus {
+                            outline: 0;
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #addStaging .as-input-lg {
+                            padding-top: .65rem;
+                            padding-bottom: .65rem;
+                            font-weight: 600;
+                        }
+
+                        #addStaging .as-hint {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .3rem;
+                            margin-top: .35rem;
+                            font-size: .72rem;
+                            color: #7c3aed;
+                        }
+
+                        /* ---------- DAFTAR BARANG ---------- */
+                        #addStaging .as-section-title {
+                            display: flex;
+                            align-items: center;
+                            gap: .6rem;
+                            font-weight: 700;
+                            color: #2b3350;
+                        }
+
+                        #addStaging .as-count {
+                            min-width: 1.6rem;
+                            height: 1.6rem;
+                            padding: 0 .5rem;
+                            display: inline-grid;
+                            place-items: center;
+                            border-radius: 50rem;
+                            font-size: .75rem;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                        }
+
+                        #addStaging .add-item-row {
+                            position: relative;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            padding: 1.1rem 1.25rem 1.25rem 1.6rem;
+                            margin-bottom: 1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                            transition: box-shadow .2s;
+                            animation: asRowIn .28s ease both;
+                        }
+
+                        #addStaging .add-item-row::before {
+                            content: "";
+                            position: absolute;
+                            left: 0;
+                            top: 1rem;
+                            bottom: 1rem;
+                            width: 5px;
+                            border-radius: 0 6px 6px 0;
+                            background: linear-gradient(180deg, #4f46e5, #db2777);
+                        }
+
+                        #addStaging .add-item-row:hover {
+                            box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
+                        }
+
+                        #addStaging .add-item-row:focus-within {
+                            z-index: 5;
+                        }
+
+                        @keyframes asRowIn {
+                            from {
+                                opacity: 0;
+                                transform: translateY(8px);
+                            }
+
+                            to {
+                                opacity: 1;
+                                transform: none;
+                            }
+                        }
+
+                        #addStaging .as-row-badge {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .5rem;
+                            font-weight: 700;
+                            font-size: .85rem;
+                            color: #2b3350;
+                        }
+
+                        #addStaging .as-row-badge .row-number {
+                            width: 1.8rem;
+                            height: 1.8rem;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .6rem;
+                            font-size: .8rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStaging .btnRemoveItemRow {
+                            width: 2rem;
+                            height: 2rem;
+                            padding: 0;
+                            display: grid;
+                            place-items: center;
+                            border: 0;
+                            border-radius: .65rem;
+                            color: #e11d48;
+                            background: #fff1f4;
+                        }
+
+                        #addStaging .btnRemoveItemRow:hover:not(:disabled) {
+                            color: #fff;
+                            background: #e11d48;
+                        }
+
+                        #addStaging .btnRemoveItemRow:disabled {
+                            opacity: .35;
+                        }
+
+                        #addStaging .as-add-btn {
+                            width: 100%;
+                            padding: .8rem;
+                            border: 2px dashed #c7cbe6;
+                            border-radius: 1rem;
+                            background: transparent;
+                            color: #5b57d6;
+                            font-weight: 600;
+                            font-size: .875rem;
+                            transition: all .15s;
+                        }
+
+                        #addStaging .as-add-btn:hover {
+                            border-color: #7c3aed;
+                            background: #fff;
+                            color: #7c3aed;
+                            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+                        }
+
+                        #addStaging .as-pill-btn {
+                            border: 0;
+                            border-radius: 50rem;
+                            padding: .4rem 1rem;
+                            font-size: .8rem;
+                            font-weight: 600;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #addStaging .as-pill-btn:hover {
+                            color: #fff;
+                            background: #4f46e5;
+                        }
+
+                        /* ---------- FOOTER ---------- */
+                        #addStaging .as-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: .6rem;
+                            padding: 1rem 2rem 1.4rem;
+                            background: #f5f6fb;
+                        }
+
+                        #addStaging .as-btn-save {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.6rem;
+                            font-weight: 600;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+                        }
+
+                        #addStaging .as-btn-save:hover {
+                            color: #fff;
+                            filter: brightness(1.08);
+                        }
+
+                        #addStaging .as-btn-cancel {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.3rem;
+                            font-weight: 600;
+                            color: #5a6482;
+                            background: #e9ebf5;
+                        }
+
+                        /* ---------- TOM SELECT biar senada ---------- */
+                        #addStaging .ts-wrapper .ts-control {
+                            min-height: 40px;
+                            border: 1.5px solid #e6e9f2;
+                            border-radius: .75rem;
+                            background: #f8f9fd;
+                            padding: .45rem .8rem;
+                            box-shadow: none;
+                        }
+
+                        #addStaging .ts-wrapper.focus .ts-control {
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #addStaging .ts-dropdown {
+                            z-index: 1070;
+                            border-radius: .75rem;
+                            border: 0;
+                            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                            overflow: hidden;
+                        }
+
+                        #addStaging .ts-dropdown .active {
+                            background: #eef0ff;
+                            color: #4f46e5;
+                        }
+                    </style>
+
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                         <div class="modal-content">
 
-                            <form action="{{ route('stagings-in.store') }}" method="POST" id="formStaging">
+                            <form action="{{ route('stagings-in.store') }}" method="POST" id="formStaging"
+                                class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
 
                                 @csrf
 
-                                <div class="modal-header border-0 pb-0">
+                                {{-- ================= HERO: No. PO & Tanggal (diisi 1x) ================= --}}
+                                <div class="as-hero flex-shrink-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="as-hero-icon"><i class="bx bx-package"></i></div>
+                                            <div>
+                                                <h4 class="mb-0 fw-bold" id="addStagingLabel">Tambah Item Staging</h4>
+                                                <small>
+                                                    Satu PO, banyak barang — isi sekali saja.
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                </div>
 
-                                    <div>
+                                <div class="as-po-card flex-shrink-0">
+                                    <div class="row g-3">
+                                        <div class="col-md-7">
+                                            <label class="as-label">No. PO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-receipt"></i>
+                                                <input type="text" class="as-input as-input-lg" name="po_number"
+                                                    placeholder="Contoh: PO-2026-0001">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="as-label">Tanggal Kedatangan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-calendar"></i>
+                                                <input type="date" class="as-input as-input-lg" id="addArrivalDate"
+                                                    value="{{ now()->format('Y-m-d') }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                        <h4 class="mb-1 fw-bold">
-                                            Tambah Item Staging
-                                        </h4>
+                                {{-- ================= DAFTAR BARANG ================= --}}
+                                <div class="as-body flex-grow-1 overflow-auto">
 
-                                        <small class="text-muted">
-                                            Tambahkan data staging beserta lokasi penempatannya.
-                                        </small>
-
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="as-section-title">
+                                            <span>Daftar Barang</span>
+                                            <span class="as-count" id="addItemCount">1</span>
+                                        </div>
+                                        <button type="button" class="as-pill-btn btnAddItemRow">
+                                            <i class="bx bx-plus"></i> Tambah Barang
+                                        </button>
                                     </div>
 
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal">
+                                    <div id="addItemRows"></div>
+
+                                    <button type="button" class="as-add-btn btnAddItemRow mb-3">
+                                        <i class="bx bx-plus-circle me-1"></i> Tambah barang lainnya
                                     </button>
 
                                 </div>
 
-                                <div class="modal-body p-4">
-
-                                    <div class="row g-4">
-
-                                        {{-- ================= LEFT ================= --}}
-                                        <div class="col-lg-6">
-
-                                            <div class="card shadow border-0 rounded-4 h-100">
-
-                                                <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                                    <h5 class="fw-bold mb-0">
-                                                        <i class="bi bi-box-seam text-primary me-2"></i>
-                                                        Informasi Barang
-                                                    </h5>
-
-                                                    <small class="text-muted">
-                                                        Lengkapi informasi barang yang akan di-staging.
-                                                    </small>
-
-                                                </div>
-
-                                                <div class="card-body px-4 pb-4">
-
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            No. PO
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-receipt"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="po_number" placeholder="Contoh: PO-2026-0001">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Barang
-                                                        </label>
-
-                                                        <select id="addItemSelect"
-                                                            placeholder="Cari kode / nama barang..."></select>
-
-                                                        <input type="hidden" name="item_id" id="addItemId">
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Pemilik Barang
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-user"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                id="addItemOwner"
-                                                                placeholder="Terisi otomatis dari data barang" readonly
-                                                                disabled>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Asal Supplier
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-buildings"></i>
-                                                            </span>
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="supplier_origin" placeholder="Contoh: PT. ABC">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Incoterms
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-world"></i>
-                                                            </span>
-
-                                                            <select name="incoterms" class="form-select form-select-sm">
-                                                                <option value="" selected>Pilih incoterms</option>
-                                                                @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
-                                                                    <option value="{{ $incoterm }}">
-                                                                        {{ $incoterm }}</option>
-                                                                @endforeach
-                                                            </select>
-
-                                                        </div>
-
-                                                    </div>
-                                                     <div class="">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Status
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-flag"></i>
-                                                            </span>
-
-                                                            <select name="status" class="form-select form-select-sm">
-                                                                <option value="" selected>Pilih status
-                                                                </option>
-                                                                @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
-                                                                    <option value="{{ $statusItem }}">
-                                                                        {{ $statusItem }}</option>
-                                                                @endforeach
-                                                            </select>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-
-                                        {{-- ================= RIGHT ================= --}}
-                                        <div class="col-lg-6">
-
-                                            <div class="card shadow border-0 rounded-4 h-100">
-
-                                                <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                                    <h5 class="fw-bold mb-0">
-                                                        <i class="bi bi-geo-alt text-success me-2"></i>
-                                                        Detail Kedatangan &amp; Lokasi
-                                                    </h5>
-
-                                                    <small class="text-muted">
-                                                        Tentukan jadwal, jumlah, dan lokasi penempatan barang.
-                                                    </small>
-
-                                                </div>
-
-                                                <div class="card-body px-4 pb-4">
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Tanggal Kedatangan
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-calendar"></i>
-                                                            </span>
-
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                name="arrival_date" value="{{ now()->format('Y-m-d') }}">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Qty
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-cube-alt"></i>
-                                                            </span>
-
-                                                            <input type="number" class="form-control form-control-sm"
-                                                                name="qty" min="0" placeholder="0">
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div class="mb-3">
-
-                                                        <label class="form-label fw-semibold">
-                                                            Lokasi
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text">
-                                                                <i class="bx bx-current-location"></i>
-                                                            </span>
-
-                                                            <select name="location" class="form-select form-select-sm">
-                                                                <option value="" selected disabled>Pilih lokasi
-                                                                </option>
-                                                                @foreach (\App\Models\StagingIn::LOCATIONS as $location)
-                                                                    <option value="{{ $location }}">
-                                                                        {{ $location }}</option>
-                                                                @endforeach
-                                                            </select>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <div>
-
-                                                        <label class="form-label fw-semibold">
-                                                            Keterangan
-                                                        </label>
-
-                                                        <div class="input-group">
-
-                                                            <span class="input-group-text align-items-start pt-2">
-                                                                <i class="bx bx-note"></i>
-                                                            </span>
-
-                                                            <textarea rows="5" class="form-control form-control-sm" name="notes" placeholder="Opsional"></textarea>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer border-0 pt-0">
-
-                                    <button type="button" class="btn  btn-outline-secondary" data-bs-dismiss="modal">
-
-                                        Batal
-
+                                <div class="as-footer flex-shrink-0">
+                                    <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                                    <button type="submit" class="as-btn-save" id="btnSaveStaging">
+                                        <i class="bx bx-save me-1"></i> Simpan Staging
                                     </button>
-
-                                    <button type="submit" class="btn  btn-primary px-4">
-
-                                        <i class="bx bx-save me-1"></i>
-
-                                        Simpan Staging
-
-                                    </button>
-
                                 </div>
 
                             </form>
+
+                            {{-- Template 1 baris barang. __INDEX__ diganti lewat JS. --}}
+                            <template id="addItemRowTemplate">
+                                <div class="add-item-row">
+
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="as-row-badge">
+                                            <span class="row-number"></span> Barang
+                                        </span>
+                                        <button type="button" class="btnRemoveItemRow" title="Hapus barang ini">
+                                            <i class="bx bx-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="row g-3">
+
+                                        <div class="col-lg-6">
+                                            <label class="as-label">Barang</label>
+                                            <select class="item-select" name="items[__INDEX__][item_id]"
+                                                placeholder="Cari kode / nama barang..."></select>
+                                        </div>
+
+                                        <div class="col-6 col-lg-2">
+                                            <label class="as-label">Qty</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-cube-alt"></i>
+                                                <input type="number" class="as-input" name="items[__INDEX__][qty]"
+                                                    min="0" placeholder="0">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-6 col-lg-4">
+                                            <label class="as-label">Tgl Kedatangan</label>
+                                            <input type="date" class="as-input item-arrival"
+                                                name="items[__INDEX__][arrival_date]">
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-3">
+                                            <label class="as-label">Asal Supplier</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-buildings"></i>
+                                                <input type="text" class="as-input"
+                                                    name="items[__INDEX__][supplier_origin]" placeholder="PT. ABC">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-3">
+                                            <label class="as-label">Incoterms</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-world"></i>
+                                                <select class="as-select" name="items[__INDEX__][incoterms]">
+                                                    <option value="" selected>Pilih incoterms</option>
+                                                    @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
+                                                        <option value="{{ $incoterm }}">{{ $incoterm }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-3">
+                                            <label class="as-label">Status</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-flag"></i>
+                                                <select class="as-select" name="items[__INDEX__][status]">
+                                                    <option value="" selected>Pilih status</option>
+                                                    @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
+                                                        <option value="{{ $statusItem }}">{{ $statusItem }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 col-lg-3">
+                                            <label class="as-label">Lokasi</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-current-location"></i>
+                                                <select class="as-select" name="items[__INDEX__][location]">
+                                                    <option value="" selected>Pilih lokasi</option>
+                                                    @foreach (\App\Models\StagingIn::LOCATIONS as $location)
+                                                        <option value="{{ $location }}">{{ $location }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="as-label">Keterangan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-note"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][notes]"
+                                                    placeholder="Opsional">
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </template>
 
                         </div>
                     </div>
@@ -935,14 +1124,6 @@
 
             </div>
 
-            <div id="bulkActionBar"
-                class="alert alert-secondary d-none d-flex justify-content-between align-items-center mb-3">
-                <span><span id="selectedCount">0</span> data dipilih</span>
-                <button type="button" id="btnBulkDelete" class="btn btn-sm btn-danger">
-                    <i class="bi bi-trash me-1"></i> Hapus Terpilih
-                </button>
-            </div>
-
             <table class="table table-bordered" id="staging">
                 <thead>
                     <tr>
@@ -988,304 +1169,687 @@
     <div class="modal fade" id="editStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-hidden="true">
 
-        <div class="modal-dialog modal-lg">
+        <style>
+                        #editStagingModal .modal-content,
+                        #moveStagingModal .modal-content {
+                            border: 0;
+                            border-radius: 1.5rem;
+                            overflow: hidden;
+                            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+                        }
+
+                        #editStagingModal .as-hero,
+                        #moveStagingModal .as-hero {
+                            padding: 1.5rem 2rem 1.25rem;
+                            background: #fff;
+                            border-bottom: 1px solid #eceef5;
+                        }
+
+                        #editStagingModal .as-hero-icon,
+                        #moveStagingModal .as-hero-icon {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 1rem;
+                            display: grid;
+                            place-items: center;
+                            font-size: 1.5rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingModal .as-hero h4,
+                        #moveStagingModal .as-hero h4 {
+                            color: #2b3350;
+                            letter-spacing: -.01em;
+                        }
+
+                        #editStagingModal .as-hero small,
+                        #moveStagingModal .as-hero small {
+                            color: #8a93a8;
+                        }
+
+                        #editStagingModal .as-po-card,
+                        #moveStagingModal .as-po-card {
+                            margin: 1.25rem 2rem 0;
+                            padding: 1.1rem 1.25rem;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        #editStagingModal .as-body,
+                        #moveStagingModal .as-body {
+                            padding: 1.5rem 2rem .5rem;
+                            background: #f5f6fb;
+                        }
+
+                        #editStagingModal .as-label,
+                        #moveStagingModal .as-label {
+                            display: block;
+                            margin-bottom: .3rem;
+                            font-size: .68rem;
+                            font-weight: 700;
+                            letter-spacing: .06em;
+                            text-transform: uppercase;
+                            color: #8a93a8;
+                        }
+
+                        #editStagingModal .as-field,
+                        #moveStagingModal .as-field {
+                            position: relative;
+                        }
+
+                        #editStagingModal .as-field>i,
+                        #moveStagingModal .as-field>i {
+                            position: absolute;
+                            left: .8rem;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            color: #a5adc2;
+                            font-size: 1.05rem;
+                            pointer-events: none;
+                        }
+
+                        #editStagingModal .as-input,
+                        #editStagingModal .as-select,
+                        #moveStagingModal .as-input,
+                        #moveStagingModal .as-select {
+                            width: 100%;
+                            border: 1.5px solid #e6e9f2;
+                            background: #f8f9fd;
+                            border-radius: .75rem;
+                            padding: .5rem .8rem;
+                            font-size: .875rem;
+                            color: #2b3350;
+                            transition: border-color .15s, box-shadow .15s, background .15s;
+                        }
+
+                        #editStagingModal .as-field>i+.as-input,
+                        #editStagingModal .as-field>i+.as-select,
+                        #moveStagingModal .as-field>i+.as-input,
+                        #moveStagingModal .as-field>i+.as-select {
+                            padding-left: 2.35rem;
+                        }
+
+                        #editStagingModal .as-input:focus,
+                        #editStagingModal .as-select:focus,
+                        #moveStagingModal .as-input:focus,
+                        #moveStagingModal .as-select:focus {
+                            outline: 0;
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #editStagingModal .as-input-lg,
+                        #moveStagingModal .as-input-lg {
+                            padding-top: .65rem;
+                            padding-bottom: .65rem;
+                            font-weight: 600;
+                        }
+
+                        #editStagingModal .as-hint,
+                        #moveStagingModal .as-hint {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .3rem;
+                            margin-top: .35rem;
+                            font-size: .72rem;
+                            color: #7c3aed;
+                        }
+
+                        #editStagingModal .as-section-title,
+                        #moveStagingModal .as-section-title {
+                            display: flex;
+                            align-items: center;
+                            gap: .6rem;
+                            font-weight: 700;
+                            color: #2b3350;
+                        }
+
+                        #editStagingModal .as-count,
+                        #moveStagingModal .as-count {
+                            min-width: 1.6rem;
+                            height: 1.6rem;
+                            padding: 0 .5rem;
+                            display: inline-grid;
+                            place-items: center;
+                            border-radius: 50rem;
+                            font-size: .75rem;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                        }
+
+                        #editStagingModal .add-item-row,
+                        #moveStagingModal .add-item-row {
+                            position: relative;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            padding: 1.1rem 1.25rem 1.25rem 1.6rem;
+                            margin-bottom: 1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                            transition: box-shadow .2s;
+                            animation: asRowIn .28s ease both;
+                        }
+
+                        #editStagingModal .add-item-row::before,
+                        #moveStagingModal .add-item-row::before {
+                            content: "";
+                            position: absolute;
+                            left: 0;
+                            top: 1rem;
+                            bottom: 1rem;
+                            width: 5px;
+                            border-radius: 0 6px 6px 0;
+                            background: linear-gradient(180deg, #4f46e5, #db2777);
+                        }
+
+                        #editStagingModal .add-item-row:hover,
+                        #moveStagingModal .add-item-row:hover {
+                            box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
+                        }
+
+                        #editStagingModal .add-item-row:focus-within,
+                        #moveStagingModal .add-item-row:focus-within {
+                            z-index: 5;
+                        }
+
+                        #editStagingModal .as-row-badge,
+                        #moveStagingModal .as-row-badge {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: .5rem;
+                            font-weight: 700;
+                            font-size: .85rem;
+                            color: #2b3350;
+                        }
+
+                        #editStagingModal .as-row-badge .row-number,
+                        #moveStagingModal .as-row-badge .row-number {
+                            width: 1.8rem;
+                            height: 1.8rem;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .6rem;
+                            font-size: .8rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingModal .btnRemoveItemRow,
+                        #moveStagingModal .btnRemoveItemRow {
+                            width: 2rem;
+                            height: 2rem;
+                            padding: 0;
+                            display: grid;
+                            place-items: center;
+                            border: 0;
+                            border-radius: .65rem;
+                            color: #e11d48;
+                            background: #fff1f4;
+                        }
+
+                        #editStagingModal .btnRemoveItemRow:hover:not(:disabled),
+                        #moveStagingModal .btnRemoveItemRow:hover:not(:disabled) {
+                            color: #fff;
+                            background: #e11d48;
+                        }
+
+                        #editStagingModal .btnRemoveItemRow:disabled,
+                        #moveStagingModal .btnRemoveItemRow:disabled {
+                            opacity: .35;
+                        }
+
+                        #editStagingModal .as-add-btn,
+                        #moveStagingModal .as-add-btn {
+                            width: 100%;
+                            padding: .8rem;
+                            border: 2px dashed #c7cbe6;
+                            border-radius: 1rem;
+                            background: transparent;
+                            color: #5b57d6;
+                            font-weight: 600;
+                            font-size: .875rem;
+                            transition: all .15s;
+                        }
+
+                        #editStagingModal .as-add-btn:hover,
+                        #moveStagingModal .as-add-btn:hover {
+                            border-color: #7c3aed;
+                            background: #fff;
+                            color: #7c3aed;
+                            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+                        }
+
+                        #editStagingModal .as-pill-btn,
+                        #moveStagingModal .as-pill-btn {
+                            border: 0;
+                            border-radius: 50rem;
+                            padding: .4rem 1rem;
+                            font-size: .8rem;
+                            font-weight: 600;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingModal .as-pill-btn:hover,
+                        #moveStagingModal .as-pill-btn:hover {
+                            color: #fff;
+                            background: #4f46e5;
+                        }
+
+                        #editStagingModal .as-footer,
+                        #moveStagingModal .as-footer {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: .6rem;
+                            padding: 1rem 2rem 1.4rem;
+                            background: #f5f6fb;
+                        }
+
+                        #editStagingModal .as-btn-save,
+                        #moveStagingModal .as-btn-save {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.6rem;
+                            font-weight: 600;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+                        }
+
+                        #editStagingModal .as-btn-save:hover,
+                        #moveStagingModal .as-btn-save:hover {
+                            color: #fff;
+                            filter: brightness(1.08);
+                        }
+
+                        #editStagingModal .as-btn-cancel,
+                        #moveStagingModal .as-btn-cancel {
+                            border: 0;
+                            border-radius: .8rem;
+                            padding: .6rem 1.3rem;
+                            font-weight: 600;
+                            color: #5a6482;
+                            background: #e9ebf5;
+                        }
+
+                        #editStagingModal .ts-wrapper .ts-control,
+                        #moveStagingModal .ts-wrapper .ts-control {
+                            min-height: 40px;
+                            border: 1.5px solid #e6e9f2;
+                            border-radius: .75rem;
+                            background: #f8f9fd;
+                            padding: .45rem .8rem;
+                            box-shadow: none;
+                        }
+
+                        #editStagingModal .ts-wrapper.focus .ts-control,
+                        #moveStagingModal .ts-wrapper.focus .ts-control {
+                            background: #fff;
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+                        }
+
+                        #editStagingModal .ts-dropdown,
+                        #moveStagingModal .ts-dropdown {
+                            z-index: 1070;
+                            border-radius: .75rem;
+                            border: 0;
+                            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                            overflow: hidden;
+                        }
+
+                        #editStagingModal .ts-dropdown .active,
+                        #moveStagingModal .ts-dropdown .active {
+                            background: #eef0ff;
+                            color: #4f46e5;
+                        }
+
+                        /* ---------- Kartu seksi (edit & pindah) ---------- */
+                        #editStagingModal .as-card,
+                        #moveStagingModal .as-card {
+                            position: relative;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            padding: 1.25rem 1.4rem 1.4rem 1.7rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        #editStagingModal .as-card::before,
+                        #moveStagingModal .as-card::before {
+                            content: "";
+                            position: absolute;
+                            left: 0;
+                            top: 1.1rem;
+                            bottom: 1.1rem;
+                            width: 5px;
+                            border-radius: 0 6px 6px 0;
+                            background: linear-gradient(180deg, #4f46e5, #db2777);
+                        }
+
+                        #editStagingModal .as-card-title,
+                        #moveStagingModal .as-card-title {
+                            display: flex;
+                            align-items: center;
+                            gap: .7rem;
+                            margin-bottom: 1.1rem;
+                        }
+
+                        #editStagingModal .as-card-title strong,
+                        #moveStagingModal .as-card-title strong {
+                            display: block;
+                            color: #2b3350;
+                            font-size: .98rem;
+                        }
+
+                        #editStagingModal .as-card-title small,
+                        #moveStagingModal .as-card-title small {
+                            color: #8a93a8;
+                        }
+
+                        #editStagingModal .as-card-icon,
+                        #moveStagingModal .as-card-icon {
+                            width: 2.4rem;
+                            height: 2.4rem;
+                            flex-shrink: 0;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .8rem;
+                            font-size: 1.2rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #editStagingModal .as-card-icon.is-pink,
+                        #moveStagingModal .as-card-icon.is-pink {
+                            color: #db2777;
+                            background: #fdf0f7;
+                        }
+
+                        #editStagingModal .as-field.as-field-top>i,
+                        #moveStagingModal .as-field.as-field-top>i {
+                            top: .85rem;
+                            transform: none;
+                        }
+
+                        #editStagingModal textarea.as-input,
+                        #moveStagingModal textarea.as-input {
+                            resize: vertical;
+                        }
+
+                        #editStagingModal .as-input:disabled,
+                        #editStagingModal .as-input[readonly] {
+                            background: #eef0f7;
+                            color: #6b7385;
+                            cursor: not-allowed;
+                        }
+
+                        #moveStagingModal .as-help {
+                            display: block;
+                            margin-top: .35rem;
+                            font-size: .74rem;
+                            color: #8a93a8;
+                        }
+
+                        /* ---------- Ringkasan item (pindah) ---------- */
+                        #moveStagingModal .as-summary {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: flex-start;
+                            gap: 1rem;
+                            margin-bottom: 1.25rem;
+                            padding: 1.1rem 1.4rem;
+                            background: #fff;
+                            border-radius: 1.1rem;
+                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                        }
+
+                        #moveStagingModal .as-chip {
+                            display: inline-flex;
+                            align-items: center;
+                            padding: .25rem .75rem;
+                            border-radius: 50rem;
+                            font-size: .74rem;
+                            font-weight: 600;
+                        }
+
+                        #moveStagingModal .as-chip-gray {
+                            color: #5a6482;
+                            background: #eceef6;
+                        }
+
+                        #moveStagingModal .as-chip-indigo {
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #moveStagingModal .as-qty {
+                            flex-shrink: 0;
+                            padding: .45rem 1rem;
+                            border-radius: 50rem;
+                            font-size: .85rem;
+                            font-weight: 700;
+                            color: #fff;
+                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                            box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .6);
+                        }
+
+                        /* ---------- Pilihan tujuan (pindah) ---------- */
+                        #moveStagingModal .tujuan-option {
+                            height: 100%;
+                            padding: 1rem 1.1rem;
+                            background: #fff;
+                            border: 2px solid #e6e9f2 !important;
+                            border-radius: 1rem;
+                            cursor: pointer;
+                            transition: all .15s;
+                        }
+
+                        #moveStagingModal .tujuan-option:hover {
+                            border-color: #b9b4f7 !important;
+                        }
+
+                        #moveStagingModal .tujuan-option.active {
+                            border-color: #7c3aed !important;
+                            background: #f6f3ff;
+                            box-shadow: 0 10px 22px -12px rgba(124, 58, 237, .55);
+                        }
+
+                        #moveStagingModal .tujuan-option .as-tujuan-icon {
+                            width: 2.5rem;
+                            height: 2.5rem;
+                            margin-bottom: .6rem;
+                            display: grid;
+                            place-items: center;
+                            border-radius: .85rem;
+                            font-size: 1.25rem;
+                            color: #4f46e5;
+                            background: #eef0ff;
+                        }
+
+                        #moveStagingModal .tujuan-option[data-tujuan="out"] .as-tujuan-icon {
+                            color: #db2777;
+                            background: #fdf0f7;
+                        }
+
+                        #moveStagingModal .tujuan-option strong {
+                            display: block;
+                            color: #2b3350;
+                        }
+
+                        #moveStagingModal .tujuan-option small {
+                            color: #8a93a8;
+                        }
+        </style>
+
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
 
-                <form id="formEditStaging">
+                <form id="formEditStaging" class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
+
                     @csrf
                     @method('PUT')
 
                     <input type="hidden" name="id" id="editId">
 
-                    <div class="modal-header border-0 pb-0">
-
-                        <div>
-
-                            <h4 class="mb-1 fw-bold">
-                                Edit Item Staging
-                            </h4>
-
-                            <small class="text-muted">
-                                Ubah data staging beserta lokasi penempatannya.
-                            </small>
-
+                    <div class="as-hero flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="as-hero-icon"><i class="bx bx-edit"></i></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Edit Item Staging</h4>
+                                    <small>Ubah data staging beserta lokasi penempatannya.</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-
                     </div>
 
-                    <div class="modal-body p-4">
-
-                        <div class="row g-4">
+                    <div class="as-body flex-grow-1 overflow-auto">
+                        <div class="row g-4 mb-3">
 
                             {{-- ================= LEFT ================= --}}
                             <div class="col-lg-6">
+                                <div class="as-card h-100">
 
-                                <div class="card shadow border-0 rounded-4 h-100">
-
-                                    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                        <h5 class="fw-bold mb-0">
-                                            <i class="bi bi-box-seam text-primary me-2"></i>
-                                            Informasi Barang
-                                        </h5>
-
-                                        <small class="text-muted">
-                                            Lengkapi informasi barang yang di-staging.
-                                        </small>
-
+                                    <div class="as-card-title">
+                                        <div class="as-card-icon"><i class="bx bx-package"></i></div>
+                                        <div>
+                                            <strong>Informasi Barang</strong>
+                                            <small>Lengkapi informasi barang yang di-staging.</small>
+                                        </div>
                                     </div>
 
-                                    <div class="card-body px-4 pb-4">
+                                    <div class="row g-3">
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                No. PO
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-receipt"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="po_number" id="editPoNumber">
-
+                                        <div class="col-12">
+                                            <label class="as-label">No. PO</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-receipt"></i>
+                                                <input type="text" class="as-input" name="po_number"
+                                                    id="editPoNumber">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Barang
-                                            </label>
-
+                                        <div class="col-12">
+                                            <label class="as-label">Barang</label>
                                             <select id="editItemSelect" placeholder="Cari kode / nama barang..."></select>
-
                                             <input type="hidden" name="item_id" id="editItemId">
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Pemilik Barang
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-user"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    id="editItemOwner" readonly disabled>
-
+                                        <div class="col-12">
+                                            <label class="as-label">Pemilik Barang</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-user"></i>
+                                                <input type="text" class="as-input" id="editItemOwner" readonly
+                                                    disabled>
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Asal Supplier
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-buildings"></i>
-                                                </span>
-
-                                                <input type="text" class="form-control form-control-sm"
-                                                    name="supplier_origin" id="editSupplierOrigin">
-
+                                        <div class="col-12">
+                                            <label class="as-label">Asal Supplier</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-buildings"></i>
+                                                <input type="text" class="as-input" name="supplier_origin"
+                                                    id="editSupplierOrigin">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Incoterms
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-world"></i>
-                                                </span>
-
-                                                <select name="incoterms" class="form-select form-select-sm"
-                                                    id="editIncoterms">
+                                        <div class="col-md-6">
+                                            <label class="as-label">Incoterms</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-world"></i>
+                                                <select name="incoterms" class="as-select" id="editIncoterms">
                                                     <option value="">Pilih incoterms</option>
                                                     @foreach (\App\Models\StagingIn::INCOTERMS as $incoterm)
-                                                        <option value="{{ $incoterm }}">
-                                                            {{ $incoterm }}
-                                                        </option>
+                                                        <option value="{{ $incoterm }}">{{ $incoterm }}</option>
                                                     @endforeach
                                                 </select>
-
                                             </div>
-
                                         </div>
 
-                                        <div class="">
-
-                                            <label class="form-label fw-semibold">
-                                                Status
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-flag"></i>
-                                                </span>
-
-                                                <select name="status" class="form-select form-select-sm"
-                                                    id="editStatus">
+                                        <div class="col-md-6">
+                                            <label class="as-label">Status</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-flag"></i>
+                                                <select name="status" class="as-select" id="editStatus">
                                                     <option value="">Pilih status</option>
                                                     @foreach (\App\Models\StagingIn::allStatusOptions() as $statusItem)
-                                                        <option value="{{ $statusItem }}">
-                                                            {{ $statusItem }}</option>
+                                                        <option value="{{ $statusItem }}">{{ $statusItem }}</option>
                                                     @endforeach
                                                 </select>
-
                                             </div>
-
                                         </div>
 
                                     </div>
-
                                 </div>
-
                             </div>
 
                             {{-- ================= RIGHT ================= --}}
                             <div class="col-lg-6">
+                                <div class="as-card h-100">
 
-                                <div class="card shadow border-0 rounded-4 h-100">
-
-                                    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-
-                                        <h5 class="fw-bold mb-0">
-                                            <i class="bi bi-geo-alt text-success me-2"></i>
-                                            Detail Kedatangan &amp; Lokasi
-                                        </h5>
-
-                                        <small class="text-muted">
-                                            Tentukan jadwal, jumlah, dan lokasi penempatan barang.
-                                        </small>
-
+                                    <div class="as-card-title">
+                                        <div class="as-card-icon is-pink"><i class="bx bx-map-pin"></i></div>
+                                        <div>
+                                            <strong>Detail Kedatangan &amp; Lokasi</strong>
+                                            <small>Tentukan jadwal, jumlah, dan lokasi penempatan barang.</small>
+                                        </div>
                                     </div>
 
-                                    <div class="card-body px-4 pb-4">
+                                    <div class="row g-3">
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Tanggal Kedatangan
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-calendar"></i>
-                                                </span>
-
-                                                <input type="date" class="form-control form-control-sm"
-                                                    name="arrival_date" id="editArrivalDate">
-
+                                        <div class="col-md-6">
+                                            <label class="as-label">Tanggal Kedatangan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-calendar"></i>
+                                                <input type="date" class="as-input" name="arrival_date"
+                                                    id="editArrivalDate">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Qty
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-cube-alt"></i>
-                                                </span>
-
-                                                <input type="number" class="form-control form-control-sm" name="qty"
-                                                    min="0" id="editQty">
-
+                                        <div class="col-md-6">
+                                            <label class="as-label">Qty</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-cube-alt"></i>
+                                                <input type="number" class="as-input" name="qty" min="0"
+                                                    id="editQty">
                                             </div>
-
                                         </div>
 
-                                        <div class="mb-3">
-
-                                            <label class="form-label fw-semibold">
-                                                Lokasi
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text">
-                                                    <i class="bx bx-current-location"></i>
-                                                </span>
-
-                                                <select name="location" class="form-select form-select-sm"
-                                                    id="editLocation">
+                                        <div class="col-12">
+                                            <label class="as-label">Lokasi</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-current-location"></i>
+                                                <select name="location" class="as-select" id="editLocation">
                                                     @foreach (\App\Models\StagingIn::LOCATIONS as $location)
-                                                        <option value="{{ $location }}">
-                                                            {{ $location }}
-                                                        </option>
+                                                        <option value="{{ $location }}">{{ $location }}</option>
                                                     @endforeach
                                                 </select>
-
                                             </div>
-
                                         </div>
 
-                                        <div>
-
-                                            <label class="form-label fw-semibold">
-                                                Keterangan
-                                            </label>
-
-                                            <div class="input-group">
-
-                                                <span class="input-group-text align-items-start pt-2">
-                                                    <i class="bx bx-note"></i>
-                                                </span>
-
-                                                <textarea rows="5" class="form-control form-control-sm" name="notes" id="editNotes" placeholder="Opsional"></textarea>
-
+                                        <div class="col-12">
+                                            <label class="as-label">Keterangan</label>
+                                            <div class="as-field as-field-top">
+                                                <i class="bx bx-note"></i>
+                                                <textarea rows="5" class="as-input" name="notes" id="editNotes" placeholder="Opsional"></textarea>
                                             </div>
-
                                         </div>
 
                                     </div>
-
                                 </div>
-
                             </div>
-                        </div>
 
+                        </div>
                     </div>
 
-                    <div class="modal-footer border-0 pt-0">
-
-                        <button type="button" class="btn  btn-outline-secondary" data-bs-dismiss="modal">
-                            Batal
+                    <div class="as-footer flex-shrink-0">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="as-btn-save btnSaveEdit">
+                            <i class="bx bx-save me-1"></i> Simpan Perubahan
                         </button>
-
-                        <button type="submit" class="btn  btn-primary px-4 btnSaveEdit">
-                            <i class="bx bx-save me-1"></i>
-                            Simpan Perubahan
-                        </button>
-
                     </div>
 
                 </form>
@@ -1298,188 +1862,176 @@
     <div class="modal fade" id="moveStagingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-labelledby="moveStagingLabel" aria-hidden="true">
 
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
 
-                <form id="formMoveStaging">
+                <form id="formMoveStaging" class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
 
                     @csrf
 
                     <input type="hidden" name="destination" id="moveDestination" value="stock">
 
-                    <div class="modal-header border-0 pb-0">
-
-                        <div>
-                            <h4 class="mb-1 fw-bold">Pindahkan Item</h4>
-                            <small class="text-muted">
-                                Tentukan tujuan perpindahan barang dari staging in.
-                            </small>
+                    <div class="as-hero flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="as-hero-icon"><i class="bx bx-transfer-alt"></i></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold" id="moveStagingLabel">Pindahkan Item</h4>
+                                    <small>Tentukan tujuan perpindahan barang dari staging in.</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-
                     </div>
 
-                    <div class="modal-body p-4">
+                    <div class="as-body flex-grow-1 overflow-auto">
 
                         {{-- ================= RINGKASAN ITEM ================= --}}
-                        <div class="card border rounded-4 mb-4">
-                            <div class="card-body d-flex justify-content-between align-items-start gap-3">
+                        <div class="as-summary">
+                            <div>
+                                <small class="text-muted d-block" id="moveItemCode"></small>
+                                <div class="fw-bold" id="moveItemName"></div>
+                                <small class="text-muted d-block mt-1" id="moveItemMeta"></small>
 
-                                <div>
-                                    <small class="text-muted d-block" id="moveItemCode"></small>
-                                    <div class="fw-bold" id="moveItemName"></div>
-                                    <small class="text-muted d-block mt-1" id="moveItemMeta"></small>
-
-                                    <div class="mt-2">
-                                        <span class="badge bg-secondary-subtle text-secondary"
-                                            id="moveFromLocation"></span>
-                                        <i class="bi bi-arrow-right mx-1 text-muted"></i>
-                                        <span class="badge bg-primary-subtle text-primary" id="moveToLocationLabel">Masuk
-                                            Stok</span>
-                                    </div>
+                                <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="as-chip as-chip-gray" id="moveFromLocation"></span>
+                                    <i class="bx bx-right-arrow-alt text-muted"></i>
+                                    <span class="as-chip as-chip-indigo" id="moveToLocationLabel">Masuk Stok</span>
                                 </div>
-
-                                <span class="badge bg-dark rounded-pill px-3 py-2 flex-shrink-0" id="moveQtyBadge"></span>
-
                             </div>
+
+                            <span class="as-qty" id="moveQtyBadge"></span>
                         </div>
 
                         {{-- ================= TUJUAN ================= --}}
-                        <label class="form-label fw-semibold text-muted small text-uppercase mb-2">
-                            Tujuan
-                        </label>
+                        <label class="as-label">Tujuan</label>
 
                         <div class="row g-3 mb-4">
-
                             <div class="col-6">
-                                <div class="tujuan-option border rounded-4 p-3 h-100 active" data-tujuan="stock">
-                                    <div class="icon-box-sm bg-secondary-subtle text-secondary mb-2">
-                                        <i class="bi bi-building"></i>
-                                    </div>
-                                    <div class="fw-bold">Masuk Stok</div>
-                                    <small class="text-muted">Barang disimpan sebagai stok gudang</small>
+                                <div class="tujuan-option active" data-tujuan="stock">
+                                    <div class="as-tujuan-icon"><i class="bx bx-building-house"></i></div>
+                                    <strong>Masuk Stok</strong>
+                                    <small>Barang disimpan sebagai stok gudang</small>
                                 </div>
                             </div>
 
                             <div class="col-6">
-                                <div class="tujuan-option border rounded-4 p-3 h-100" data-tujuan="out">
-                                    <div class="icon-box-sm bg-primary-subtle text-primary mb-2">
-                                        <i class="bi bi-truck"></i>
+                                <div class="tujuan-option" data-tujuan="out">
+                                    <div class="as-tujuan-icon"><i class="bx bx-trip"></i></div>
+                                    <strong>Staging Out</strong>
+                                    <small>Barang langsung dikirim ke customer</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- ================= DETAIL PERPINDAHAN ================= --}}
+                        <div class="as-card mb-3">
+
+                            <div class="as-card-title">
+                                <div class="as-card-icon is-pink"><i class="bx bx-transfer-alt"></i></div>
+                                <div>
+                                    <strong>Detail Perpindahan</strong>
+                                    <small>Isi jumlah dan data tujuan barang.</small>
+                                </div>
+                            </div>
+
+                            {{-- QTY (shared) --}}
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="as-label">Qty dipindah</label>
+                                    <div class="as-field">
+                                        <i class="bx bx-cube-alt"></i>
+                                        <input type="number" class="as-input" name="qty" id="moveQty"
+                                            min="1">
                                     </div>
-                                    <div class="fw-bold">Staging Out</div>
-                                    <small class="text-muted">Barang langsung dikirim ke customer</small>
+                                    <small class="as-help" id="moveQtyHelp"></small>
+                                </div>
+                            </div>
+
+                            {{-- FIELD: MASUK STOK --}}
+                            <div id="fieldsMasukStok" class="mt-3">
+                                <div class="row g-3">
+
+                                    <div class="col-md-7">
+                                        <label class="as-label">Lokasi Penyimpanan</label>
+                                        <select id="moveLocationSelect" name="location"></select>
+                                    </div>
+
+                                    <div class="col-md-5">
+                                        <label class="as-label">Tanggal Masuk</label>
+                                        <input type="date" class="as-input" name="transaction_date"
+                                            id="moveTransactionDate" value="{{ date('Y-m-d') }}">
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="as-label">
+                                            Lot <span class="fw-normal text-lowercase">(opsional)</span>
+                                        </label>
+                                        <select id="moveLotSelect" name="lot"></select>
+                                        <small class="as-help">
+                                            Pilih lot yang sudah ada di lokasi ini, atau ketik lot baru. Boleh dikosongkan.
+                                        </small>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="as-label">Catatan</label>
+                                        <div class="as-field as-field-top">
+                                            <i class="bx bx-note"></i>
+                                            <textarea rows="3" class="as-input" name="notes" id="moveNotes" placeholder="Opsional"></textarea>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            {{-- FIELD: STAGING OUT --}}
+                            <div id="fieldsStagingOut" class="mt-3 d-none">
+                                <div class="row g-3">
+
+                                    <div class="col-md-6">
+                                        <label class="as-label">No. SO</label>
+                                        <div class="as-field">
+                                            <i class="bx bx-receipt"></i>
+                                            <input type="text" class="as-input" name="so_number" id="moveSoNumber"
+                                                placeholder="SO-2026-0001">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="as-label">Customer</label>
+                                        <div class="as-field">
+                                            <i class="bx bx-buildings"></i>
+                                            <input type="text" class="as-input" name="customer" id="moveCustomer"
+                                                placeholder="Nama customer">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="as-label">Line Item</label>
+                                        <div class="as-field">
+                                            <i class="bx bx-hash"></i>
+                                            <input type="text" class="as-input" name="line_item" id="moveLineItem"
+                                                >
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="as-label">Delivery Instruction</label>
+                                        <input type="date" class="as-input" value="{{ date('Y-m-d') }}"
+                                            name="delivery_instruction_date" id="moveDeliveryInstructionDate">
+                                    </div>
+
                                 </div>
                             </div>
 
                         </div>
-
-                        {{-- ================= QTY (SHARED) ================= --}}
-                        <div class="row g-3 mb-1">
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Qty dipindah</label>
-                                <input type="number" class="form-control form-control-sm" name="qty" id="moveQty"
-                                    min="1">
-                                <small class="text-muted" id="moveQtyHelp"></small>
-                            </div>
-                        </div>
-
-                        {{-- ================= FIELD: MASUK STOK ================= --}}
-                        <div id="fieldsMasukStok" class="mt-3">
-                            <div class="row g-3">
-
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">Lokasi Penyimpanan</label>
-                                    <select id="moveLocationSelect" name="location"></select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">
-                                        Lot <span class="text-muted fw-normal">(opsional)</span>
-                                    </label>
-                                    <select id="moveLotSelect" name="lot"></select>
-                                    <small class="text-muted">Pilih lot yang sudah ada di lokasi ini, atau ketik
-                                        lot baru. Boleh dikosongkan.</small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">No. Transaksi</label>
-                                    <input type="text" class="form-control form-control-sm" name="transaction_number"
-                                        id="" placeholder="Contoh: GRN-2026-0001">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Tanggal Masuk</label>
-                                    <input type="date" class="form-control form-control-sm" name="transaction_date"
-                                        id="moveTransactionDate" value="{{ date('Y-m-d') }}">
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">Catatan</label>
-                                    <textarea rows="3" class="form-control form-control-sm" name="notes" id="moveNotes" placeholder="Opsional"></textarea>
-                                </div>
-
-                            </div>
-                        </div>
-
-                        {{-- ================= FIELD: STAGING OUT ================= --}}
-                        <div id="fieldsStagingOut" class="mt-3 d-none">
-                            <div class="row g-3">
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">No. SO</label>
-                                    <input type="text" class="form-control form-control-sm" name="so_number"
-                                        id="moveSoNumber" placeholder="SO-2026-0001">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Customer</label>
-                                    <input type="text" class="form-control form-control-sm" name="customer"
-                                        id="moveCustomer" placeholder="Nama customer">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Line Item</label>
-                                    <input type="text" class="form-control form-control-sm" name="line_item"
-                                        id="moveLineItem" placeholder="Nama/keterangan barang">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Delivery Instruction</label>
-                                    <input type="date" class="form-control form-control-sm" value="{{ date('Y-m-d') }}"
-                                        name="delivery_instruction_date" id="moveDeliveryInstructionDate">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label fw-semibold">
-                                        Lokasi <span class="text-muted fw-normal">(opsional)</span>
-                                    </label>
-                                    <select class="form-select form-select-sm" name="staging_location"
-                                        id="moveStagingLocation">
-                                        <option value="">- Pilih -</option>
-                                        <option value="staging">🟡 Staging</option>
-                                        <option value="packing">🔵 Packing</option>
-                                        <option value="outbound">🟢 Outbound</option>
-                                    </select>
-                                    <small class="text-muted">Posisi fisik barang saat ini.</small>
-                                </div>
-
-                            </div>
-                        </div>
-
                     </div>
 
-                    <div class="modal-footer border-0 pt-0">
-
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                            Batal
+                    <div class="as-footer flex-shrink-0">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="as-btn-save btnSaveMove">
+                            <i class="bx bx-transfer-alt me-1"></i> Pindahkan
                         </button>
-
-                        <button type="submit" class="btn btn-primary px-4 btnSaveMove">
-                            <i class="bx bx-transfer-alt me-1"></i>
-                            Pindahkan
-                        </button>
-
                     </div>
 
                 </form>
@@ -1875,81 +2427,641 @@
                     });
                 }
 
-                let addItemSelect = initItemSelect('#addItemSelect', '#addItemId', '#addItemOwner');
-
                 let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', '#editItemOwner');
 
-                $('#addStaging').on('hidden.bs.modal', function() {
-                    addItemSelect.clear();
-                    $('#addItemId').val('');
-                    $('#addItemOwner').val('');
+                // ================= ALERT HELPER (SweetAlert) =================
+                // Satu pintu untuk semua notifikasi form: selalu tampil di atas modal,
+                // menampilkan SEMUA masalah sekaligus (bukan cuma yang pertama),
+                // menandai kolom yang bermasalah, dan punya fallback kalau
+                // SweetAlert gagal dimuat.
+                function escHtml(text) {
+                    return $('<div>').text(text == null ? '' : text).html();
+                }
+
+                function swalAvailable() {
+                    return typeof Swal !== 'undefined';
+                }
+
+                function showToast(icon, title, timer) {
+                    if (!swalAvailable()) {
+                        alert(title);
+                        return;
+                    }
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icon,
+                        title: title,
+                        timer: timer || 2500,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                }
+
+                function problemsHtml(intro, groups) {
+                    let html = '<div class="swal-problems">';
+
+                    if (intro) {
+                        html += '<p class="swal-problems-intro">' + escHtml(intro) + '</p>';
+                    }
+
+                    groups.forEach(function(g) {
+                        html += '<div class="swal-problem-group">';
+
+                        if (g.title) {
+                            html += '<div class="swal-problem-title">' + escHtml(g.title) + '</div>';
+                        }
+
+                        html += '<ul>' + g.items.map(function(item) {
+                            return '<li>' + escHtml(item) + '</li>';
+                        }).join('') + '</ul></div>';
+                    });
+
+                    return html + '</div>';
+                }
+
+                function showProblems(opts) {
+                    if (!swalAvailable()) {
+                        const lines = [];
+                        opts.groups.forEach(function(g) {
+                            if (g.title) lines.push(g.title + ':');
+                            g.items.forEach(function(item) {
+                                lines.push('- ' + item);
+                            });
+                        });
+                        alert((opts.title || 'Data belum lengkap') + '\n\n' + lines.join('\n'));
+                        return Promise.resolve({
+                            isConfirmed: true
+                        });
+                    }
+
+                    return Swal.fire({
+                        icon: opts.icon || 'warning',
+                        title: opts.title || 'Data belum lengkap',
+                        html: problemsHtml(opts.intro, opts.groups),
+                        confirmButtonText: opts.confirmText || 'Lengkapi Data',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    });
+                }
+
+                function showSimpleAlert(icon, title, text, confirmText, footer) {
+                    if (!swalAvailable()) {
+                        alert(title + '\n\n' + text);
+                        return Promise.resolve({
+                            isConfirmed: true
+                        });
+                    }
+
+                    return Swal.fire({
+                        icon: icon,
+                        title: title,
+                        text: text,
+                        footer: footer || undefined,
+                        confirmButtonText: confirmText || 'Mengerti',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    });
+                }
+
+                // Data yang tidak wajib tapi masih kosong: tanya dulu, jangan diam-diam disimpan.
+                function confirmEmpty(intro, groups) {
+                    if (!swalAvailable()) {
+                        return Promise.resolve(window.confirm(intro + '\n\n' + groups[0].items.join('\n')));
+                    }
+
+                    return Swal.fire({
+                        icon: 'question',
+                        title: 'Ada data yang masih kosong',
+                        html: problemsHtml(intro, groups),
+                        showCancelButton: true,
+                        reverseButtons: true,
+                        confirmButtonText: 'Tetap Simpan',
+                        cancelButtonText: 'Lengkapi Dulu',
+                        confirmButtonColor: '#4f46e5',
+                        allowOutsideClick: false,
+                        heightAuto: false,
+                        scrollbarPadding: false
+                    }).then(function(result) {
+                        return result.isConfirmed;
+                    });
+                }
+
+                function markInvalid($el) {
+                    $el = $($el);
+                    $el.addClass('as-invalid');
+                    $el.siblings('.ts-wrapper').addClass('as-invalid-wrap');
+                }
+
+                function clearInvalid() {
+                    $('.as-invalid').removeClass('as-invalid');
+                    $('.as-invalid-wrap').removeClass('as-invalid-wrap');
+                }
+
+                function focusFirst($el) {
+                    $el = $($el);
+
+                    if (!$el.length) return;
+
+                    const ts = $el[0].tomselect;
+                    const target = ts ? ts.wrapper : $el[0];
+
+                    if (target && target.scrollIntoView) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+
+                    setTimeout(function() {
+                        if (ts) ts.focus();
+                        else $el.trigger('focus');
+                    }, 250);
+                }
+
+                // Kolom yang tadinya merah jadi normal lagi begitu user mengisinya.
+                $(document).on('input change', '.as-invalid', function() {
+                    $(this).removeClass('as-invalid');
+                    $(this).siblings('.ts-wrapper').removeClass('as-invalid-wrap');
                 });
 
-                // ================= TAMBAH (AJAX) =================
+                $(document).on('hidden.bs.modal', '.modal', clearInvalid);
+
+                // checks: [{ el, target?, when?, validate: ($el, val) => 'pesan error' | null }]
+                function collectChecks(checks) {
+                    clearInvalid();
+
+                    const found = [];
+
+                    checks.forEach(function(c) {
+                        if (c.when && !c.when()) return;
+
+                        const $el = $(c.el);
+                        const raw = $el.val();
+                        const msg = c.validate($el, $.trim(raw == null ? '' : String(raw)));
+
+                        if (msg) {
+                            found.push({
+                                message: msg,
+                                $el: $(c.target || c.el)
+                            });
+                        }
+                    });
+
+                    return found;
+                }
+
+                // true = ada masalah (alert sudah ditampilkan), proses simpan harus dihentikan.
+                function reportChecks(found, title) {
+                    if (!found.length) return false;
+
+                    found.forEach(function(f) {
+                        markInvalid(f.$el);
+                    });
+
+                    showProblems({
+                        title: title || 'Data belum lengkap',
+                        intro: 'Lengkapi data berikut sebelum menyimpan:',
+                        groups: [{
+                            title: null,
+                            items: found.map(function(f) {
+                                return f.message;
+                            })
+                        }]
+                    }).then(function() {
+                        focusFirst(found[0].$el);
+                    });
+
+                    return true;
+                }
+
+                function requiredCheck(message) {
+                    return function($el, val) {
+                        return val === '' ? message : null;
+                    };
+                }
+
+                // Qty angka bulat >= 1, dan tidak boleh melebihi atribut max (kalau ada).
+                function qtyCheck(label, maxLabel) {
+                    return function($el, val) {
+                        if (val === '') return label + ' belum diisi.';
+                        if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return label + ' harus berupa angka bulat.';
+                        if (Number(val) < 1) return label + ' minimal 1.';
+
+                        const max = parseFloat($el.attr('max'));
+
+                        if (!isNaN(max) && Number(val) > max) {
+                            return label + ' melebihi ' + (maxLabel || 'stok yang tersedia') + '. Maksimal: ' + max + '.';
+                        }
+
+                        return null;
+                    };
+                }
+
+                // list: [{row|null, message}] -> grup per "Barang ke-N"
+                function rowGroups(list) {
+                    const general = [];
+                    const perRow = {};
+
+                    list.forEach(function(p) {
+                        if (p.row == null) {
+                            general.push(p.message);
+                        } else {
+                            (perRow[p.row] = perRow[p.row] || []).push(p.message);
+                        }
+                    });
+
+                    const hasRows = Object.keys(perRow).length > 0;
+                    const groups = [];
+
+                    if (general.length) {
+                        groups.push({
+                            title: hasRows ? 'Data umum' : null,
+                            items: general
+                        });
+                    }
+
+                    Object.keys(perRow).sort(function(a, b) {
+                        return a - b;
+                    }).forEach(function(k) {
+                        groups.push({
+                            title: 'Barang ke-' + k,
+                            items: perRow[k]
+                        });
+                    });
+
+                    return groups;
+                }
+
+                // list: [{field, row|null}] -> "Customer belum diisi pada barang ke-1, 3"
+                function missingGroups(list, totalRows) {
+                    const byField = {};
+                    const order = [];
+
+                    list.forEach(function(p) {
+                        if (!byField[p.field]) {
+                            byField[p.field] = {
+                                rows: [],
+                                general: false
+                            };
+                            order.push(p.field);
+                        }
+
+                        if (p.row == null) byField[p.field].general = true;
+                        else byField[p.field].rows.push(p.row);
+                    });
+
+                    return [{
+                        title: null,
+                        items: order.map(function(field) {
+                            const d = byField[field];
+
+                            if (d.general) return field + ' belum diisi';
+
+                            const all = totalRows > 1 && d.rows.length === totalRows;
+
+                            return field + ' belum diisi pada ' +
+                                (all ? 'semua barang' : 'barang ke-' + d.rows.join(', '));
+                        })
+                    }];
+                }
+
+                function looksTechnical(msg) {
+                    return !msg || msg.length > 220 ||
+                        /SQLSTATE|Exception|Stack trace|vendor[\\\/]|\.php|Call to|Undefined|Trying to/i.test(msg);
+                }
+
+                // Pesan error dari server -> alert yang jelas & ramah.
+                function showAjaxError(xhr) {
+                    const json = xhr.responseJSON || {};
+                    const status = xhr.status;
+                    const msg = json.message;
+
+                    if (status === 422 && json.errors) {
+                        const general = [];
+                        const perRow = [];
+
+                        $.each(json.errors, function(key, msgs) {
+                            const m = key.match(/^items\.(\d+)\./);
+
+                            $.each(msgs, function(_, text) {
+                                if (m) perRow.push({
+                                    row: parseInt(m[1], 10) + 1,
+                                    message: text
+                                });
+                                else general.push({
+                                    row: null,
+                                    message: text
+                                });
+                            });
+                        });
+
+                        // buang pesan kembar
+                        const seen = {};
+                        const all = general.concat(perRow).filter(function(p) {
+                            const k = p.row + '|' + p.message;
+                            if (seen[k]) return false;
+                            seen[k] = true;
+                            return true;
+                        });
+
+                        return showProblems({
+                            title: 'Data belum bisa disimpan',
+                            intro: 'Periksa kembali data berikut:',
+                            groups: rowGroups(all),
+                            confirmText: 'Mengerti'
+                        });
+                    }
+
+                    if (status === 0) {
+                        return showSimpleAlert('error', 'Tidak ada koneksi',
+                            'Tidak dapat terhubung ke server. Periksa koneksi internet kamu, lalu coba lagi.');
+                    }
+
+                    if (status === 419 || status === 401) {
+                        return showSimpleAlert('warning', 'Sesi sudah berakhir',
+                            'Halaman sudah terlalu lama dibuka atau kamu sudah logout. Muat ulang halaman, lalu coba lagi.',
+                            'Muat Ulang').then(function() {
+                            location.reload();
+                        });
+                    }
+
+                    if (status === 403) {
+                        return showSimpleAlert('error', 'Tidak punya akses',
+                            'Akun kamu tidak memiliki izin untuk melakukan aksi ini.');
+                    }
+
+                    if (status === 404) {
+                        return showSimpleAlert('warning', 'Data tidak ditemukan',
+                            'Data ini mungkin sudah dihapus atau dipindahkan oleh pengguna lain. Muat ulang halaman untuk melihat data terbaru.');
+                    }
+
+                    if (msg && !looksTechnical(msg)) {
+                        return showSimpleAlert(status === 422 ? 'warning' : 'error',
+                            status === 422 ? 'Data belum bisa disimpan' : 'Data gagal disimpan', msg);
+                    }
+
+                    return showSimpleAlert('error', 'Terjadi kesalahan di server',
+                        'Data belum tersimpan. Coba lagi beberapa saat lagi; kalau masih berulang, hubungi admin.',
+                        'Mengerti', msg ? 'Detail: ' + msg.substring(0, 180) : '');
+                }
+
+                // Nomor di name="items[N]" tidak selalu urut kalau ada baris yang dihapus.
+                // Dirapikan sebelum divalidasi/dikirim supaya "Barang ke-N" dari server
+                // sama persis dengan urutan di layar.
+                function reindexAddRows() {
+                    $('#addItemRows').children('.add-item-row').each(function(i) {
+                        $(this).find('[name^="items["]').each(function() {
+                            this.name = this.name.replace(/^items\[\d+\]/, 'items[' + i + ']');
+                        });
+                    });
+                }
+
+                // ================= TAMBAH: 1 PO, BANYAK BARANG =================
+                const $addRows = $('#addItemRows');
+                const addRowTemplate = $('#addItemRowTemplate').html();
+                let addRowCounter = 0;
+
+                function createRowItemSelect(el) {
+                    return new TomSelect(el, {
+                        valueField: 'id',
+                        labelField: 'text',
+                        searchField: ['text'],
+                        preload: true,
+                        create: false,
+                        maxOptions: 20,
+                        placeholder: 'Cari kode / nama barang...',
+                        load: function(query, callback) {
+                            $.ajax({
+                                url: "{{ route('stagings-in.search-stock') }}",
+                                type: 'GET',
+                                data: {
+                                    q: query
+                                },
+                                success: function(res) {
+                                    callback(res);
+                                },
+                                error: function() {
+                                    callback();
+                                }
+                            });
+                        }
+                    });
+                }
+
+                function refreshAddRows() {
+                    const $rows = $addRows.children('.add-item-row');
+
+                    $rows.each(function(i) {
+                        $(this).find('.row-number').text(i + 1);
+                    });
+
+                    $('#addItemCount').text($rows.length);
+
+                    // Minimal harus ada 1 barang.
+                    $rows.find('.btnRemoveItemRow').prop('disabled', $rows.length === 1);
+                }
+
+                function addItemRow() {
+                    const index = addRowCounter++;
+                    const $row = $(addRowTemplate.replace(/__INDEX__/g, index));
+
+                    // Baris baru langsung memakai tanggal kedatangan di atas.
+                    $row.find('.item-arrival').val($('#addArrivalDate').val());
+
+                    $addRows.append($row);
+
+                    $row.data('ts', createRowItemSelect($row.find('.item-select')[0]));
+
+                    refreshAddRows();
+
+                    return $row;
+                }
+
+                function resetAddForm() {
+                    $addRows.children('.add-item-row').each(function() {
+                        const ts = $(this).data('ts');
+                        if (ts) ts.destroy();
+                    });
+
+                    $addRows.empty();
+                    $('#formStaging')[0].reset();
+
+                    addItemRow();
+                }
+
+                // Tanggal kedatangan diisi 1x -> semua baris ikut menyesuaikan.
+                // Setelah itu tiap baris tetap bisa diubah manual.
+                $('#addArrivalDate').on('input change', function() {
+                    $addRows.find('.item-arrival').val(this.value);
+                });
+
+                $(document).on('click', '.btnAddItemRow', function() {
+                    const $row = addItemRow();
+                    $row[0].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                });
+
+                $(document).on('click', '.btnRemoveItemRow', function() {
+                    const $row = $(this).closest('.add-item-row');
+                    const ts = $row.data('ts');
+
+                    if (ts) ts.destroy();
+                    $row.remove();
+
+                    refreshAddRows();
+                });
+
+                $('#addStaging').on('hidden.bs.modal', resetAddForm);
+
+                resetAddForm();
+
+                // ================= TAMBAH: validasi & simpan (AJAX) =================
+                // Wajib (menghentikan simpan): Barang & Qty >= 1 di tiap baris.
+                // Boleh kosong tapi ditanyakan dulu: No. PO, Tgl Kedatangan, Lokasi.
+                function collectAddProblems() {
+                    clearInvalid();
+
+                    const blocking = [];
+                    const soft = [];
+                    const $rows = $addRows.children('.add-item-row');
+
+                    const $po = $('#formStaging [name="po_number"]');
+
+                    if (!$.trim($po.val())) {
+                        soft.push({
+                            field: 'No. PO',
+                            row: null,
+                            $el: $po
+                        });
+                    }
+
+                    $rows.each(function(i) {
+                        const $row = $(this);
+                        const no = i + 1;
+
+                        const $item = $row.find('.item-select');
+                        const $qty = $row.find('input[name$="[qty]"]');
+                        const $date = $row.find('.item-arrival');
+                        const $loc = $row.find('select[name$="[location]"]');
+
+                        if (!$item.val()) {
+                            blocking.push({
+                                row: no,
+                                message: 'Barang belum dipilih. Cari dan pilih barang dari daftar.',
+                                $el: $item
+                            });
+                        }
+
+                        const qtyMsg = qtyCheck('Qty')($qty, $.trim($qty.val()));
+
+                        if (qtyMsg) {
+                            blocking.push({
+                                row: no,
+                                message: qtyMsg,
+                                $el: $qty
+                            });
+                        }
+
+                        if (!$date.val()) {
+                            soft.push({
+                                field: 'Tgl Kedatangan',
+                                row: no,
+                                $el: $date
+                            });
+                        }
+
+                        if (!$loc.val()) {
+                            soft.push({
+                                field: 'Lokasi',
+                                row: no,
+                                $el: $loc
+                            });
+                        }
+                    });
+
+                    return {
+                        blocking: blocking,
+                        soft: soft,
+                        total: $rows.length
+                    };
+                }
+
+                function saveAddForm($form) {
+                    const $btn = $('#btnSaveStaging').prop('disabled', true);
+
+                    $.ajax({
+                        url: "{{ route('stagings-in.store') }}",
+                        method: "POST",
+                        data: $form.serialize(),
+
+                        success: function(response) {
+                            $('#addStaging').modal('hide'); // form di-reset oleh hidden.bs.modal
+                            table.ajax.reload(null, false);
+                            showToast('success', response.message, 2500);
+                        },
+
+                        error: function(xhr) {
+                            showAjaxError(xhr);
+                        },
+
+                        complete: function() {
+                            $btn.prop('disabled', false);
+                        }
+                    });
+                }
+
                 $(document).on('submit', '#formStaging', function(e) {
 
                     e.preventDefault();
                     e.stopPropagation();
 
-                    $.ajax({
-                        url: "{{ route('stagings-in.store') }}",
-                        method: "POST",
-                        data: $(this).serialize(),
+                    const $form = $(this);
 
-                        success: function(response) {
+                    reindexAddRows();
 
-                            $('#addStaging').modal('hide');
-                            $('#formStaging')[0].reset();
-                            addItemSelect.clear();
-                            $('#addItemId').val('');
-                            $('#addItemOwner').val('');
+                    const r = collectAddProblems();
 
-                            table.ajax.reload(null, false);
+                    if (r.blocking.length) {
+                        r.blocking.forEach(function(p) {
+                            markInvalid(p.$el);
+                        });
 
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: response.message,
-                                timer: 2000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                        showProblems({
+                            title: 'Data belum lengkap',
+                            intro: 'Lengkapi data berikut sebelum menyimpan:',
+                            groups: rowGroups(r.blocking)
+                        }).then(function() {
+                            focusFirst(r.blocking[0].$el);
+                        });
 
-                        },
+                        return;
+                    }
 
-                        error: function(xhr) {
-
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
+                    if (r.soft.length) {
+                        confirmEmpty('Data berikut belum diisi. Mau tetap disimpan?',
+                            missingGroups(r.soft, r.total)).then(function(ok) {
+                            if (ok) {
+                                saveAddForm($form);
+                            } else {
+                                r.soft.forEach(function(p) {
+                                    markInvalid(p.$el);
+                                });
+                                focusFirst(r.soft[0].$el);
                             }
+                        });
 
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                        return;
+                    }
 
-                        }
-                    });
+                    saveAddForm($form);
 
                 });
 
@@ -2027,6 +3139,22 @@
 
                     let id = $('#editId').val();
 
+                    if (reportChecks(collectChecks([{
+                            el: '#editItemId',
+                            target: '#editItemSelect',
+                            validate: requiredCheck('Barang belum dipilih. Cari dan pilih barang dari daftar.')
+                        },
+                        {
+                            el: '#editQty',
+                            validate: function($el, val) {
+                                if (val === '') return null; // kosong = tidak mengubah qty
+                                if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return 'Qty harus berupa angka bulat.';
+                                if (Number(val) < 0) return 'Qty tidak boleh negatif.';
+                                return null;
+                            }
+                        }
+                    ]))) return;
+
                     $.ajax({
 
                         url: "{{ route('stagings-in.update', ':id') }}".replace(':id', id),
@@ -2064,30 +3192,7 @@
 
                             $('.btnSaveEdit').prop('disabled', false);
 
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                            showAjaxError(xhr);
 
                         }
 
@@ -2223,14 +3328,12 @@
                     $('#moveQtyHelp').text('Maksimal ' + qty + ' pcs. Sisa tetap di staging in.');
 
                     // field masuk stok
-                    $('#').val($btn.data('po') || '');
                     $('#moveTransactionDate').val(new Date().toISOString().slice(0, 10));
                     $('#moveNotes').val('');
 
                     // field staging out
                     $('#moveSoNumber').val('');
                     $('#moveCustomer').val('');
-                    $('#moveLineItem').val($btn.data('name') || '');
                     $('#moveDeliveryInstructionDate').val('');
 
                     $('.tujuan-option').removeClass('active');
@@ -2284,6 +3387,54 @@
 
                     let tujuan = $('#moveDestination').val();
 
+                    if (reportChecks(collectChecks([{
+                            el: '#moveQty',
+                            validate: qtyCheck('Qty yang dipindah', 'sisa barang di staging in')
+                        },
+                        {
+                            el: '#moveLocationSelect',
+                            when: function() {
+                                return tujuan === 'stock';
+                            },
+                            validate: requiredCheck('Lokasi gudang tujuan belum dipilih.')
+                        },
+                        {
+                            el: '#moveTransactionDate',
+                            when: function() {
+                                return tujuan === 'stock';
+                            },
+                            validate: requiredCheck('Tanggal transaksi belum diisi.')
+                        },
+                        {
+                            el: '#moveSoNumber',
+                            when: function() {
+                                return tujuan !== 'stock';
+                            },
+                            validate: requiredCheck('No. SO belum diisi.')
+                        },
+                        {
+                            el: '#moveCustomer',
+                            when: function() {
+                                return tujuan !== 'stock';
+                            },
+                            validate: requiredCheck('Customer belum diisi.')
+                        },
+                        {
+                            el: '#moveLineItem',
+                            when: function() {
+                                return tujuan !== 'stock';
+                            },
+                            validate: requiredCheck('Line item belum diisi.')
+                        },
+                        {
+                            el: '#moveDeliveryInstructionDate',
+                            when: function() {
+                                return tujuan !== 'stock';
+                            },
+                            validate: requiredCheck('Tanggal instruksi kirim belum diisi.')
+                        }
+                    ]))) return;
+
                     let url = tujuan === 'stock' ?
                         "{{ route('stagings-in.move-to-stock', ':id') }}".replace(':id',
                             id) :
@@ -2327,30 +3478,7 @@
 
                             $('.btnSaveMove').prop('disabled', false);
 
-                            let message = 'Terjadi kesalahan.';
-
-                            if (xhr.status === 422) {
-                                if (xhr.responseJSON.errors) {
-                                    message = Object.values(xhr.responseJSON.errors)[0][0];
-                                } else if (xhr.responseJSON.message) {
-                                    message = xhr.responseJSON.message;
-                                }
-                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'error',
-                                title: message,
-                                timer: 3000,
-                                showConfirmButton: false,
-                                didOpen: () => {
-                                    document.querySelector('.swal2-container').style
-                                        .zIndex = '9999999';
-                                }
-                            });
+                            showAjaxError(xhr);
 
                         }
 
@@ -2529,6 +3657,59 @@
             }
         </style>
 
+        {{-- Alert (SweetAlert) & penanda kolom bermasalah --}}
+        <style>
+            /* Selalu di atas modal Bootstrap, backdrop, dan navbar */
+            .swal2-container {
+                z-index: 2000000 !important;
+            }
+
+            .swal-problems {
+                text-align: left;
+                font-size: .92rem;
+            }
+
+            .swal-problems-intro {
+                margin: 0 0 .75rem;
+                color: #6b7385;
+            }
+
+            .swal-problem-group {
+                margin-bottom: .6rem;
+                padding: .7rem .95rem;
+                border-radius: .75rem;
+                background: #f7f8fc;
+                border-left: 4px solid #f59e0b;
+            }
+
+            .swal-problem-title {
+                margin-bottom: .25rem;
+                font-weight: 700;
+                color: #2b3350;
+            }
+
+            .swal-problem-group ul {
+                margin: 0;
+                padding-left: 1.1rem;
+            }
+
+            .swal-problem-group li {
+                margin: .15rem 0;
+            }
+
+            .as-invalid {
+                border-color: #e11d48 !important;
+                background-color: #fff5f7 !important;
+                box-shadow: 0 0 0 4px rgba(225, 29, 72, .10) !important;
+            }
+
+            .as-invalid-wrap .ts-control {
+                border-color: #e11d48 !important;
+                background-color: #fff5f7 !important;
+                box-shadow: 0 0 0 4px rgba(225, 29, 72, .10) !important;
+            }
+        </style>
+
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         @if (session('success'))
@@ -2606,7 +3787,7 @@
 
             function toggleBulkActionBar() {
                 $('#selectedCount').text(selectedStagingIds.size);
-                $('#bulkActionBar').toggleClass('d-none', selectedStagingIds.size === 0);
+                $('#btnBulkDelete').toggleClass('d-none', selectedStagingIds.size === 0);
             }
 
             function resetStagingSelection() {
@@ -2652,20 +3833,23 @@
                 if (selectedStagingIds.size === 0) return;
 
                 Swal.fire({
-                    title: `Hapus ${selectedStagingIds.size} data?`,
-                    text: 'Data yang dihapus tidak dapat dikembalikan.',
                     icon: 'warning',
+                    title: 'Hapus Data?',
+                    html: `Yakin mau menghapus <b>${selectedStagingIds.size}</b> data terpilih?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>`,
                     showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Ya, Hapus',
                     cancelButtonText: 'Batal',
-                    reverseButtons: true
+                    confirmButtonColor: '#dc3545'
                 }).then((result) => {
 
                     if (!result.isConfirmed) return;
 
+                    $('#btnBulkDelete').prop('disabled', true);
+
                     $.ajax({
+                        complete: function() {
+                            $('#btnBulkDelete').prop('disabled', false);
+                        },
                         url: "{{ route('stagings-in.bulk-destroy') }}",
                         type: 'DELETE',
                         data: {
@@ -2683,8 +3867,11 @@
                                 position: 'top-end',
                                 icon: 'success',
                                 title: res.message,
-                                timer: 2000,
                                 showConfirmButton: false,
+                                timer: 3500,
+                                timerProgressBar: true,
+                                background: '#fff',
+                                color: '#566a7f',
                                 didOpen: () => {
                                     document.querySelector('.swal2-container').style
                                         .zIndex =
@@ -2698,8 +3885,9 @@
 
                             Swal.fire({
                                 icon: 'error',
-                                title: 'Gagal',
-                                text: xhr.responseJSON?.message || 'Terjadi kesalahan.'
+                                title: 'Gagal Menghapus Data',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                    'Terjadi kesalahan saat menghapus data.'
                             });
 
                         }

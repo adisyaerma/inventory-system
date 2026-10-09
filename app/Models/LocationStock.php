@@ -16,6 +16,7 @@ class LocationStock extends Model
         'location_id',
         'opening_balance',
         'quantity',
+        'baseline_mutation_id',
         'lot',
     ];
 

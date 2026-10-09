@@ -453,36 +453,66 @@ class StagingInController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     *
+     * Satu PO bisa berisi banyak barang: hanya No. PO yang dikirim sekali,
+     * sedangkan barang dikirim sebagai array `items` (lengkap dengan qty,
+     * tgl kedatangan, supplier, incoterms, status, lokasi, dan keterangan
+     * masing-masing). Tiap barang disimpan sebagai satu baris staging_ins.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'po_number' => ['nullable', 'max:255'],
-            'arrival_date' => ['nullable', 'date'],
-            'supplier_origin' => ['nullable', 'max:255'],
-            'item_id' => ['required', 'exists:items,id'],
-            'qty' => ['nullable', 'integer', 'min:0'],
-            'location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
-            'incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
-            'notes' => ['nullable'],
-            'status' => ['nullable'],
+
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.item_id' => ['required', 'exists:items,id'],
+            'items.*.qty' => ['required', 'integer', 'min:1'],
+            'items.*.arrival_date' => ['nullable', 'date'],
+            'items.*.supplier_origin' => ['nullable', 'max:255'],
+            'items.*.incoterms' => ['nullable', Rule::in(StagingIn::INCOTERMS)],
+            'items.*.status' => ['nullable'],
+            'items.*.location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
+            'items.*.notes' => ['nullable'],
         ], [
-            'item_id.required' => 'Barang wajib dipilih',
-            'item_id.exists' => 'Barang tidak ditemukan',
+            'po_number.max' => 'No. PO terlalu panjang (maksimal 255 karakter).',
+
+            'items.required' => 'Belum ada barang. Tambahkan minimal satu barang.',
+            'items.min' => 'Belum ada barang. Tambahkan minimal satu barang.',
+            'items.*.item_id.required' => 'Barang belum dipilih.',
+            'items.*.item_id.exists' => 'Barang yang dipilih tidak ditemukan di data master.',
+            'items.*.qty.required' => 'Qty belum diisi.',
+            'items.*.qty.integer' => 'Qty harus berupa angka bulat (tanpa koma).',
+            'items.*.qty.min' => 'Qty minimal 1.',
+            'items.*.arrival_date.date' => 'Tanggal kedatangan tidak valid.',
+            'items.*.supplier_origin.max' => 'Asal supplier terlalu panjang (maksimal 255 karakter).',
+            'items.*.incoterms.in' => 'Incoterms yang dipilih tidak valid.',
+            'items.*.location.in' => 'Lokasi yang dipilih tidak valid.',
         ]);
 
         DB::beginTransaction();
 
         try {
-            $staging = StagingIn::create($validated);
+            foreach ($validated['items'] as $line) {
+                $staging = StagingIn::create([
+                    'po_number' => $validated['po_number'] ?? null,
+                    'item_id' => $line['item_id'],
+                    'qty' => $line['qty'] ?? null,
+                    'arrival_date' => $line['arrival_date'] ?? null,
+                    'supplier_origin' => $line['supplier_origin'] ?? null,
+                    'incoterms' => $line['incoterms'] ?? null,
+                    'status' => $line['status'] ?? null,
+                    'location' => $line['location'] ?? null,
+                    'notes' => $line['notes'] ?? null,
+                ]);
 
-            $this->history->logCreated($staging);
+                $this->history->logCreated($staging);
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data berhasil disimpan',
+                'message' => count($validated['items']).' barang berhasil disimpan',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -642,7 +672,6 @@ class StagingInController extends Controller
             'location' => ['required', 'max:255'],
             'lot' => ['nullable', 'max:255'],
             'transaction_date' => ['required', 'date'],
-            'transaction_number' => ['nullable', 'max:100'],
             'notes' => ['nullable'],
         ], [
             'qty.required' => 'Qty dipindah wajib diisi',
@@ -687,7 +716,8 @@ class StagingInController extends Controller
                 'location_id' => $location->id,
                 'lot' => $lot,
                 'transaction_date' => $validated['transaction_date'],
-                'transaction_number' => $validated['transaction_number'] ?: $staging->po_number,
+                // No. transaksi tidak diinput manual: otomatis memakai No. PO barang ini.
+                'transaction_number' => $staging->po_number,
                 'description' => $validated['notes'] ?? null,
                 'qty_in' => $validated['qty'],
                 'qty_out' => 0,

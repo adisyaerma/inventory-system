@@ -1,6 +1,505 @@
 @extends('master')
 @section('title', 'Barang')
 @section('content')
+    {{-- ================= TEMA MODAL (selaras Staging Out) ================= --}}
+    <style>
+        /* ---------- Kerangka modal ---------- */
+        .modal-aesthetic .modal-content {
+            border: 0;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            background: #f5f6fb;
+            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+            max-height: calc(100vh - 2rem);
+        }
+
+        /* form yang membungkus modal-content (dialog > form > content) */
+        .modal-aesthetic .modal-dialog>form {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+        }
+
+        .modal-aesthetic .modal-dialog>form>.modal-content {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+        }
+
+        /* form di dalam modal-content (content > form) */
+        .modal-aesthetic .modal-content>form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .modal-aesthetic .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        /* ---------- Header (hero) ---------- */
+        .modal-aesthetic .as-hero {
+            align-items: flex-start;
+            padding: 1.5rem 2rem 1.25rem;
+            background: #fff;
+            border: 0;
+            border-bottom: 1px solid #eceef5;
+            flex-shrink: 0;
+        }
+
+        .modal-aesthetic .as-hero-icon {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 1rem;
+            font-size: 1.5rem;
+            color: #4f46e5;
+            background: #eef0ff;
+        }
+
+        .modal-aesthetic .as-hero-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .modal-aesthetic .as-hero h4,
+        .modal-aesthetic .as-hero h5 {
+            color: #2b3350;
+            letter-spacing: -.01em;
+        }
+
+        .modal-aesthetic .as-hero small {
+            color: #8a93a8 !important;
+        }
+
+        .modal-aesthetic .as-hero .btn-close {
+            margin: 0 0 0 auto;
+            padding: .6rem;
+            border-radius: .7rem;
+            background-color: #f1f2f9;
+            background-size: .65rem;
+            opacity: .75;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .as-hero .btn-close:hover {
+            opacity: 1;
+            background-color: #e6e8f5;
+        }
+
+        /* ---------- Body & footer ---------- */
+        .modal-aesthetic .modal-body.as-body {
+            padding: 1.5rem 2rem .75rem;
+            background: #f5f6fb;
+        }
+
+        .modal-aesthetic .modal-footer.as-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: .6rem;
+            padding: 1rem 2rem 1.4rem;
+            background: #f5f6fb;
+            border: 0;
+            flex-shrink: 0;
+        }
+
+        .modal-aesthetic .as-btn-save,
+        .modal-aesthetic .as-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            font-size: .875rem;
+            line-height: 1.5;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter .15s, background .15s, box-shadow .15s;
+        }
+
+        .modal-aesthetic .as-btn-save {
+            padding: .6rem 1.6rem;
+            border-radius: .8rem;
+            color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+        }
+
+        .modal-aesthetic .as-btn-save:hover {
+            color: #fff;
+            filter: brightness(1.08);
+        }
+
+        .modal-aesthetic .as-btn-cancel {
+            padding: .6rem 1.3rem;
+            border-radius: .8rem;
+            color: #5a6482;
+            background: #e9ebf5;
+        }
+
+        .modal-aesthetic .as-btn-cancel:hover {
+            color: #2b3350;
+            background: #dfe2f0;
+        }
+
+        .modal-aesthetic .as-btn-save:disabled,
+        .modal-aesthetic .as-btn-cancel:disabled {
+            opacity: .6;
+            filter: none;
+            pointer-events: none;
+        }
+
+        /* ---------- Kartu ---------- */
+        .modal-aesthetic .as-card,
+        .modal-aesthetic .modal-body .card {
+            position: relative;
+            background: #fff;
+            border: 0 !important;
+            border-radius: 1.1rem !important;
+            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12) !important;
+            overflow: visible;
+        }
+
+        .modal-aesthetic .as-card {
+            padding: 1.25rem 1.4rem 1.4rem 1.7rem;
+        }
+
+        .modal-aesthetic .as-card::before,
+        .modal-aesthetic .modal-body .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 1.1rem;
+            bottom: 1.1rem;
+            width: 5px;
+            border-radius: 0 6px 6px 0;
+            background: linear-gradient(180deg, #4f46e5, #db2777);
+        }
+
+        .modal-aesthetic .modal-body .card>.card-header {
+            background: transparent !important;
+            border: 0 !important;
+            padding: 1.25rem 1.4rem .25rem 1.7rem !important;
+        }
+
+        .modal-aesthetic .modal-body .card>.card-body {
+            padding: 1rem 1.4rem 1.4rem 1.7rem !important;
+        }
+
+        .modal-aesthetic .as-card-title {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            margin-bottom: 1.1rem;
+        }
+
+        .modal-aesthetic .as-card-title strong {
+            display: block;
+            color: #2b3350;
+            font-size: .98rem;
+        }
+
+        .modal-aesthetic .as-card-title small {
+            color: #8a93a8;
+        }
+
+        .modal-aesthetic .as-card-icon,
+        .modal-aesthetic .modal-body h5>i {
+            width: 2.4rem;
+            height: 2.4rem;
+            flex-shrink: 0;
+            display: inline-grid;
+            place-items: center;
+            border-radius: .8rem;
+            font-size: 1.2rem;
+            color: #4f46e5 !important;
+            background: #eef0ff;
+            margin: 0 !important;
+        }
+
+        .modal-aesthetic .modal-body h5>i.text-success {
+            color: #db2777 !important;
+            background: #fdf0f7;
+        }
+
+        .modal-aesthetic .modal-body h5.fw-bold {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            color: #2b3350;
+            font-size: .98rem;
+        }
+
+        .modal-aesthetic .bg-light.rounded-3 {
+            background: #f3f4ff !important;
+            border: 1px dashed #c7cbf0;
+            border-radius: .9rem !important;
+        }
+
+        .modal-aesthetic hr {
+            border-color: #eceef5;
+            opacity: 1;
+        }
+
+        .modal-aesthetic .alert-primary {
+            color: #4f46e5;
+            background: linear-gradient(135deg, #eef0ff, #f6f3ff);
+            border: 1px dashed #c7cbf0;
+            border-radius: .9rem;
+        }
+
+        .modal-aesthetic .alert-primary h5 {
+            color: #2b3350;
+        }
+
+        /* ---------- Label ---------- */
+        .modal-aesthetic .form-label,
+        .modal-aesthetic .row.fw-semibold.small.text-secondary {
+            display: block;
+            margin-bottom: .3rem;
+            font-size: .68rem !important;
+            font-weight: 700 !important;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #8a93a8 !important;
+        }
+
+        /* ---------- Input ---------- */
+        .modal-aesthetic .form-control,
+        .modal-aesthetic .form-select {
+            border: 1.5px solid #e6e9f2;
+            background-color: #f8f9fd;
+            border-radius: .75rem;
+            padding: .5rem .8rem;
+            font-size: .875rem;
+            color: #2b3350;
+            box-shadow: none;
+            transition: border-color .15s, box-shadow .15s, background-color .15s;
+        }
+
+        .modal-aesthetic .form-select {
+            padding-right: 2.25rem;
+        }
+
+        .modal-aesthetic .form-control::placeholder {
+            color: #a5adc2;
+        }
+
+        .modal-aesthetic .form-control:focus,
+        .modal-aesthetic .form-select:focus {
+            outline: 0;
+            background-color: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .form-control.is-invalid,
+        .modal-aesthetic .form-select.is-invalid {
+            border-color: #e11d48;
+            background-color: #fff5f7;
+        }
+
+        .modal-aesthetic .location-item .form-control {
+            padding-left: .65rem;
+            padding-right: .65rem;
+        }
+
+        /* Input group: ikon + field jadi satu kapsul */
+        .modal-aesthetic .input-group {
+            flex-wrap: nowrap;
+            border: 1.5px solid #e6e9f2;
+            background: #f8f9fd;
+            border-radius: .75rem;
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+
+        .modal-aesthetic .input-group>.form-control,
+        .modal-aesthetic .input-group>.form-select,
+        .modal-aesthetic .input-group>.input-group-text {
+            border: 0 !important;
+            border-radius: 0 !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .modal-aesthetic .input-group>.input-group-text {
+            width: 2.6rem;
+            justify-content: center;
+            padding-right: .2rem;
+            font-size: 1.05rem;
+            color: #a5adc2;
+        }
+
+        .modal-aesthetic .input-group:focus-within {
+            background: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .input-group:has(.is-invalid) {
+            border-color: #e11d48;
+            background: #fff5f7;
+        }
+
+        /* ---------- Tom Select biar senada ---------- */
+        .modal-aesthetic .ts-wrapper {
+            width: 100%;
+        }
+
+        .modal-aesthetic .ts-wrapper.form-select,
+        .modal-aesthetic .ts-wrapper.form-select-sm {
+            border: 0;
+            padding: 0;
+            background: none;
+            box-shadow: none;
+        }
+
+        .modal-aesthetic .ts-wrapper .ts-control {
+            min-height: 40px;
+            border: 1.5px solid #e6e9f2;
+            border-radius: .75rem;
+            background: #f8f9fd;
+            padding: .45rem .8rem;
+            font-size: .875rem;
+            color: #2b3350;
+            box-shadow: none;
+        }
+
+        .modal-aesthetic .ts-wrapper.focus .ts-control {
+            background: #fff;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+        }
+
+        .modal-aesthetic .input-group .ts-wrapper {
+            flex: 1 1 auto;
+            width: 1%;
+        }
+
+        .modal-aesthetic .input-group .ts-wrapper .ts-control,
+        .modal-aesthetic .input-group .ts-wrapper.focus .ts-control {
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .modal-aesthetic .ts-dropdown {
+            z-index: 1070;
+            border: 0;
+            border-radius: .75rem;
+            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+            overflow: hidden;
+        }
+
+        .modal-aesthetic .ts-dropdown .active {
+            background: #eef0ff;
+            color: #4f46e5;
+        }
+
+        /* ---------- Tombol kecil di dalam body ---------- */
+        .modal-aesthetic .as-pill-btn {
+            border: 0;
+            border-radius: 50rem;
+            padding: .4rem 1rem;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #4f46e5;
+            background: #eef0ff;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .as-pill-btn:hover {
+            color: #fff;
+            background: #4f46e5;
+        }
+
+        .modal-aesthetic .btnRemove {
+            border: 0;
+            border-radius: .65rem;
+            color: #e11d48;
+            background: #fff1f4;
+        }
+
+        .modal-aesthetic .btnRemove:hover {
+            color: #fff;
+            background: #e11d48;
+        }
+
+        .modal-aesthetic .modal-body .btn-outline-secondary {
+            border: 1.5px solid #dcdff0;
+            border-radius: .7rem;
+            font-weight: 600;
+            color: #5a6482;
+            background: #fff;
+        }
+
+        .modal-aesthetic .modal-body .btn-outline-secondary:hover {
+            color: #4f46e5;
+            border-color: #b9b4f7;
+            background: #f6f3ff;
+        }
+
+        /* ---------- Modal import (langkah 1, 2, ...) ---------- */
+        .modal-aesthetic .modal-body>.d-flex.gap-3 {
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            border-radius: 1.1rem;
+            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+        }
+
+        .modal-aesthetic .modal-body>hr {
+            display: none;
+        }
+
+        .modal-aesthetic .badge.rounded-circle {
+            display: inline-grid;
+            place-items: center;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+            box-shadow: 0 6px 14px -6px rgba(79, 70, 229, .7);
+        }
+
+        .modal-aesthetic .upload-box>.border {
+            border: 2px dashed #c7cbe6 !important;
+            border-radius: 1rem !important;
+            background: #f8f9fd;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .upload-box:hover>.border,
+        .modal-aesthetic .upload-box.dragover>.border {
+            border-color: #7c3aed !important;
+            background: #f6f3ff;
+            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+        }
+
+        .modal-aesthetic .upload-box svg {
+            width: 2rem;
+            height: 2rem;
+            color: #7c3aed;
+        }
+
+        @media (max-width: 575.98px) {
+            .modal-aesthetic .as-hero {
+                padding: 1.1rem 1.1rem 1rem;
+            }
+
+            .modal-aesthetic .modal-body.as-body {
+                padding: 1rem 1rem .5rem;
+            }
+
+            .modal-aesthetic .modal-footer.as-footer {
+                padding: .9rem 1rem 1.1rem;
+            }
+        }
+    </style>
+
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -22,10 +521,10 @@
 
                 </div>
 
-                <div class="modal fade" id="addItemModal" data-bs-backdrop="static" data-bs-keyboard="false"
+                <div class="modal fade modal-aesthetic" id="addItemModal" data-bs-backdrop="static" data-bs-keyboard="false"
                     tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-                    <div class="modal-dialog modal-lg">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 
                         <div class="modal-content">
 
@@ -33,26 +532,24 @@
 
                                 @csrf
 
-                                <div class="modal-header border-0 pb-0">
-
-                                    <div>
-
-                                        <h4 class="mb-1 fw-bold">
-                                            Tambah Barang
-                                        </h4>
-
-                                        <small class="text-muted">
-                                            Lengkapi informasi barang yang akan ditambahkan.
-                                        </small>
-
+                                <div class="modal-header as-hero">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="as-hero-icon"><i class="bx bx-package"></i></div>
+                                        <div>
+                                            <h4 class="mb-0 fw-bold">Tambah Barang</h4>
+                                            <small>Lengkapi informasi barang yang akan ditambahkan.</small>
+                                        </div>
                                     </div>
-
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal">
-                                    </button>
-
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
 
-                                <div class="modal-body p-4">
+                                <div class="modal-body as-body">
+<div class="as-card">
+<div class="as-card-title">
+<div class="as-card-icon"><i class="bx bx-package"></i></div>
+<div><strong>Informasi Barang</strong><small>Isi kode, nama, vendor, dan deskripsi barang.</small></div>
+</div>
+
 
                                     <div class="mb-3">
 
@@ -180,14 +677,15 @@
                                     </div>
 
                                 </div>
+</div>
 
-                                <div class="modal-footer border-0 pt-0">
+                                <div class="modal-footer as-footer">
 
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">
                                         Batal
                                     </button>
 
-                                    <button type="submit" class="btn btn-primary px-4">
+                                    <button type="submit" class="as-btn-save">
                                         <i class="bx bx-save me-1"></i>
                                         Simpan Barang
                                     </button>
@@ -418,10 +916,10 @@
         </div>
     </div>
 
-    <div class="modal fade" id="editItemModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    <div class="modal fade modal-aesthetic" id="editItemModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
         aria-labelledby="staticBackdropLabel" aria-hidden="true">
 
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
 
             <div class="modal-content">
 
@@ -430,26 +928,24 @@
                     @csrf
                     @method('PUT')
 
-                    <div class="modal-header border-0 pb-0">
-
-                        <div>
-
-                            <h4 class="mb-1 fw-bold">
-                                Edit Barang
-                            </h4>
-
-                            <small class="text-muted">
-                                Ubah informasi barang.
-                            </small>
-
+                    <div class="modal-header as-hero">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="as-hero-icon"><i class="bx bx-edit"></i></div>
+                            <div>
+                                <h4 class="mb-0 fw-bold">Edit Barang</h4>
+                                <small>Ubah informasi barang.</small>
+                            </div>
                         </div>
-
-                        <button type="button" class="btn-close" data-bs-dismiss="modal">
-                        </button>
-
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
-                    <div class="modal-body p-4">
+                    <div class="modal-body as-body">
+<div class="as-card">
+<div class="as-card-title">
+<div class="as-card-icon"><i class="bx bx-package"></i></div>
+<div><strong>Informasi Barang</strong><small>Perbarui kode, nama, vendor, dan deskripsi barang.</small></div>
+</div>
+
 
                         <div class="mb-3">
 
@@ -576,14 +1072,15 @@
                         </div>
 
                     </div>
+</div>
 
-                    <div class="modal-footer border-0 pt-0">
+                    <div class="modal-footer as-footer">
 
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">
                             Batal
                         </button>
 
-                        <button type="submit" class="btn btn-primary px-4">
+                        <button type="submit" class="as-btn-save">
                             <i class="bx bx-save me-1"></i>
                             Simpan Perubahan
                         </button>

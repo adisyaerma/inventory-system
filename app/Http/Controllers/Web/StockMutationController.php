@@ -11,6 +11,7 @@ use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StockMutation;
 use App\Models\Vendor;
+use App\Support\StockBaseline;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -214,9 +215,26 @@ class StockMutationController extends Controller
         $locationId = $stockMutation->location_id;
         $lot = $stockMutation->lot;
 
+        $locationStock = LocationStock::where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot)
+            ->first();
+
+        // Mutasi dengan id <= baseline adalah riwayat SEBELUM stock opname
+        // terakhir. Riwayat itu tidak ikut dihitung ke saldo.
+        $baseline = (int) ($locationStock->baseline_mutation_id ?? 0);
+
+        if ($stockMutation->id <= $baseline) {
+
+            $stockMutation->delete();
+
+            return;
+        }
+
         $nextMutation = StockMutation::where('item_id', $itemId)
             ->where('location_id', $locationId)
             ->where('lot', $lot)
+            ->where('id', '>', $baseline)
             ->where(function ($q) use ($stockMutation) {
                 $q->where('transaction_date', '>', $stockMutation->transaction_date)
                     ->orWhere(function ($q2) use ($stockMutation) {
@@ -241,14 +259,10 @@ class StockMutationController extends Controller
 
         } else {
 
-            $locationStock = LocationStock::where('item_id', $itemId)
-                ->where('location_id', $locationId)
-                ->where('lot', $lot)
-                ->first();
-
             $lastBalance = StockMutation::where('item_id', $itemId)
                 ->where('location_id', $locationId)
                 ->where('lot', $lot)
+                ->where('id', '>', $baseline)
                 ->orderByDesc('transaction_date')
                 ->orderByDesc('id')
                 ->value('qty_balance');
@@ -268,6 +282,24 @@ class StockMutationController extends Controller
 
     private function recalculateLocationStock($itemId, $locationId, $startMutationId = null, $lot = null)
     {
+        $locationStock = LocationStock::where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot)
+            ->first();
+
+        // Hanya mutasi dengan id > baseline yang dihitung. Mutasi lama
+        // (sebelum stock opname) tetap tersimpan sebagai riwayat, tetapi
+        // tidak mempengaruhi saldo.
+        $baseline = (int) ($locationStock->baseline_mutation_id ?? 0);
+        $openingBalance = (float) ($locationStock->opening_balance ?? 0);
+
+        $baseQuery = function () use ($itemId, $locationId, $lot, $baseline) {
+            return StockMutation::where('item_id', $itemId)
+                ->where('location_id', $locationId)
+                ->where('lot', $lot)
+                ->where('id', '>', $baseline);
+        };
+
         if ($startMutationId) {
 
             $startMutation = StockMutation::find($startMutationId);
@@ -276,9 +308,13 @@ class StockMutationController extends Controller
                 return;
             }
 
-            $previousMutation = StockMutation::where('item_id', $itemId)
-                ->where('location_id', $locationId)
-                ->where('lot', $lot)
+            // Mutasi ini adalah riwayat lama (sebelum opname):
+            // tidak ada efek ke saldo saat ini.
+            if ($startMutation->id <= $baseline) {
+                return;
+            }
+
+            $previousMutation = $baseQuery()
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '<', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -290,24 +326,13 @@ class StockMutationController extends Controller
                 ->orderByDesc('id')
                 ->first();
 
-            if ($previousMutation) {
+            // Tidak ada mutasi sebelumnya (setelah opname) -> mulai dari
+            // saldo awal hasil opname.
+            $balance = $previousMutation
+                ? $previousMutation->qty_balance
+                : $openingBalance;
 
-                $balance = $previousMutation->qty_balance;
-
-            } else {
-
-                $locationStock = LocationStock::where('item_id', $itemId)
-                    ->where('location_id', $locationId)
-                    ->where('lot', $lot)
-                    ->first();
-
-                $balance = $locationStock
-                    ? $locationStock->opening_balance
-                    : 0;
-            }
-            $mutations = StockMutation::where('item_id', $itemId)
-                ->where('location_id', $locationId)
-                ->where('lot', $lot)
+            $mutations = $baseQuery()
                 ->where(function ($q) use ($startMutation) {
                     $q->where('transaction_date', '>', $startMutation->transaction_date)
                         ->orWhere(function ($q2) use ($startMutation) {
@@ -321,11 +346,9 @@ class StockMutationController extends Controller
 
         } else {
 
-            $balance = 0;
+            $balance = $openingBalance;
 
-            $mutations = StockMutation::where('item_id', $itemId)
-                ->where('location_id', $locationId)
-                ->where('lot', $lot)
+            $mutations = $baseQuery()
                 ->orderBy('transaction_date')
                 ->orderBy('id')
                 ->get();
@@ -605,6 +628,11 @@ class StockMutationController extends Controller
                 [
                     'quantity' => 0,
                     'opening_balance' => 0,
+                    'baseline_mutation_id' => StockBaseline::current(
+                        $request->item_id,
+                        $location->id,
+                        $lot
+                    ),
                 ]
             );
 
@@ -753,6 +781,11 @@ class StockMutationController extends Controller
                 [
                     'quantity' => 0,
                     'opening_balance' => 0,
+                    'baseline_mutation_id' => StockBaseline::current(
+                        $request->item_id,
+                        $location->id,
+                        $lot
+                    ),
                 ]
             );
 
