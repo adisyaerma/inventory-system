@@ -244,14 +244,25 @@ class LocationStockImport implements ToCollection, WithHeadingRow
                      */
                     foreach ($locationLotQuantities as $entry) {
 
+                        // location_code sama dengan location_name
+                        // (mis. R7P01L1).
                         $location = Location::firstOrCreate(
                             [
                                 'location_name' => $entry['location'],
                             ],
                             [
-                                'location_code' => null,
+                                'location_code' => $entry['location'],
                             ]
                         );
+
+                        // Lokasi lama yang location_code-nya masih kosong
+                        // ikut diisi.
+                        if (blank($location->location_code)) {
+
+                            $location->update([
+                                'location_code' => $entry['location'],
+                            ]);
+                        }
 
                         /*
                          * location_stock:
@@ -428,9 +439,9 @@ class LocationStockImport implements ToCollection, WithHeadingRow
      *    => B7 : 60
      *    => O2 : 4
      *
-     * 4) Kode lokasi format RxPyLz dipakai APA ADANYA sebagai
-     *    location_name (angka nol di depan dipertahankan, huruf
-     *    dijadikan kapital)
+     * 4) Kode lokasi dinormalisasi ke format RxPyyLz
+     *    (P selalu 2 digit), baik ditulis "7-1-1" maupun "R7P01L1"
+     *    7-1-1   => R7P01L1
      *    R7P01L1 => R7P01L1
      */
     private function expandLocationsForRow(
@@ -585,12 +596,13 @@ class LocationStockImport implements ToCollection, WithHeadingRow
 
     /**
      * Ubah SATU kode lokasi (tanpa quantity) menjadi satu atau
-     * beberapa nama lokasi final yang disimpan di location_name.
+     * beberapa nama lokasi final yang disimpan di location_name
+     * dan location_code.
      *
-     * - Format RxPyLz (mis. R7P01L1) => dipakai apa adanya, hanya
-     *   dijadikan huruf kapital supaya konsisten (r7p01l1 => R7P01L1).
-     *   Angka nol di depan TIDAK dibuang.
-     * - Mengandung "/" => dipecah lewat expandSlashLocation()
+     * - Format "r-p-l" (mis. 7-1-1) atau RxPyLz => dinormalisasi
+     *   ke R7P01L1 (lihat normalizeLocationName())
+     * - Mengandung "/" => dipecah lewat expandSlashLocation(),
+     *   lalu tiap hasilnya dinormalisasi
      * - Selain itu dipakai apa adanya (mis. B7, O2, F3)
      */
     private function expandLocationCode(string $code): array
@@ -601,16 +613,43 @@ class LocationStockImport implements ToCollection, WithHeadingRow
             return ['Unlocated'];
         }
 
-        if (preg_match('/^R\d+P\d+L\d+$/i', $code)) {
-
-            return [strtoupper($code)];
-        }
-
         if (str_contains($code, '/')) {
-            return $this->expandSlashLocation($code);
+
+            return array_map(
+                fn ($name) => $this->normalizeLocationName($name),
+                $this->expandSlashLocation($code)
+            );
         }
 
-        return [$code];
+        return [$this->normalizeLocationName($code)];
+    }
+
+    /**
+     * Samakan penulisan kode lokasi ke format RxPyyLz.
+     *
+     *   7-1-1    => R7P01L1
+     *   7-11-2   => R7P11L2
+     *   R7P1L1   => R7P01L1
+     *   r7p01l1  => R7P01L1
+     *
+     * Kode yang tidak cocok dengan pola di atas (B7, O2, F3, dst.)
+     * dikembalikan apa adanya.
+     */
+    private function normalizeLocationName(string $name): string
+    {
+        $name = trim($name);
+
+        if (
+            preg_match('/^(\d+)-(\d+)-(\d+)$/', $name, $m)
+            || preg_match('/^R(\d+)P(\d+)L(\d+)$/i', $name, $m)
+        ) {
+
+            return 'R' . ((int) $m[1])
+                . 'P' . str_pad((string) ((int) $m[2]), 2, '0', STR_PAD_LEFT)
+                . 'L' . ((int) $m[3]);
+        }
+
+        return $name;
     }
 
     /**
