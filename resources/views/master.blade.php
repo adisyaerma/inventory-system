@@ -8,7 +8,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Demo: Tables - Basic Tables | Sneat - Bootstrap Dashboard FREE</title>
+    <title>Inventory</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/5.0.4/css/fixedColumns.dataTables.min.css">
 
@@ -111,7 +111,7 @@
                                 </svg>
                             </span>
                         </span>
-                        <span class="app-brand-text demo menu-text fw-bold ms-2">Stock</span>
+                        <span class="app-brand-text demo menu-text fw-bold ms-2">Inventory</span>
                     </a>
 
                     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
@@ -268,7 +268,7 @@
                                     <ol class="breadcrumb mb-0">
 
                                         <li class="breadcrumb-item">
-                                            StockScan
+                                           Inventory
                                         </li>
 
                                         @hasSection('title')

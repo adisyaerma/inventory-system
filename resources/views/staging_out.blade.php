@@ -2632,7 +2632,8 @@
                         }
 
                         return $.getJSON("{{ route('stagings-out.search-location-for-item') }}", {
-                            item_id: itemId
+                            item_id: itemId,
+                            staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
                         }).then(function(res) {
                             $locationSelect.prop('disabled', false);
 
@@ -2656,7 +2657,8 @@
 
                         return $.getJSON("{{ route('stagings-out.search-lot-for-item-location') }}", {
                             item_id: itemId,
-                            location_id: locationId
+                            location_id: locationId,
+                            staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
                         }).then(function(res) {
                             $lotSelect.prop('disabled', false);
 
@@ -2715,6 +2717,9 @@
                     qtyHintSel: '#editQtyMaxHint',
                     getItemId: function() {
                         return $('#editItemId').val();
+                    },
+                    getStagingOutId: function() {
+                        return $('#editId').val();
                     }
                 });
 

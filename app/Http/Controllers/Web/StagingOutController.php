@@ -402,60 +402,148 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Saat modal EDIT dibuka, baris staging out yang sedang diedit (kalau
+     * sumbernya stok) perlu tetap bisa memilih lokasi/lot-nya sendiri
+     * walaupun stok di sana sudah 0 (mis. stok 1 sudah keluar, lalu
+     * dipulihkan dari history). Method ini mengembalikan baris itu, atau
+     * null kalau tidak relevan (form tambah, barang eksternal, atau
+     * item yang dipilih sudah diganti).
+     */
+    protected function currentStockRow(Request $request): ?StagingOut
+    {
+        if (! $request->filled('staging_out_id')) {
+            return null;
+        }
+
+        $current = StagingOut::find($request->staging_out_id);
+
+        if (! $current
+            || $current->source_type !== 'stock'
+            || ! $current->location_id
+            || $current->item_id != $request->item_id) {
+            return null;
+        }
+
+        return $current;
+    }
+
+    /**
      * Untuk source_type = stock: daftar lokasi yang PUNYA stok (qty > 0)
      * dari item yang dipilih. Dipakai TomSelect "Lokasi" pada modal
      * tambah/edit staging out.
+     *
+     * Khusus edit (staging_out_id dikirim): lokasi milik baris itu sendiri
+     * SELALU ikut tampil walau stoknya 0, dan qty-nya dihitung sebagai
+     * stok tersedia (karena mutasi lamanya akan di-reverse dulu di update()).
      */
     public function searchLocationForItem(Request $request)
     {
         $request->validate([
             'item_id' => ['required', 'exists:items,id'],
+            'staging_out_id' => ['nullable', 'integer'],
         ]);
+
+        $current = $this->currentStockRow($request);
 
         $locations = LocationStock::with('location')
             ->where('item_id', $request->item_id)
-            ->where('quantity', '>', 0)
+            ->where(function ($q) use ($current) {
+                $q->where('quantity', '>', 0);
+
+                if ($current) {
+                    $q->orWhere('location_id', $current->location_id);
+                }
+            })
             ->get()
             ->groupBy('location_id')
-            ->map(function ($rows) {
+            ->map(function ($rows) use ($current) {
                 $first = $rows->first();
+                $total = (float) $rows->sum('quantity');
+
+                if ($current && $first->location_id == $current->location_id) {
+                    $total += (float) $current->qty;
+                }
 
                 return [
                     'id' => $first->location_id,
                     'text' => optional($first->location)->location_name ?? ('Lokasi #'.$first->location_id),
-                    'total_quantity' => (float) $rows->sum('quantity'),
+                    'total_quantity' => $total,
                 ];
             })
             ->values();
 
-        return response()->json($locations);
+        // Jaga-jaga kalau baris location_stocks untuk lokasi ini sama
+        // sekali tidak ada.
+        if ($current && ! $locations->contains('id', $current->location_id)) {
+            $locations->push([
+                'id' => $current->location_id,
+                'text' => app(StagingOutStockService::class)->locationName($current->location_id)
+                    ?? ('Lokasi #'.$current->location_id),
+                'total_quantity' => (float) $current->qty,
+            ]);
+        }
+
+        return response()->json($locations->values());
     }
 
     /**
      * Untuk source_type = stock: daftar lot (beserta sisa qty) dari
      * kombinasi item + lokasi yang sudah dipilih. Dipakai TomSelect "Lot".
+     *
+     * Khusus edit: lot milik baris itu sendiri ikut tampil walau stoknya
+     * 0, dengan qty tersedia = sisa stok + qty baris itu.
      */
     public function searchLotForItemLocation(Request $request)
     {
         $request->validate([
             'item_id' => ['required', 'exists:items,id'],
             'location_id' => ['required', 'exists:locations,id'],
+            'staging_out_id' => ['nullable', 'integer'],
         ]);
+
+        $current = $this->currentStockRow($request);
+        $useCurrent = $current && $current->location_id == $request->location_id;
+        $currentLot = $useCurrent ? ($current->lot ?: null) : null;
 
         $lots = LocationStock::where('item_id', $request->item_id)
             ->where('location_id', $request->location_id)
-            ->where('quantity', '>', 0)
+            ->where(function ($q) use ($useCurrent, $currentLot) {
+                $q->where('quantity', '>', 0);
+
+                if ($useCurrent) {
+                    if ($currentLot === null) {
+                        $q->orWhereNull('lot')->orWhere('lot', '');
+                    } else {
+                        $q->orWhere('lot', $currentLot);
+                    }
+                }
+            })
             ->orderBy('lot')
             ->get()
-            ->map(function ($row) {
+            ->map(function ($row) use ($useCurrent, $current, $currentLot) {
+                $qty = (float) $row->quantity;
+
+                if ($useCurrent && ($row->lot ?: null) === $currentLot) {
+                    $qty += (float) $current->qty;
+                }
+
                 return [
                     'id' => $row->lot ?? '',
                     'text' => $row->lot ?: '(Tanpa Lot)',
-                    'quantity' => (float) $row->quantity,
+                    'quantity' => $qty,
                 ];
-            });
+            })
+            ->values();
 
-        return response()->json($lots);
+        if ($useCurrent && ! $lots->contains(fn ($l) => ($l['id'] ?: null) === $currentLot)) {
+            $lots->push([
+                'id' => $currentLot ?? '',
+                'text' => $currentLot ?: '(Tanpa Lot)',
+                'quantity' => (float) $current->qty,
+            ]);
+        }
+
+        return response()->json($lots->values());
     }
 
     public function template()
