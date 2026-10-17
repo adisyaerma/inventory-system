@@ -23,8 +23,9 @@ use Illuminate\Support\Facades\DB;
 class StagingOutHistoryService
 {
     /**
-     * Field status terkini yang disimpan langsung di header, disinkronkan
-     * setiap kali muncul di $changes pada logUpdated().
+     * Field terkini yang disimpan langsung di header (identitas SO + status
+     * pengiriman), disinkronkan setiap kali muncul di $changes pada
+     * logUpdated(). initial_qty sengaja tidak termasuk.
      *
      * Format: 'kolom di staging_outs' => 'kolom di header history'.
      * Kolom staging_outs.delivery_date sudah diganti delivery_receipt_date
@@ -33,6 +34,11 @@ class StagingOutHistoryService
      * untuk menentukan status "Terkirim/Selesai".
      */
     private const HEADER_SYNC_MAP = [
+        'item_id' => 'item_id',
+        'so_number' => 'so_number',
+        'customer' => 'customer',
+        'line_item' => 'line_item',
+        'delivery_instruction_date' => 'delivery_instruction_date',
         'picking_date' => 'picking_date',
         'do_number' => 'do_number',
         'delivery_receipt_date' => 'delivery_date',

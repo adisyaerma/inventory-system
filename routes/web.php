@@ -72,6 +72,8 @@ Route::put('/item/{item}', [ItemController::class, 'update'])
 Route::get('item/data', [ItemController::class, 'data'])
     ->name('items.data');
 
+Route::get('item/export', [ItemController::class, 'export'])
+    ->name('items.export');
 // ==location stock==
 
 Route::get('/location-stock', [LocationStockController::class, 'index'])
@@ -281,6 +283,9 @@ Route::post('stagings-out-history/bulk-destroy', [StagingOutHistoryController::c
 
 Route::post('stagings-out-history/bulk-restore', [StagingOutHistoryController::class, 'bulkRestore'])
     ->name('stagings-out-history.bulk-restore');
+
+Route::get('stagings-out-history/{history}/export-detail', [StagingOutHistoryController::class, 'exportDetail'])
+    ->name('stagings-out-history.export-detail');
 
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 

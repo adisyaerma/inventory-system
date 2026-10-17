@@ -279,7 +279,18 @@
                         <h5 class="mb-0 fw-bold">History Detail</h5>
                         <small class="text-muted" id="detailSubtitle">Pilih salah satu data untuk melihat detail</small>
                     </div>
-                    <button type="button" class="btn-close d-none" id="closeDetailBtn"></button>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="#" class="btn-sm btn border-secondary bg-white border d-none" id="detailExportBtn" title="Export Detail Ini">
+                            <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"
+                                viewBox="0 0 24 24">
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path fill="currentColor"
+                                    d="M8.71 7.71L11 5.41V15a1 1 0 0 0 2 0V5.41l2.29 2.3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42l-4-4a1 1 0 0 0-.33-.21a1 1 0 0 0-.76 0a1 1 0 0 0-.33.21l-4 4a1 1 0 1 0 1.42 1.42M21 14a1 1 0 0 0-1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 0-2 0v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4a1 1 0 0 0-1-1" />
+                            </svg>
+                            <span class="d-none d-md-inline ms-1">Export</span>
+                        </a>
+                        <button type="button" class="btn-close d-none" id="closeDetailBtn"></button>
+                    </div>
                 </div>
 
                 <div class="card-body" style="overflow-y:auto; min-height:0;">
@@ -1120,6 +1131,10 @@
                         $('#detailContent').removeClass('d-none');
                         $('#closeDetailBtn').removeClass('d-none');
 
+                        $('#detailExportBtn')
+                            .attr('href', `{{ url('stagings-out-history') }}/${id}/export-detail`)
+                            .removeClass('d-none');
+
                         $('#detailSubtitle').text(`${res.item_code}`);
                         $('#detailItemName').text(res.item_name ?? '-');
                         $('#detailItemSo').text(res.so_number ?? '-');
@@ -1158,6 +1173,7 @@
                     $('#detailContent').addClass('d-none');
                     $('#detailEmptyState').removeClass('d-none');
                     $(this).addClass('d-none');
+                    $('#detailExportBtn').addClass('d-none');
                     $('#detailSubtitle').text('Pilih salah satu data untuk melihat detail');
 
                     // Sembunyikan panel detail & kembalikan tabel ke full width

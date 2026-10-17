@@ -31,7 +31,9 @@ class LocationStockController extends Controller
         $locations = Location::orderBy('location_name')->get();
         $vendors = Vendor::orderBy('name')->get();
 
-        return view('location_stock', compact('locations', 'vendors'))
+        $incoterms = Item::INCOTERMS;
+
+        return view('location_stock', compact('locations', 'vendors', 'incoterms'))
             ->with('activeFilter', $request->query('filter'));
     }
 
@@ -80,6 +82,13 @@ class LocationStockController extends Controller
 
         }
 
+        // Filter incoterms (VHS / FLUKE / NORD LOCK / NON_VHS) -- logika sama dengan export
+        if ($request->filled('incoterms')) {
+
+            $query->applyFilters($request->only(['incoterms']));
+
+        }
+
         // Filter dari kartu/notifikasi dashboard: item yang punya stok di
         // salah satu lokasi kurang dari LOW_STOCK_THRESHOLD (tapi masih > 0).
         if ($request->query('filter') === 'low_stock') {
@@ -125,6 +134,7 @@ class LocationStockController extends Controller
                 return '<span title="'.e($row->description).'">'.e($short).'</span>';
             })
             ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
+            ->editColumn('incoterms', fn ($row) => $row->incoterms ?: '-')
 
             ->filterColumn('vendor', function ($query, $keyword) {
                 $query->whereHas('vendor', function ($q) use ($keyword) {
@@ -484,7 +494,7 @@ class LocationStockController extends Controller
         // Nama file sekarang menyertakan tanggal & jam export, supaya
         // tidak ada lagi beberapa file "stock.xlsx" yang saling menimpa
         // atau membingungkan kapan data itu diambil.
-        $filename = 'data_stok_lokasi_'.now()->format('Y-m-d_His').'.xlsx';
+        $filename = 'data_stok_'.now()->format('Y-m-d_His').'.xlsx';
 
         return Excel::download(new LocationStockExport($request), $filename);
     }

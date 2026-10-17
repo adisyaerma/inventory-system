@@ -17,6 +17,19 @@ use Illuminate\Support\Collection;
 class StagingInHistoryService
 {
     /**
+     * Field di staging_ins yang namanya sama dengan kolom header
+     * staging_in_histories dan harus selalu mengikuti nilai terbaru.
+     */
+    private const HEADER_SYNC_FIELDS = [
+        'item_id',
+        'po_number',
+        'supplier_origin',
+        'location',
+        'arrival_date',
+        'incoterms',
+    ];
+
+    /**
      * Catat kejadian "created" — dipanggil sesaat setelah StagingIn::create().
      */
     public function logCreated(StagingIn $staging): StagingInHistoryDetail
@@ -44,11 +57,21 @@ class StagingInHistoryService
 
         $history = StagingInHistory::firstOrCreateForStaging($staging);
 
-        // Kolom location di header adalah snapshot lokasi TERKINI (bukan
-        // hanya lokasi saat pertama dibuat), jadi setiap kali field
-        // location berubah lewat event updated, ikut disinkronkan di sini.
-        if (array_key_exists('location', $changes)) {
-            $history->update(['location' => $changes['location']['new']]);
+        // Kolom header (PO, supplier, lokasi, tgl kedatangan, incoterms,
+        // barang) adalah snapshot kondisi TERKINI, bukan hanya nilai saat
+        // pertama dibuat, jadi setiap field itu berubah lewat event
+        // updated, ikut disinkronkan di sini. initial_qty sengaja tidak
+        // disentuh (qty awal, dipakai progress bar).
+        $headerSync = [];
+
+        foreach (self::HEADER_SYNC_FIELDS as $field) {
+            if (array_key_exists($field, $changes)) {
+                $headerSync[$field] = $changes[$field]['new'] ?? null;
+            }
+        }
+
+        if (! empty($headerSync)) {
+            $history->update($headerSync);
         }
 
         return $history->details()->create([

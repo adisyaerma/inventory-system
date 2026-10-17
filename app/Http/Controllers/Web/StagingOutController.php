@@ -13,6 +13,7 @@ use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StockMutation;
 use App\Services\StagingOutHistoryService;
+use App\Services\StagingInReturnService;
 use App\Services\StagingOutStockService;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
@@ -34,7 +35,8 @@ class StagingOutController extends Controller
         $totalEntry = StagingOut::count();
 
         $totalQty = StagingOut::sum('qty');
-        $customers = StagingOut::select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        $customers = StagingOut::whereNotNull('customer')->where('customer', '!=', '')
+            ->select('customer')->distinct()->orderBy('customer')->pluck('customer');
 
         $sudahPicking = StagingOut::whereNotNull('picking_date')->count();
 
@@ -165,6 +167,9 @@ class StagingOutController extends Controller
             })
             ->orderColumn('line_item', 'staging_outs.line_item $1')
 
+            ->editColumn('customer', function ($row) {
+                return $row->customer ?: '-';
+            })
             ->filterColumn('customer', function ($query, $keyword) {
                 $query->where('staging_outs.customer', 'like', "%{$keyword}%");
             })
@@ -353,9 +358,17 @@ class StagingOutController extends Controller
             ], 422);
         }
 
-        $stagingOut->update([
-            'staging_location' => $validated['staging_location'] ?? null,
-        ]);
+        DB::transaction(function () use ($stagingOut, $validated) {
+            $changes = $this->history->diff($stagingOut, [
+                'staging_location' => $validated['staging_location'] ?? null,
+            ]);
+
+            $stagingOut->update([
+                'staging_location' => $validated['staging_location'] ?? null,
+            ]);
+
+            $this->history->logUpdated($stagingOut, $changes);
+        });
 
         return response()->json([
             'success' => true,
@@ -610,6 +623,8 @@ class StagingOutController extends Controller
                         if ($staging->source_type === 'stock' && $staging->item_id && $staging->location_id) {
                             $this->reverseStockOut($staging);
                         }
+
+                        $this->returnToStagingIn($staging);
                     }
 
                     StagingOut::query()->delete();
@@ -852,6 +867,18 @@ class StagingOutController extends Controller
     protected function reverseStockOut(StagingOut $stagingOut): void
     {
         app(StagingOutStockService::class)->reverse($stagingOut);
+    }
+
+    /**
+     * Kalau staging out ini berasal dari "Pindahkan ke Staging Out", kembalikan
+     * seluruh qty-nya ke Staging In (dibuat ulang bila barisnya sudah habis).
+     * Dipanggil saat staging out dihapus (satuan / massal / import reset).
+     */
+    protected function returnToStagingIn(StagingOut $stagingOut): void
+    {
+        if ($stagingOut->staging_in_id) {
+            app(StagingInReturnService::class)->giveBack($stagingOut, (int) $stagingOut->qty);
+        }
     }
 
     /**
@@ -1135,6 +1162,16 @@ class StagingOutController extends Controller
                     $this->reverseStockOut($stagingOut);
                 }
 
+                // Barang yang dipindah dari Staging In: samakan qty di Staging In
+                // dengan qty baru (naik = ambil lagi dari sisa, turun = kembalikan).
+                if ($stagingOut->staging_in_id && array_key_exists('qty', $validated)) {
+                    app(StagingInReturnService::class)->syncQty(
+                        $stagingOut,
+                        (int) $stagingOut->qty,
+                        (int) ($validated['qty'] ?? 0)
+                    );
+                }
+
                 $stagingOut->update($validated);
 
                 // Terapkan lagi pemotongan stok dengan data yang baru, kalau
@@ -1191,6 +1228,9 @@ class StagingOutController extends Controller
                     $this->reverseStockOut($stagingOut);
                 }
 
+                // Dipindah dari Staging In? Qty-nya kembali ke Staging In.
+                $this->returnToStagingIn($stagingOut);
+
                 // Catat history SEBELUM baris aslinya benar-benar hilang.
                 $this->history->logDeleted($stagingOut);
 
@@ -1229,6 +1269,8 @@ class StagingOutController extends Controller
                     if ($staging->source_type === 'stock' && $staging->item_id && $staging->location_id) {
                         $this->reverseStockOut($staging);
                     }
+
+                    $this->returnToStagingIn($staging);
                 }
 
                 $this->history->logBulkDeleted($stagings);

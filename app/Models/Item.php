@@ -19,8 +19,51 @@ class Item extends Model
         'description',
         'location_id',
         'vendor_id',
+        'incoterms',
         'quantity',
     ];
+
+    public const INCOTERMS = ['VHS', 'FLUKE', 'NORD LOCK'];
+
+    // Nilai khusus untuk filter saja (tidak disimpan di database / bukan opsi select form)
+    public const FILTER_NON_VHS = 'NON_VHS';
+
+    /**
+     * Filter bersama untuk tabel (data) dan export, supaya hasilnya selalu sama.
+     * Key: vendor_id, incoterms, search
+     */
+    public function scopeApplyFilters($query, array $filters)
+    {
+        if (! empty($filters['vendor_id'])) {
+            $query->where('vendor_id', $filters['vendor_id']);
+        }
+
+        if (! empty($filters['incoterms'])) {
+            if ($filters['incoterms'] === self::FILTER_NON_VHS) {
+                // semua yang bukan VHS (termasuk yang incoterms-nya masih kosong)
+                $query->where(function ($q) {
+                    $q->whereNull('incoterms')->orWhere('incoterms', '!=', 'VHS');
+                });
+            } else {
+                $query->where('incoterms', $filters['incoterms']);
+            }
+        }
+
+        if (isset($filters['search']) && trim($filters['search']) !== '') {
+            $keyword = '%'.trim($filters['search']).'%';
+
+            $query->where(function ($q) use ($keyword) {
+                $q->where('item_code_internal', 'LIKE', $keyword)
+                    ->orWhere('item_code_supplier', 'LIKE', $keyword)
+                    ->orWhere('name', 'LIKE', $keyword)
+                    ->orWhere('description', 'LIKE', $keyword)
+                    ->orWhere('incoterms', 'LIKE', $keyword)
+                    ->orWhereHas('vendor', fn ($v) => $v->where('name', 'LIKE', $keyword));
+            });
+        }
+
+        return $query;
+    }
 
 public function locations()
 {

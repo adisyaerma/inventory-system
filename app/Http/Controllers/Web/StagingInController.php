@@ -14,6 +14,7 @@ use App\Models\StagingOut;
 use App\Models\StockMutation;
 use App\Models\Vendor;
 use App\Services\StagingInHistoryService;
+use App\Services\StagingInReturnService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -775,7 +776,7 @@ class StagingInController extends Controller
         $validated = $request->validate([
             'qty' => ['required', 'integer', 'min:1'],
             'so_number' => ['required', 'max:255'],
-            'customer' => ['required', 'max:255'],
+            'customer' => ['nullable', 'max:255'],
             'line_item' => ['required', 'max:255'],
             'delivery_instruction_date' => ['required', 'date'],
             'staging_location' => ['nullable', 'in:staging,packing,outbound'],
@@ -783,7 +784,6 @@ class StagingInController extends Controller
             'qty.required' => 'Qty dipindah wajib diisi',
             'qty.min' => 'Qty dipindah minimal 1',
             'so_number.required' => 'No. SO wajib diisi',
-            'customer.required' => 'Customer wajib diisi',
             'line_item.required' => 'Line item wajib diisi',
             'delivery_instruction_date.required' => 'Tanggal delivery instruction wajib diisi',
             'staging_location.in' => 'Lokasi tidak valid.',
@@ -801,7 +801,7 @@ class StagingInController extends Controller
         try {
             $stagingOut = StagingOut::create([
                 'so_number' => $validated['so_number'],
-                'customer' => $validated['customer'],
+                'customer' => $validated['customer'] ?? null,
                 'item_id' => $staging->item_id,
                 'line_item' => $validated['line_item'],
                 'qty' => $validated['qty'],
@@ -809,11 +809,15 @@ class StagingInController extends Controller
                 'staging_location' => $validated['staging_location'] ?? null,
             ]);
 
+            // Catat asalnya supaya qty bisa dikembalikan ke staging in kalau
+            // staging out ini dihapus / qty-nya diedit.
+            app(StagingInReturnService::class)->link($stagingOut, $staging);
+
             $remaining = $staging->qty - $validated['qty'];
 
             $this->history->logMovedToStagingOut($staging, $validated['qty'], max($remaining, 0), [
                 'so_number' => $validated['so_number'],
-                'customer' => $validated['customer'],
+                'customer' => $validated['customer'] ?? null,
                 'line_item' => $validated['line_item'],
                 'delivery_instruction_date' => $validated['delivery_instruction_date'],
                 'staging_location' => $validated['staging_location'] ?? null,

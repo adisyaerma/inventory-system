@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exports\StagingOutHistoryDetailExport;
 use App\Exports\StagingOutHistoryExport;
 use App\Http\Controllers\Controller;
 use App\Models\StagingOut;
@@ -908,6 +909,35 @@ class StagingOutHistoryController extends Controller
      */
     public function detail(StagingOutHistory $history)
     {
+        return response()->json($this->buildDetailPayload($history));
+    }
+
+    /**
+     * Export SATU siklus staging_out_history (info awal + status
+     * pengiriman + activity timeline lengkap) ke Excel -- ini yang
+     * dipanggil tombol "Export" di panel History Detail sebelah kanan
+     * (lihat staging_out_history.blade.php: #detailExportBtn).
+     *
+     * Datanya diambil dari buildDetailPayload() yang SAMA dengan yang
+     * dipakai panel detail, jadi isi Excel selalu persis sama dengan yang
+     * tampil di layar (status, asal barang, label event, dsb).
+     */
+    public function exportDetail(StagingOutHistory $history)
+    {
+        $payload = $this->buildDetailPayload($history);
+
+        $filename = 'staging_out_history_detail_'
+            .\Illuminate\Support\Str::slug($payload['item_code'] ?: 'item').'_'
+            .now()->format('Y-m-d').'.xlsx';
+
+        return Excel::download(new StagingOutHistoryDetailExport($payload), $filename);
+    }
+
+    /**
+     * Susun data detail satu history (dipakai detail() dan exportDetail()).
+     */
+    private function buildDetailPayload(StagingOutHistory $history): array
+    {
         $history->load(['item', 'creator', 'details' => function ($query) {
             // Relasi details() di model sudah pakai ->latest() (descending).
             // reorder() dulu supaya timeline tampil dari yang paling lama
@@ -927,7 +957,7 @@ class StagingOutHistoryController extends Controller
 
         $source = $this->resolveSource($history, $staging);
 
-        return response()->json([
+        return [
             'id' => $history->id,
             'item_code' => optional($history->item)->item_code_internal,
             'item_name' => optional($history->item)->name,
@@ -974,7 +1004,7 @@ class StagingOutHistoryController extends Controller
                     'performed_by' => optional($detail->performedBy)->name ?: 'System',
                     'created_at' => $detail->created_at->format('d M Y, H:i'),
                 ];
-            }),
-        ]);
+            })->all(),
+        ];
     }
 }

@@ -3363,8 +3363,8 @@
 
                 // ================= TAMBAH: validasi & simpan (AJAX) =================
                 // Wajib (menghentikan simpan): Barang & Qty >= 1 di tiap baris, plus
-                // Lokasi/Lot/stok untuk sumber "Dari Stok".
-                // Boleh kosong tapi ditanyakan dulu: No. SO, Customer, Tgl Instruksi Kirim.
+                // Lokasi/stok untuk sumber "Dari Stok". Lot & Customer boleh kosong tanpa peringatan.
+                // Boleh kosong tapi ditanyakan dulu: No. SO, Tgl Instruksi Kirim.
                 function collectAddProblems() {
                     clearInvalid();
 
@@ -3391,7 +3391,6 @@
                         const $qty = $row.find('.row-qty');
                         const $loc = $row.find('.row-location');
                         const $lot = $row.find('.row-lot');
-                        const $cust = $row.find('input[name$="[customer]"]');
                         const $date = $row.find('.row-instruction-date');
 
                         if (!$item.val()) {
@@ -3414,15 +3413,6 @@
                             });
                         }
 
-                        if (isStock && $loc.val() && !$lot.prop('disabled') &&
-                            $lot.find('option').length > 1 && $lot[0].selectedIndex === 0) {
-                            blocking.push({
-                                row: no,
-                                message: 'Lot belum dipilih. Pilih lot yang akan dikeluarkan.',
-                                $el: $lot
-                            });
-                        }
-
                         const qtyMsg = qtyCheck('Qty', 'sisa stok pada lot ini')($qty, $.trim($qty.val()));
 
                         if (qtyMsg) {
@@ -3430,14 +3420,6 @@
                                 row: no,
                                 message: qtyMsg,
                                 $el: $qty
-                            });
-                        }
-
-                        if (!$.trim($cust.val())) {
-                            soft.push({
-                                field: 'Customer',
-                                row: no,
-                                $el: $cust
                             });
                         }
 

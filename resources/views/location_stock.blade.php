@@ -1231,6 +1231,23 @@
                         </div>
                     </div>
 
+                    <!-- Incoterms -->
+                    <div class="filter-group">
+                        <label class="filter-label" for="filterIncoterms">Incoterms</label>
+                        <div class="input-group input-group-sm shadow-sm">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-arrow-left-right text-muted"></i>
+                            </span>
+                            <select id="filterIncoterms" class="form-select border-start-0 w-100">
+                                <option value="">Semua Incoterms</option>
+                                @foreach ($incoterms as $opt)
+                                    <option value="{{ $opt }}">{{ $opt }}</option>
+                                @endforeach
+                                <option value="NON_VHS">Non VHS</option>
+                            </select>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
@@ -1244,6 +1261,7 @@
                         <th>Nama Barang</th>
                         <th>Deskripsi</th>
                         <th>Vendor</th>
+                        <th>Incoterms</th>
                         <th>Lokasi / Lot / Qty</th>
                         <th>Aksi</th>
                     </tr>
@@ -1478,6 +1496,11 @@
                     width: '100%'
                 });
 
+                $('#filterIncoterms').select2({
+                    width: '100%',
+                    minimumResultsForSearch: Infinity
+                });
+
                 $('#filterVendor').select2({
                     width: '100%'
                 });
@@ -1498,6 +1521,7 @@
                         data: function(d) {
                             d.location_id = $('#filterLocation').val();
                             d.vendor_id = $('#filterVendor').val();
+                            d.incoterms = $('#filterIncoterms').val();
                             d.filter = activeUrlFilter;
                         }
                     },
@@ -1523,6 +1547,9 @@
                         },
                         {
                             data: 'vendor'
+                        },
+                        {
+                            data: 'incoterms'
                         },
                         {
                             data: 'locations_qty',
@@ -1566,6 +1593,7 @@
 
                     let locationId = $('#filterLocation').val();
                     let vendorId = $('#filterVendor').val();
+                    let incoterms = $('#filterIncoterms').val();
                     let search = $('#customSearch').val().trim();
 
                     let url = new URL("{{ route('location-stock.export') }}");
@@ -1575,6 +1603,9 @@
                     }
                     if (vendorId) {
                         url.searchParams.set('vendor_id', vendorId);
+                    }
+                    if (incoterms) {
+                        url.searchParams.set('incoterms', incoterms);
                     }
                     if (search) url.searchParams.append('search', search);
 
@@ -1593,7 +1624,7 @@
 
                 });
 
-                $('#filterVendor').change(function() {
+                $('#filterVendor, #filterIncoterms').change(function() {
 
                     activeUrlFilter = '';
                     window.history.replaceState({}, '', window.location.pathname);
@@ -1619,6 +1650,7 @@
 
                     $('#filterLocation').val(null).trigger('change');
                     $('#filterVendor').val(null).trigger('change');
+                    $('#filterIncoterms').val('').trigger('change');
                     $('#customSearch').val('');
 
                     table.search('').draw();
@@ -1818,16 +1850,16 @@
                 vertical-align: middle;
             }
 
-            /* Kolom ke-7 = Lokasi / Lot / Qty */
-            #locationStock th:nth-child(7),
-            #locationStock td:nth-child(7) {
+            /* Kolom ke-8 = Lokasi / Lot / Qty */
+            #locationStock th:nth-child(8),
+            #locationStock td:nth-child(8) {
                 min-width: 210px;
                 white-space: normal;
                 word-break: break-word;
             }
 
-            #locationStock th:not(:nth-child(7)),
-            #locationStock td:not(:nth-child(7)) {
+            #locationStock th:not(:nth-child(8)),
+            #locationStock td:not(:nth-child(8)) {
                 white-space: nowrap;
             }
 

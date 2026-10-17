@@ -3413,13 +3413,6 @@
                             validate: requiredCheck('No. SO belum diisi.')
                         },
                         {
-                            el: '#moveCustomer',
-                            when: function() {
-                                return tujuan !== 'stock';
-                            },
-                            validate: requiredCheck('Customer belum diisi.')
-                        },
-                        {
                             el: '#moveLineItem',
                             when: function() {
                                 return tujuan !== 'stock';

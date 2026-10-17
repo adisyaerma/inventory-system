@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exports\ItemsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Item;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
 class ItemController extends Controller
@@ -15,7 +17,9 @@ class ItemController extends Controller
     {
         $vendors = Vendor::orderBy('name')->get();
 
-        return view('item', compact('vendors'));
+        $incoterms = Item::INCOTERMS;
+
+        return view('item', compact('vendors', 'incoterms'));
     }
 
     public function data(Request $request)
@@ -23,11 +27,8 @@ class ItemController extends Controller
         $query = Item::with('vendor')
             ->orderByDesc('id');
 
-        if ($request->filled('vendor_id')) {
-
-            $query->where('vendor_id', $request->vendor_id);
-
-        }
+        // filter vendor + incoterms (logika sama dengan export)
+        $query->applyFilters($request->only(['vendor_id', 'incoterms']));
 
         return DataTables::eloquent($query)
 
@@ -41,6 +42,7 @@ class ItemController extends Controller
             ->editColumn('item_code_supplier', fn ($row) => $row->item_code_supplier ?: '-')
             ->editColumn('name', fn ($row) => $row->name ?: '-')
             ->editColumn('vendor', fn ($row) => $row->vendor ? $row->vendor->name : '-')
+            ->editColumn('incoterms', fn ($row) => $row->incoterms ?: '-')
             ->editColumn('description', fn ($row) => $row->description ?: '-')
 
             ->filterColumn('vendor', function ($query, $keyword) {
@@ -120,6 +122,7 @@ class ItemController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'vendor_id' => 'nullable|exists:vendors,id',
+            'incoterms' => ['nullable', Rule::in(Item::INCOTERMS)],
 
         ], [
 
@@ -129,6 +132,7 @@ class ItemController extends Controller
             'name.required' => 'Nama barang wajib diisi.',
 
             'vendor_id.exists' => 'Vendor tidak ditemukan.',
+            'incoterms.in' => 'Incoterms tidak valid.',
 
         ]);
 
@@ -141,6 +145,7 @@ class ItemController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'vendor_id' => $request->vendor_id,
+            'incoterms' => $request->incoterms,
 
         ]);
 
@@ -173,6 +178,7 @@ class ItemController extends Controller
             'name' => 'nullable|string',
             'description' => 'nullable|string',
             'vendor_id' => 'nullable|exists:vendors,id',
+            'incoterms' => ['nullable', Rule::in(Item::INCOTERMS)],
 
         ], [
 
@@ -182,6 +188,7 @@ class ItemController extends Controller
             'name.required' => 'Nama barang wajib diisi.',
 
             'vendor_id.exists' => 'Vendor tidak ditemukan.',
+            'incoterms.in' => 'Incoterms tidak valid.',
 
         ]);
 
@@ -194,6 +201,7 @@ class ItemController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'vendor_id' => $request->vendor_id,
+            'incoterms' => $request->incoterms,
 
         ]);
 
@@ -228,6 +236,16 @@ class ItemController extends Controller
             'success' => true,
             'message' => $count.' barang berhasil dihapus.',
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        // filter yang sama persis dengan yang dipakai tabel (+ kolom pencarian)
+        $filters = $request->only(['vendor_id', 'incoterms', 'search']);
+
+        $fileName = 'barang_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(new ItemsExport($filters), $fileName);
     }
 
     public function mutations(Item $item)

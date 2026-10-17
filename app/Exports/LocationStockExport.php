@@ -38,7 +38,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  */
 class LocationStockExport implements FromCollection, WithEvents
 {
-    private const DATA_COLUMNS = 10;
+    private const DATA_COLUMNS = 11;
 
     protected $request;
 
@@ -75,6 +75,7 @@ class LocationStockExport implements FromCollection, WithEvents
             'item_code_customer',
             'name',
             'description',
+            'incoterms',
             'vendor_id',
         ])
             ->with([
@@ -103,6 +104,10 @@ class LocationStockExport implements FromCollection, WithEvents
             $query->where('vendor_id', $this->request->vendor_id);
         }
 
+        if ($this->request->filled('incoterms')) {
+            $query->applyFilters(['incoterms' => $this->request->incoterms]);
+        }
+
         if ($this->request->filled('search')) {
             $search = $this->request->search;
 
@@ -112,6 +117,7 @@ class LocationStockExport implements FromCollection, WithEvents
                     ->orWhere('item_code_customer', 'ilike', "%{$search}%")
                     ->orWhere('name', 'ilike', "%{$search}%")
                     ->orWhere('description', 'ilike', "%{$search}%")
+                    ->orWhere('incoterms', 'ilike', "%{$search}%")
                     ->orWhereHas('locationStocks.location', function ($lq) use ($search) {
                         $lq->where('location_name', 'ilike', "%{$search}%");
                     })
@@ -167,6 +173,7 @@ class LocationStockExport implements FromCollection, WithEvents
                     $item->item_code_customer,
                     $item->name,
                     $item->vendor ? $item->vendor->name : '-',
+                    $item->incoterms ?: '-',
                     $item->description,
                     optional($stock->location)->location_name ?: '-',
                     $stock->lot ?: '-',
@@ -189,12 +196,17 @@ class LocationStockExport implements FromCollection, WithEvents
             ? optional(Vendor::find($this->request->vendor_id))->name
             : null;
 
+        $incotermsLabel = $this->request->filled('incoterms')
+            ? ($this->request->incoterms === Item::FILTER_NON_VHS ? 'Non VHS' : $this->request->incoterms)
+            : 'Semua Incoterms';
+
         $rows = [];
 
         $rows[] = ['LAPORAN STOK BARANG PER LOKASI'];
         $rows[] = ['Tanggal Export', now()->format('d M Y, H:i')];
         $rows[] = ['Filter Lokasi', $locationName ?: 'Semua Lokasi'];
         $rows[] = ['Filter Vendor', $vendorName ?: 'Semua Vendor'];
+        $rows[] = ['Filter Incoterms', $incotermsLabel];
         $rows[] = ['Kata Kunci Pencarian', $this->request->filled('search') ? $this->request->search : '-'];
         // count($dataRows) sekarang jumlah BARIS (1 baris = 1 lokasi),
         // bukan jumlah item lagi -- jumlah item yang benar ada di
@@ -210,6 +222,7 @@ class LocationStockExport implements FromCollection, WithEvents
             'Item Code Customer',
             'Name',
             'Vendor',
+            'Incoterms',
             'Description',
             'Lokasi',
             'Lot',
@@ -296,11 +309,11 @@ class LocationStockExport implements FromCollection, WithEvents
                     ->getAlignment()
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
-                // Merge kolom identitas item (A s/d F, dan J = Total Qty)
+                // Merge kolom identitas item (A s/d G, dan K = Total Qty)
                 // untuk setiap item yang barisnya lebih dari 1 (lebih dari
-                // 1 lokasi) -- Lokasi/Lot/Qty per Lokasi (G/H/I) TIDAK
+                // 1 lokasi) -- Lokasi/Lot/Qty per Lokasi (H/I/J) TIDAK
                 // ikut di-merge karena memang beda tiap baris.
-                $mergeColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'J'];
+                $mergeColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K'];
                 $currentRow = $headingRow + 1;
 
                 foreach ($this->itemRowSpans as $rowCount) {
@@ -321,11 +334,12 @@ class LocationStockExport implements FromCollection, WithEvents
                 $sheet->getColumnDimension('C')->setWidth(22);
                 $sheet->getColumnDimension('D')->setWidth(35);
                 $sheet->getColumnDimension('E')->setWidth(22);
-                $sheet->getColumnDimension('F')->setWidth(40);
-                $sheet->getColumnDimension('G')->setWidth(25);
-                $sheet->getColumnDimension('H')->setWidth(15);
-                $sheet->getColumnDimension('I')->setWidth(20);
-                $sheet->getColumnDimension('J')->setWidth(12);
+                $sheet->getColumnDimension('F')->setWidth(18);
+                $sheet->getColumnDimension('G')->setWidth(40);
+                $sheet->getColumnDimension('H')->setWidth(25);
+                $sheet->getColumnDimension('I')->setWidth(15);
+                $sheet->getColumnDimension('J')->setWidth(20);
+                $sheet->getColumnDimension('K')->setWidth(12);
             },
 
         ];

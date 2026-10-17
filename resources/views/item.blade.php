@@ -519,6 +519,11 @@
                         <span class="d-none d-md-inline ms-1">Tambah</span>
                     </button>
 
+                    <button type="button" id="btnExportItem" class="btn btn-sm btn-success">
+                        <i class="bi bi-file-earmark-excel"></i>
+                        <span class="d-none d-md-inline ms-1">Export</span>
+                    </button>
+
                 </div>
 
                 <div class="modal fade modal-aesthetic" id="addItemModal" data-bs-backdrop="static" data-bs-keyboard="false"
@@ -650,6 +655,29 @@
                                                     <option value="{{ $vendor->id }}">
                                                         {{ $vendor->name }}
                                                     </option>
+                                                @endforeach
+                                            </select>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="mb-3">
+
+                                        <label class="form-label fw-semibold">
+                                            Incoterms
+                                        </label>
+
+                                        <div class="input-group">
+
+                                            <span class="input-group-text">
+                                                <i class="bx bx-transfer"></i>
+                                            </span>
+
+                                            <select name="incoterms" class="form-select form-select-sm">
+                                                <option value="">Pilih Incoterms (Opsional)</option>
+                                                @foreach ($incoterms as $opt)
+                                                    <option value="{{ $opt }}">{{ $opt }}</option>
                                                 @endforeach
                                             </select>
 
@@ -870,6 +898,23 @@
                         </div>
                     </div>
 
+                    <!-- Incoterms -->
+                    <div class="filter-group">
+                        <label class="filter-label" for="filterIncoterms">Incoterms</label>
+                        <div class="input-group input-group-sm shadow-sm">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-arrow-left-right text-muted"></i>
+                            </span>
+                            <select id="filterIncoterms" class="form-select border-start-0 w-100">
+                                <option value="">Semua Incoterms</option>
+                                @foreach ($incoterms as $opt)
+                                    <option value="{{ $opt }}">{{ $opt }}</option>
+                                @endforeach
+                                <option value="NON_VHS">Non VHS</option>
+                            </select>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
@@ -892,6 +937,7 @@
                         <th>Item Code Supplier</th>
                         <th>Nama Barang</th>
                         <th>Vendor</th>
+                        <th>Incoterms</th>
                         <th>Deskripsi</th>
                         <th>Aksi</th>
                     </tr>
@@ -1052,7 +1098,30 @@
 
                         </div>
 
-                        <div>
+                        <div class="mb-3">
+
+                                        <label class="form-label fw-semibold">
+                                            Incoterms
+                                        </label>
+
+                                        <div class="input-group">
+
+                                            <span class="input-group-text">
+                                                <i class="bx bx-transfer"></i>
+                                            </span>
+
+                                            <select name="incoterms" class="form-select form-select-sm" id="edit_incoterms">
+                                                <option value="">Pilih Incoterms (Opsional)</option>
+                                                @foreach ($incoterms as $opt)
+                                                    <option value="{{ $opt }}">{{ $opt }}</option>
+                                                @endforeach
+                                            </select>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div>
 
                             <label class="form-label fw-semibold">
                                 Deskripsi
@@ -1109,6 +1178,11 @@
                     width: '100%'
                 });
 
+                $('#filterIncoterms').select2({
+                    width: '100%',
+                    minimumResultsForSearch: Infinity
+                });
+
                 // DataTable
                 table = $('#item').DataTable({
 
@@ -1124,6 +1198,7 @@
 
                         data: function(d) {
                             d.vendor_id = $('#filterVendor').val();
+                            d.incoterms = $('#filterIncoterms').val();
                         }
                     },
 
@@ -1148,6 +1223,9 @@
                         },
                         {
                             data: 'vendor'
+                        },
+                        {
+                            data: 'incoterms'
                         },
                         {
                             data: 'description'
@@ -1176,13 +1254,25 @@
                     table.page.len($(this).val()).draw();
                 });
 
-                $('#filterVendor').change(function() {
+                $('#filterVendor, #filterIncoterms').change(function() {
                     table.ajax.reload();
+                });
+
+                // Export: ikut semua filter yang sedang aktif (vendor, incoterms, pencarian)
+                $('#btnExportItem').click(function() {
+                    let params = $.param({
+                        vendor_id: $('#filterVendor').val() || '',
+                        incoterms: $('#filterIncoterms').val() || '',
+                        search: table.search() || ''
+                    });
+
+                    window.location.href = "{{ route('items.export') }}?" + params;
                 });
 
                 // Reset filter
                 $('#btnResetFilter').click(function() {
                     $('#filterVendor').val(null).trigger('change');
+                    $('#filterIncoterms').val('').trigger('change');
                     $('#customSearch').val('');
                     table.search('').draw();
                 });
@@ -1356,15 +1446,15 @@
                 vertical-align: middle;
             }
 
-            #item th:nth-child(7),
-            #item td:nth-child(7) {
+            #item th:nth-child(8),
+            #item td:nth-child(8) {
                 min-width: 250px;
                 white-space: normal;
                 word-break: break-word;
             }
 
-            #item th:not(:nth-child(7)),
-            #item td:not(:nth-child(7)) {
+            #item th:not(:nth-child(8)),
+            #item td:not(:nth-child(8)) {
                 white-space: nowrap;
             }
         </style>
@@ -1557,6 +1647,7 @@
                         $('#edit_name').val(res.item.name);
                         $('#edit_description').val(res.item.description);
                         $('#edit_vendor_id').val(res.item.vendor_id).trigger('change');
+                        $('#edit_incoterms').val(res.item.incoterms || '');
 
                         $('#editItemModal').modal('show');
                     }
