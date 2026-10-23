@@ -45,6 +45,7 @@ class StagingIn extends Model
         'tidak lengkap',
         'salah ukuran',
         'batal',
+        'stock',
     ];
 
     /**

@@ -46,7 +46,6 @@ class StagingInHistoryDetailExport implements FromArray, WithEvents
                 // dari yang paling lama ke yang paling baru.
                 $query->reorder()->orderBy('created_at')->orderBy('id');
             },
-            'details.performedBy',
         ]);
     }
 
@@ -92,7 +91,7 @@ class StagingInHistoryDetailExport implements FromArray, WithEvents
                 $detail->qty_change,
                 $detail->qty_after,
                 $this->describeMeta($detail).($detail->notes ? ' | Catatan: '.$detail->notes : ''),
-                optional($detail->performedBy)->name ?: 'System',
+                $detail->performed_by ?: 'System',
             ];
         }
 
@@ -268,4 +267,4 @@ class StagingInHistoryDetailExport implements FromArray, WithEvents
 
         ];
     }
-}
+}   
