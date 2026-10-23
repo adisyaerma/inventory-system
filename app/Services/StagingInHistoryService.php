@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StagingIn;
 use App\Models\StagingInHistory;
 use App\Models\StagingInHistoryDetail;
+use App\Support\CurrentUser;
 use Illuminate\Support\Collection;
 
 /**
@@ -41,7 +42,7 @@ class StagingInHistoryService
             'qty_before' => 0,
             'qty_change' => $staging->qty,
             'qty_after' => $staging->qty,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -79,7 +80,7 @@ class StagingInHistoryService
             'qty_before' => $changes['qty']['old'] ?? $staging->qty,
             'qty_after' => $changes['qty']['new'] ?? $staging->qty,
             'meta' => $changes,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -109,7 +110,7 @@ class StagingInHistoryService
             'qty_change' => $qtyMoved,
             'qty_after' => $remaining,
             'meta' => $meta,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
 
         // Kalau sisa qty habis, baris staging_in akan ikut dihapus oleh
@@ -136,7 +137,7 @@ class StagingInHistoryService
             'qty_before' => $staging->qty,
             'qty_change' => $staging->qty,
             'qty_after' => 0,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -157,7 +158,7 @@ class StagingInHistoryService
                 'qty_before' => $staging->qty,
                 'qty_change' => $staging->qty,
                 'qty_after' => 0,
-                'performed_by' => auth()->id(),
+                'performed_by' => CurrentUser::email(),
             ]);
         }
     }
@@ -180,7 +181,7 @@ class StagingInHistoryService
                 'qty_change' => $staging->qty,
                 'qty_after' => 0,
                 'notes' => 'Data dihapus otomatis karena import ulang seluruh data staging in.',
-                'performed_by' => auth()->id(),
+                'performed_by' => CurrentUser::email(),
             ]);
         }
     }
@@ -220,4 +221,4 @@ class StagingInHistoryService
 
         return (string) $value;
     }
-}
+} 

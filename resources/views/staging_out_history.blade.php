@@ -527,15 +527,25 @@
 
         <script>
             // ============ HELPER FORMAT TANGGAL ============
-            // Backend mengirim tanggal dalam format ISO UTC (mis. 2026-08-20T17:00:00.000000Z).
-            // Fungsi ini mengonversinya ke tanggal lokal (WIB) dan menampilkannya
-            // dalam format yang rapi, bukan string ISO mentah.
+            // Semua tanggal ditampilkan dengan format DD-MM-YYYY (tanggal-bulan-tahun).
+            // Backend bisa mengirim ISO UTC (mis. 2026-08-20T17:00:00.000000Z) atau
+            // tanggal polos (mis. 2026-08-20). ISO UTC dikonversi ke zona waktu lokal (WIB).
+            function pad2(n) {
+                return String(n).padStart(2, '0');
+            }
+
             function formatDateOnly(value) {
                 if (!value) return '-';
-                if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value)) return value;
+                if (typeof value !== 'string') return value;
+
+                // Tanggal polos YYYY-MM-DD (tanpa jam) -> langsung tukar urutan, tanpa konversi zona waktu
+                const plain = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (plain) return `${plain[3]}-${plain[2]}-${plain[1]}`;
+
+                if (!/^\d{4}-\d{2}-\d{2}T/.test(value)) return value;
                 const d = new Date(value);
                 if (isNaN(d.getTime())) return value;
-                return d.toLocaleDateString('sv-SE'); // -> YYYY-MM-DD (mengikuti zona waktu lokal browser)
+                return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
             }
 
             function formatDateTime(value) {
@@ -543,7 +553,7 @@
                 if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value)) return value;
                 const d = new Date(value);
                 if (isNaN(d.getTime())) return value;
-                const datePart = d.toLocaleDateString('sv-SE');
+                const datePart = formatDateOnly(value);
                 const timePart = d.toLocaleTimeString('id-ID', {
                     hour: '2-digit',
                     minute: '2-digit'
@@ -970,9 +980,9 @@
                     appliedHistoryEnd = end;
 
                     if (start && end) {
-                        $dateInput.val(start + ' s/d ' + end);
+                        $dateInput.val(formatDateOnly(start) + ' s/d ' + formatDateOnly(end));
                     } else if (start) {
-                        $dateInput.val(start + ' s/d ...');
+                        $dateInput.val(formatDateOnly(start) + ' s/d ...');
                     } else {
                         $dateInput.val('');
                     }

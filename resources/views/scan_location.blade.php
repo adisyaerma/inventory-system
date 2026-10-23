@@ -879,7 +879,7 @@
                     html = `
 
             <div class="d-flex align-items-center gap-2 text-muted py-3 px-1">
-                <i class="bx bx-inbox fs-4"></i>
+                <i class="bi bi-inbox fs-4"></i>
                 <span class="small">Belum ada mutasi untuk barang ini.</span>
             </div>
 

@@ -112,8 +112,7 @@ class StagingInController extends Controller
             ->select('staging_ins.*')
             ->leftJoin('items', 'items.id', '=', 'staging_ins.item_id')
             ->leftJoin('vendors', 'vendors.id', '=', 'items.vendor_id')
-            ->with('item.vendor')
-            ->orderByDesc('staging_ins.id');
+            ->with('item.vendor');
 
         if ($request->filled('location')) {
             $query->where('staging_ins.location', $request->location);
@@ -149,6 +148,18 @@ class StagingInController extends Controller
         if ($request->query('filter') === 'overdue') {
             $query->whereNotNull('staging_ins.arrival_date')
                 ->where('staging_ins.arrival_date', '<=', now()->subDays(self::FOLLOW_UP_DAYS));
+        }
+
+        // Urutan default (data terbaru di atas) hanya dipakai kalau user
+        // belum mengklik sorting kolom. Kalau tetap dipasang, ORDER BY id
+        // ini bisa ikut menempel dan membuat sorting kolom (mis. tanggal)
+        // tidak berfungsi.
+        if ($request->filled('order')) {
+            // User mengklik sorting kolom: buang urutan lain supaya
+            // hanya urutan kolom yang dipakai.
+            $query->reorder();
+        } else {
+            $query->orderByDesc('staging_ins.id');
         }
 
         return DataTables::eloquent($query)
@@ -190,6 +201,7 @@ class StagingInController extends Controller
             })
 
             ->orderColumn('item_owner', 'vendors.name $1')
+            ->orderColumn('arrival_date', 'staging_ins.arrival_date $1')
 
             ->editColumn('arrival_date', function ($row) {
 
@@ -629,15 +641,22 @@ class StagingInController extends Controller
      */
     public function searchStock(Request $request)
     {
-        $keyword = $request->q;
+        $keyword = trim((string) $request->q);
 
         $items = Item::query()
             ->with('vendor')
-            ->when($keyword, function ($query) use ($keyword) {
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('item_code_internal', 'like', "%{$keyword}%")
-                        ->orWhere('name', 'like', "%{$keyword}%");
-                });
+            ->when($keyword !== '', function ($query) use ($keyword) {
+                // Pencarian tidak peduli huruf besar/kecil (aman untuk
+                // PostgreSQL maupun MySQL). Setiap kata harus cocok di
+                // kode ATAU nama barang, jadi "fluke 87" tetap ketemu.
+                foreach (preg_split('/\s+/', $keyword) as $word) {
+                    $like = '%'.mb_strtolower($word).'%';
+
+                    $query->where(function ($q) use ($like) {
+                        $q->whereRaw('LOWER(item_code_internal) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
+                    });
+                }
             })
             ->orderBy('name')
             ->limit(20)

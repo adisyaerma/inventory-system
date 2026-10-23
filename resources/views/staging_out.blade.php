@@ -2371,11 +2371,11 @@
                         },
                         {
                             data: 'delivery_instruction_date',
-                            name: 'delivery_instruction_date'
+                            name: 'staging_outs.delivery_instruction_date'
                         },
                         {
                             data: 'picking_date',
-                            name: 'picking_date'
+                            name: 'staging_outs.picking_date'
                         },
                         {
                             data: 'staging_location',
@@ -2387,7 +2387,7 @@
                         },
                         {
                             data: 'delivery_receipt_date',
-                            name: 'delivery_receipt_date'
+                            name: 'staging_outs.delivery_receipt_date'
                         },
                         {
                             data: 'action',
@@ -2729,7 +2729,8 @@
                     return new TomSelect(selectId, {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text'],
+                        searchField: ['text', 'item_code', 'item_name', 'item_code_customer', 'item_code_supplier'],
+                        loadThrottle: 250,
                         preload: true,
                         create: false,
                         maxOptions: 20,
@@ -3266,7 +3267,8 @@
                     const ts = new TomSelect($item[0], {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text'],
+                        searchField: ['text', 'item_code', 'item_name', 'item_code_customer', 'item_code_supplier'],
+                        loadThrottle: 250,
                         preload: true,
                         create: false,
                         maxOptions: 20,

@@ -308,3 +308,5 @@ Route::prefix('item-history')->name('item-history.')->group(function () {
     Route::get('/{item}/timeline', [ItemHistoryController::class, 'timeline'])->name('timeline');
     Route::get('/{item}/export', [ItemHistoryController::class, 'export'])->name('export');
 });
+
+Route::get('/cek-header', fn () => request()->header('Cf-Access-Authenticated-User-Email') ?? 'KOSONG');

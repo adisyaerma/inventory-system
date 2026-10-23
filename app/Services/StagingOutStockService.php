@@ -127,8 +127,40 @@ class StagingOutStockService
             return;
         }
 
-        // 2. Format baru: "<no SO> - <customer>". PostgreSQL tidak
-        //    mendukung DELETE ... LIMIT, jadi ambil id-nya dulu.
+        // 2. Format sekarang: StagingOutController::applyStockOut() menulis
+        //    mutasi keluar dengan description = NULL (sengaja dikosongkan)
+        //    dan transaction_number = no SO. Dicari lewat kombinasi itu +
+        //    qty_out, BUKAN lewat description -- sebelumnya pencarian pakai
+        //    description "<no SO> - <customer>" sehingga tidak pernah
+        //    ketemu, mutasi lama tidak terhapus, dan setiap edit / hapus /
+        //    kirim ulang (mis. setelah Pulihkan) menambah mutasi dobel.
+        $so = trim((string) $stagingOut->so_number);
+
+        $mutationId = $base()
+            ->where('qty_in', 0)
+            ->where('qty_out', $stagingOut->qty)
+            ->where(function ($q) use ($so) {
+                $q->whereNull('description')->orWhere('description', '');
+            })
+            ->where(function ($q) use ($so) {
+                if ($so === '') {
+                    $q->whereNull('transaction_number')->orWhere('transaction_number', '');
+                } else {
+                    $q->where('transaction_number', $so);
+                }
+            })
+            ->orderByDesc('id')
+            ->value('id');
+
+        if ($mutationId) {
+            StockMutation::whereKey($mutationId)->delete();
+
+            return;
+        }
+
+        // 3. Format perantara: description "<no SO> - <customer>".
+        //    PostgreSQL tidak mendukung DELETE ... LIMIT, jadi ambil
+        //    id-nya dulu.
         $mutationId = $base()
             ->where('description', $this->description($stagingOut))
             ->where('qty_out', $stagingOut->qty)

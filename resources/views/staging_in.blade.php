@@ -2223,7 +2223,7 @@
                         },
                         {
                             data: 'arrival_date',
-                            name: 'arrival_date'
+                            name: 'staging_ins.arrival_date'
                         },
                         {
                             data: 'supplier_origin',
@@ -2393,7 +2393,8 @@
                     return new TomSelect(selectId, {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text'],
+                        searchField: ['text', 'item_code', 'item_name'],
+                        loadThrottle: 250,
                         preload: true,
                         create: false,
                         maxOptions: 20,
@@ -2831,7 +2832,8 @@
                     return new TomSelect(el, {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text'],
+                        searchField: ['text', 'item_code', 'item_name'],
+                        loadThrottle: 250,
                         preload: true,
                         create: false,
                         maxOptions: 20,

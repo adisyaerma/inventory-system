@@ -17,10 +17,6 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ItemHistoryController extends Controller
 {
-    /**
-     * Halaman daftar item — mirip tabel Items/Stok Lokasi, tapi dengan
-     * tombol "Riwayat" yang mengarah ke history lengkap barang tersebut.
-     */
     public function index(Request $request)
     {
         $vendors = Vendor::orderBy('name')->get();
@@ -28,9 +24,6 @@ class ItemHistoryController extends Controller
         return view('item_history.index', compact('vendors'));
     }
 
-    /**
-     * Data untuk DataTables di halaman daftar item (menu History Item).
-     */
     public function data(Request $request)
     {
         $query = Item::query()
@@ -54,8 +47,6 @@ class ItemHistoryController extends Controller
                     return '-';
                 }
 
-                // Tampilkan versi ringkas di tabel, teks lengkapnya
-                // tetap bisa dibaca lewat tooltip (title).
                 $short = \Illuminate\Support\Str::limit($row->description, 80);
 
                 return '<span title="'.e($row->description).'">'.e($short).'</span>';
@@ -69,16 +60,12 @@ class ItemHistoryController extends Controller
                 });
             })
 
-            // Total stok barang ini di semua lokasi (dijumlah dari location_stock).
             ->addColumn('total_qty', function ($row) {
                 $qty = LocationStock::where('item_id', $row->id)->sum('quantity');
 
                 return number_format($qty, 0, ',', '.');
             })
 
-            // Tanggal transaksi mutasi terakhir untuk barang ini — sekadar
-            // sinyal cepat "kapan terakhir barang ini bergerak", bukan
-            // gabungan staging in/out (itu ada lengkap di halaman detail).
             ->addColumn('last_activity', function ($row) {
                 $lastDate = StockMutation::where('item_id', $row->id)
                     ->orderByDesc('transaction_date')
@@ -110,12 +97,6 @@ class ItemHistoryController extends Controller
             ->make(true);
     }
 
-    /**
-     * Halaman detail riwayat satu item. Diakses lewat:
-     * - Menu "History Item" (tombol Riwayat)
-     * - Klik nama/kode barang di halaman Stok Lokasi
-     * - Klik nama/kode barang di halaman Stok Mutasi
-     */
     public function show(Item $item)
     {
         $item->load('vendor');
@@ -123,10 +104,6 @@ class ItemHistoryController extends Controller
         return view('item_history.detail', compact('item'));
     }
 
-    /**
-     * Data timeline (JSON) untuk halaman detail — dipakai oleh JS di
-     * item_history.detail untuk render timeline & breakdown lokasi.
-     */
     public function timeline(Item $item)
     {
         $data = $this->buildHistoryData($item);
@@ -143,21 +120,12 @@ class ItemHistoryController extends Controller
         ]);
     }
 
-    /**
-     * Export laporan riwayat item ini ke Excel — data yang diexport
-     * persis sama dengan yang tampil di timeline halaman detail.
-     */
     public function export(Item $item)
     {
         $item->load('vendor');
 
         $data = $this->buildHistoryData($item);
 
-        // item_code_internal bisa mengandung karakter "/" atau "\" (mis.
-        // kode barang berformat "123/456") — kalau ditempel apa adanya ke
-        // nama file, HTTP header Content-Disposition menolaknya karena
-        // dua karakter itu dianggap pemisah path. Ganti dulu dengan "-"
-        // supaya aman dipakai sebagai nama file.
         $safeCode = str_replace(
             ['/', '\\'],
             '-',
@@ -172,12 +140,6 @@ class ItemHistoryController extends Controller
         );
     }
 
-    /**
-     * Kumpulkan & gabungkan data lokasi + timeline (mutasi, staging in,
-     * staging out) untuk satu item. Dipakai bareng oleh timeline() (JSON,
-     * ditampilkan di halaman detail) dan export() (Excel) supaya kedua
-     * fitur ini selalu menampilkan data yang identik.
-     */
     private function buildHistoryData(Item $item): array
     {
         $locations = LocationStock::with('location')
@@ -192,22 +154,12 @@ class ItemHistoryController extends Controller
             })
             ->values();
 
-        // Ambil SEMUA event staging in dulu (dipakai dua kali di bawah:
-        // untuk mencocokkan mutasi yang berasal dari "moved_to_stock",
-        // dan untuk baris timeline staging in itu sendiri).
         $stagingInDetails = StagingInHistoryDetail::with('history')
             ->whereHas('history', function ($q) use ($item) {
                 $q->where('item_id', $item->id);
             })
             ->get();
 
-        // "moved_to_stock" SELALU membuat satu baris StockMutation (qty_in)
-        // bareng-bareng di StagingInController::moveToStock(), dan id
-        // mutation-nya disimpan di meta.stock_mutation_id. Supaya tidak
-        // tampil dobel di timeline (sekali sebagai "dipindah ke stok",
-        // sekali lagi sebagai "mutasi masuk"), kita cocokkan di sini —
-        // nanti HANYA baris mutasi yang ditampilkan, tapi labelnya
-        // diperjelas bahwa itu berasal dari staging in.
         $movedToStockByMutationId = $stagingInDetails
             ->where('event_type', 'moved_to_stock')
             ->filter(fn ($d) => ! empty($d->meta['stock_mutation_id']))
@@ -223,19 +175,6 @@ class ItemHistoryController extends Controller
             })
             ->get();
 
-        // applyStockOut() SELALU membuat satu baris mutasi keluar (qty_out)
-        // untuk staging out yang sumbernya stok, dengan transaction_number =
-        // no SO. Karena description mutasi tidak lagi memuat ID staging out,
-        // pencocokan dilakukan lewat no SO + qty, satu-lawan-satu (satu
-        // mutasi hanya dipasangkan dengan satu event "created").
-        //
-        // Hasilnya:
-        // - $stagingOutByMutationId: id mutasi => event staging out asalnya,
-        //   dipakai untuk memberi label "dari Staging Out" pada baris mutasi.
-        // - $createdCoveredByMutation: event "created" yang sudah terwakili
-        //   baris mutasi, jadi tidak ditampilkan lagi (tidak dobel).
-        // Staging out yang tidak punya mutasi (mis. berasal dari staging in)
-        // tidak cocok dengan apa pun dan tetap tampil apa adanya.
         $mutationOutIdsByKey = [];
 
         foreach ($mutationRows->filter(fn ($m) => $m->qty_out > 0 && ! empty($m->transaction_number))->sortBy('created_at') as $m) {
@@ -298,13 +237,7 @@ class ItemHistoryController extends Controller
 
                 return [
                     'date' => optional($row->transaction_date)->toDateString(),
-                    // Dipakai buat sorting HARUS pakai created_at (waktu
-                    // sistem saat baris ini benar-benar dibuat), bukan
-                    // transaction_date. transaction_date itu tanggal bisnis
-                    // yang diinput manual (cuma tanggal, jamnya 00:00) —
-                    // kalau dipakai untuk sorting, bisa salah urutan
-                    // dibanding event staging in/out yang sort_key-nya pakai
-                    // created_at presisi detik.
+
                     'sort_key' => optional($row->created_at)->timestamp
                         ?? optional($row->transaction_date)->timestamp
                         ?? 0,
@@ -318,21 +251,6 @@ class ItemHistoryController extends Controller
                     'notes' => $notes,
                 ];
             });
-
-        // Diambil dari staging_in_history_details (log permanen), BUKAN dari
-        // tabel staging_ins langsung — staging_ins bersifat "live", qty-nya
-        // di-update setiap kali sebagian dipindah (lihat
-        // StagingInController::moveToStock/moveToStagingOut), jadi kalau
-        // dibaca langsung dari situ, history akan menampilkan sisa qty
-        // terakhir, bukan kejadian aslinya. Tiap baris di history_details
-        // adalah satu kejadian yang tidak pernah diubah lagi, jadi qty
-        // aslinya (mis. "10 masuk", lalu "2 dipindah") tetap tercatat apa
-        // adanya walau qty sisa di staging_ins sudah berubah.
-        //
-        // "updated" & "deleted" disembunyikan karena cuma perubahan
-        // administratif, bukan pergerakan barang. "moved_to_stock" juga
-        // disembunyikan di sini karena sudah direpresentasikan lewat baris
-        // mutasi di atas (lihat $movedToStockByMutationId).
         $hiddenStagingInEvents = ['updated', 'deleted', 'moved_to_stock'];
 
         $stagingIns = $stagingInDetails
@@ -362,16 +280,6 @@ class ItemHistoryController extends Controller
             })
             ->values();
 
-        // Sama seperti staging in di atas: diambil dari
-        // staging_out_history_details (log permanen), bukan tabel
-        // staging_outs langsung.
-        //
-        // Yang disembunyikan:
-        // - "updated" & "deleted": cuma perubahan administratif.
-        // - "delivered": info barang sudah dikirim tidak perlu tampil di
-        //   history item (barangnya sudah tercatat keluar lewat mutasi).
-        // - "created" yang sudah punya baris mutasi keluar (lihat di
-        //   bawah), supaya satu barang keluar tidak tampil dobel.
         $hiddenStagingOutEvents = ['updated', 'deleted', 'delivered'];
 
         $stagingOuts = $stagingOutDetails

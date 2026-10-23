@@ -55,11 +55,6 @@ class StagingInHistoryDetail extends Model
         return $this->belongsTo(StagingInHistory::class, 'staging_in_history_id');
     }
 
-    public function performedBy(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\User::class, 'performed_by');
-    }
-
     public function getEventLabelAttribute(): string
     {
         return self::EVENT_TYPES[$this->event_type] ?? $this->event_type;

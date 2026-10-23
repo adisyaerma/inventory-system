@@ -66,8 +66,7 @@ class StagingOutController extends Controller
         $query = StagingOut::query()
             ->select('staging_outs.*')
             ->leftJoin('items', 'items.id', '=', 'staging_outs.item_id')
-            ->with('item')
-            ->orderByDesc('staging_outs.id');
+            ->with('item');
 
         // 1. Status
         //    Menerima dua "kosakata": yang lama (belum_picking / sudah_picking
@@ -134,6 +133,18 @@ class StagingOutController extends Controller
                 ->whereNull('staging_outs.delivery_receipt_date');
         }
 
+        // Urutan default (data terbaru di atas) hanya dipakai kalau user
+        // belum mengklik sorting kolom. Kalau tetap dipasang, ORDER BY id
+        // ini bisa ikut menempel dan membuat sorting kolom (mis. tanggal)
+        // tidak berfungsi.
+        if ($request->filled('order')) {
+            // User mengklik sorting kolom: buang urutan lain supaya
+            // hanya urutan kolom yang dipakai.
+            $query->reorder();
+        } else {
+            $query->orderByDesc('staging_outs.id');
+        }
+
         return DataTables::eloquent($query)
 
             ->addIndexColumn()
@@ -175,6 +186,9 @@ class StagingOutController extends Controller
             })
 
             ->orderColumn('customer', 'staging_outs.customer $1')
+            ->orderColumn('delivery_instruction_date', 'staging_outs.delivery_instruction_date $1')
+            ->orderColumn('picking_date', 'staging_outs.picking_date $1')
+            ->orderColumn('delivery_receipt_date', 'staging_outs.delivery_receipt_date $1')
 
             // Badge kecil supaya kelihatan mana entry "stok" vs "eksternal"
             // langsung dari kolom kode barang, tanpa nambah kolom baru.
@@ -387,16 +401,23 @@ class StagingOutController extends Controller
      */
     public function searchStock(Request $request)
     {
-        $keyword = $request->q;
+        $keyword = trim((string) $request->q);
 
         $items = Item::query()
-            ->when($keyword, function ($query) use ($keyword) {
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('item_code_internal', 'like', "%{$keyword}%")
-                        ->orWhere('item_code_customer', 'like', "%{$keyword}%")
-                        ->orWhere('item_code_supplier', 'like', "%{$keyword}%")
-                        ->orWhere('name', 'like', "%{$keyword}%");
-                });
+            ->when($keyword !== '', function ($query) use ($keyword) {
+                // Pencarian tidak peduli huruf besar/kecil (aman untuk
+                // PostgreSQL maupun MySQL). Setiap kata harus cocok di
+                // salah satu kode (internal/customer/supplier) ATAU nama.
+                foreach (preg_split('/\s+/', $keyword) as $word) {
+                    $like = '%'.mb_strtolower($word).'%';
+
+                    $query->where(function ($q) use ($like) {
+                        $q->whereRaw('LOWER(item_code_internal) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(item_code_customer) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(item_code_supplier) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
+                    });
+                }
             })
             ->orderBy('name')
             ->limit(20)
@@ -409,6 +430,8 @@ class StagingOutController extends Controller
                     'text' => $item->item_code_internal.' | '.$item->name,
                     'item_code' => $item->item_code_internal,
                     'item_name' => $item->name,
+                    'item_code_customer' => $item->item_code_customer,
+                    'item_code_supplier' => $item->item_code_supplier,
                 ];
             })
         );

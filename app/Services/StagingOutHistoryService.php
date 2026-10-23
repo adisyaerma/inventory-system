@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
+use App\Support\CurrentUser;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -60,7 +61,7 @@ class StagingOutHistoryService
             // halaman history tetap bisa menampilkan "diambil dari lokasi
             // mana" walau baris staging_out aslinya sudah dihapus.
             'meta' => $this->sourceMeta($staging),
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -129,7 +130,7 @@ class StagingOutHistoryService
             'qty_before' => $changes['qty']['old'] ?? $staging->qty,
             'qty_after' => $changes['qty']['new'] ?? $staging->qty,
             'meta' => $changes,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -147,7 +148,7 @@ class StagingOutHistoryService
         return $history->details()->create([
             'event_type' => 'picking_confirmed',
             'meta' => ['picking_date' => (string) $pickingDate],
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -170,7 +171,7 @@ class StagingOutHistoryService
                 'do_number' => $doNumber,
                 'delivery_date' => $this->toDateString($deliveryDate),
             ],
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -188,7 +189,7 @@ class StagingOutHistoryService
             'qty_before' => $staging->qty,
             'qty_change' => $staging->qty,
             'qty_after' => 0,
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -232,7 +233,7 @@ class StagingOutHistoryService
                 'do_number' => $doNumber,
                 'delivery_date' => $this->toDateString($deliveryDate),
             ],
-            'performed_by' => auth()->id(),
+            'performed_by' => CurrentUser::email(),
         ]);
     }
 
@@ -253,7 +254,7 @@ class StagingOutHistoryService
                 'qty_before' => $staging->qty,
                 'qty_change' => $staging->qty,
                 'qty_after' => 0,
-                'performed_by' => auth()->id(),
+                'performed_by' => CurrentUser::email(),
             ]);
         }
     }
@@ -276,7 +277,7 @@ class StagingOutHistoryService
                 'qty_change' => $staging->qty,
                 'qty_after' => 0,
                 'notes' => 'Data dihapus otomatis karena import ulang seluruh data staging out.',
-                'performed_by' => auth()->id(),
+                'performed_by' => CurrentUser::email(),
             ]);
         }
     }

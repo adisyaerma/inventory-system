@@ -10,6 +10,7 @@ use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
 use App\Services\StagingOutHistoryService;
 use App\Services\StagingOutStockService;
+use App\Support\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -433,7 +434,7 @@ class StagingOutHistoryController extends Controller
                                 'cleared_delivery_receipt_date' => $previousReceiptDate,
                             ],
                             'notes' => 'Dipulihkan ke Staging Out (baris baru #'.$newStaging->id.'), tgl resi pengiriman dikosongkan.',
-                            'performed_by' => auth()->id(),
+                            'performed_by' => CurrentUser::email(),
                         ]);
                     });
 
@@ -943,7 +944,7 @@ class StagingOutHistoryController extends Controller
             // reorder() dulu supaya timeline tampil dari yang paling lama
             // ke terbaru.
             $query->reorder()->orderBy('created_at')->orderBy('id');
-        }, 'details.performedBy']);
+        }]);
 
         $lastDetail = $history->details->last();
 
@@ -1001,7 +1002,7 @@ class StagingOutHistoryController extends Controller
                     'qty_after' => $detail->qty_after,
                     'meta' => $meta,
                     'notes' => $detail->notes,
-                    'performed_by' => optional($detail->performedBy)->name ?: 'System',
+                    'performed_by' => $detail->performed_by ?: 'System',
                     'created_at' => $detail->created_at->format('d M Y, H:i'),
                 ];
             })->all(),

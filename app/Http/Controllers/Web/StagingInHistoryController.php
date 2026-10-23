@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StagingIn;
 use App\Models\StagingInHistory;
 use App\Models\StagingInHistoryDetail;
+use App\Support\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ use Yajra\DataTables\Facades\DataTables;
  * - StagingInHistory::item()
  * - StagingInHistory::creator()   -> FK created_by
  * - StagingInHistory::details()   -> hasMany, sudah ->latest() di model
- * - StagingInHistoryDetail::performedBy() -> FK performed_by
+ * - StagingInHistoryDetail::performed_by -> string (email Cloudflare)
  * - Label & warna event pakai StagingInHistoryDetail::EVENT_TYPES /
  *   ::EVENT_COLORS, bukan didefinisikan ulang di sini.
  *
@@ -372,7 +373,7 @@ class StagingInHistoryController extends Controller
             // reorder() dulu supaya tidak numpuk beberapa ORDER BY dan
             // timeline benar-benar tampil dari yang paling lama ke terbaru.
             $query->reorder()->orderBy('created_at')->orderBy('id');
-        }, 'details.performedBy']);
+        }]);
 
         $lastDetail = $history->details->last();
 
@@ -408,7 +409,7 @@ class StagingInHistoryController extends Controller
                     'qty_after' => $detail->qty_after,
                     'meta' => $detail->meta,
                     'notes' => $detail->notes,
-                    'performed_by' => optional($detail->performedBy)->name ?: 'System',
+                    'performed_by' => $detail->performed_by ?: 'System',
                     'created_at' => $detail->created_at->format('d M Y, H:i'),
                 ];
             }),
@@ -517,7 +518,7 @@ class StagingInHistoryController extends Controller
                             'qty_after' => $snapshot['qty'],
                             'meta' => ['restored_staging_in_id' => $newStagingIn->id],
                             'notes' => 'Dipulihkan kembali ke Staging In (baris baru #'.$newStagingIn->id.')',
-                            'performed_by' => auth()->id(),
+                            'performed_by' => CurrentUser::email(),
                         ]);
                     });
 

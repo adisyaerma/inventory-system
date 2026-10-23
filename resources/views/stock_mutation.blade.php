@@ -2936,7 +2936,9 @@
 
                 labelField: "text",
 
-                searchField: ["text"],
+                searchField: ["text", "item_code", "item_name"],
+
+                loadThrottle: 250,
 
                 preload: true,
 
@@ -3373,7 +3375,8 @@
             edititemSelect = new TomSelect("#editItem", {
                 valueField: "id",
                 labelField: "text",
-                searchField: ["text"],
+                searchField: ["text", "item_code", "item_name"],
+                loadThrottle: 250,
                 preload: "focus",
                 create: false,
                 maxOptions: 20,

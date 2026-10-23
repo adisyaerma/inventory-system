@@ -458,18 +458,22 @@ class StockMutationController extends Controller
 
     public function searchStock(Request $request)
     {
-        $keyword = $request->q;
+        $keyword = trim((string) $request->q);
 
         $items = Item::query()
 
-            ->when($keyword, function ($query) use ($keyword) {
+            ->when($keyword !== '', function ($query) use ($keyword) {
 
-                $query->where(function ($q) use ($keyword) {
+                // Tidak peduli huruf besar/kecil (aman untuk PostgreSQL
+                // maupun MySQL). Setiap kata harus cocok di kode ATAU nama.
+                foreach (preg_split('/\s+/', $keyword) as $word) {
+                    $like = '%'.mb_strtolower($word).'%';
 
-                    $q->where('item_code_internal', 'like', "%{$keyword}%")
-                        ->orWhere('name', 'like', "%{$keyword}%");
-
-                });
+                    $query->where(function ($q) use ($like) {
+                        $q->whereRaw('LOWER(item_code_internal) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
+                    });
+                }
 
             })
 
@@ -486,6 +490,10 @@ class StockMutationController extends Controller
                     'id' => $item->id,
 
                     'text' => $item->item_code_internal.' | '.$item->name,
+
+                    'item_code' => $item->item_code_internal,
+
+                    'item_name' => $item->name,
 
                 ];
 
