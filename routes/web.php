@@ -111,6 +111,8 @@ Route::get('/scan-location', [ScanBarcodeController::class, 'index'])
 Route::post('/scan-location/search', [ScanBarcodeController::class, 'search'])
     ->name('scan.location.search');
 
+Route::get('/item/{item}/locations', [ScanBarcodeController::class, 'itemLocations']);
+
 // ===mutation===
 
 Route::get('/item/{item}/mutations', [ItemController::class, 'mutations'])

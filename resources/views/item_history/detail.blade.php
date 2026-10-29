@@ -63,7 +63,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-0 pt-4 px-4">
             <h5 class="mb-0 fw-bold">Activity Timeline</h5>
-            <small class="text-muted">Gabungan riwayat mutasi, staging in, dan staging out barang ini</small>
+            <small class="text-muted">Riwayat barang masuk dan keluar (berdasarkan mutasi stok)</small>
         </div>
         <div class="card-body">
             <div id="itemTimeline" class="history-timeline"></div>

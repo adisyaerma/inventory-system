@@ -498,6 +498,50 @@
                 padding: .9rem 1rem 1.1rem;
             }
         }
+
+        /* ---------- Toggle Jenis Masuk / Keluar ---------- */
+        .modal-aesthetic .mut-type-toggle {
+            display: flex;
+            gap: .3rem;
+            padding: .25rem;
+            background: #f1f3fb;
+            border-radius: .85rem;
+        }
+
+        .modal-aesthetic .mut-type-btn {
+            flex: 1 1 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            min-height: 36px;
+            padding: .35rem .9rem;
+            border: 0;
+            border-radius: .65rem;
+            font-size: .88rem;
+            font-weight: 600;
+            white-space: nowrap;
+            color: #6b7280;
+            background: transparent;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .mut-type-btn:not(.active):hover {
+            color: #374151;
+            background: #fff;
+        }
+
+        .modal-aesthetic .mut-type-btn.is-in.active {
+            color: #fff;
+            background: #16a34a;
+            box-shadow: 0 2px 6px rgba(22, 163, 74, .3);
+        }
+
+        .modal-aesthetic .mut-type-btn.is-out.active {
+            color: #fff;
+            background: #e11d48;
+            box-shadow: 0 2px 6px rgba(225, 29, 72, .3);
+        }
     </style>
 
 
@@ -811,15 +855,18 @@
 
                                                         <div class="col-12 col-md-6">
                                                             <label class="form-label fw-semibold">Jenis</label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text">
-                                                                    <i class="bi bi-arrow-down-up"></i>
-                                                                </span>
-                                                                <select class="form-select" id="qtyType">
-                                                                    <option value="in">Masuk</option>
-                                                                    <option value="out">Keluar</option>
-                                                                </select>
+                                                            <div class="mut-type-toggle" data-target="qtyType" role="group" aria-label="Jenis mutasi">
+                                                                <button type="button" class="mut-type-btn is-in active" data-value="in">
+                                                                    <i class="bi bi-box-arrow-in-down"></i> Masuk
+                                                                </button>
+                                                                <button type="button" class="mut-type-btn is-out" data-value="out">
+                                                                    <i class="bi bi-box-arrow-up"></i> Keluar
+                                                                </button>
                                                             </div>
+                                                            <select class="d-none" id="qtyType">
+                                                                <option value="in">Masuk</option>
+                                                                <option value="out">Keluar</option>
+                                                            </select>
                                                         </div>
 
                                                         <div class="col-12 col-md-6">
@@ -1682,19 +1729,18 @@
                                                 <label class="form-label fw-semibold">
                                                     Jenis
                                                 </label>
-                                                <div class="input-group flex-nowrap">
-                                                    <span class="input-group-text">
-                                                        <i class="bi bi-arrow-down-up"></i>
-                                                    </span>
-                                                    <select class="form-select" id="editQtyType">
-                                                        <option value="in">
-                                                            Masuk
-                                                        </option>
-                                                        <option value="out">
-                                                            Keluar
-                                                        </option>
-                                                    </select>
+                                                <div class="mut-type-toggle" data-target="editQtyType" role="group" aria-label="Jenis mutasi">
+                                                    <button type="button" class="mut-type-btn is-in active" data-value="in">
+                                                        <i class="bi bi-box-arrow-in-down"></i> Masuk
+                                                    </button>
+                                                    <button type="button" class="mut-type-btn is-out" data-value="out">
+                                                        <i class="bi bi-box-arrow-up"></i> Keluar
+                                                    </button>
                                                 </div>
+                                                <select class="d-none" id="editQtyType">
+                                                    <option value="in">Masuk</option>
+                                                    <option value="out">Keluar</option>
+                                                </select>
                                             </div>
 
                                             <div class="qty-col">
@@ -2175,6 +2221,35 @@
             });
         </script>
         <script>
+            // ================= TOGGLE JENIS (Masuk / Keluar) =================
+            // Select aslinya (#qtyType / #editQtyType) tetap dipakai oleh logika
+            // lain; toggle hanya tampilan yang menyetir select itu.
+            function syncTypeToggle(selectId) {
+                let val = $('#' + selectId).val() || 'in';
+                $('.mut-type-toggle[data-target="' + selectId + '"] .mut-type-btn').each(function() {
+                    $(this).toggleClass('active', $(this).data('value') === val);
+                });
+            }
+
+            $(document).on('click', '.mut-type-btn', function() {
+                let selectId = $(this).closest('.mut-type-toggle').data('target');
+                $('#' + selectId).val($(this).data('value')).trigger('change');
+                syncTypeToggle(selectId);
+            });
+
+            ['qtyType', 'editQtyType'].forEach(function(id) {
+                $('#' + id).on('change', function() {
+                    syncTypeToggle(id);
+                });
+                // form.reset() mengembalikan select ke "Masuk" tanpa event change
+                $('#' + id).closest('form').on('reset', function() {
+                    setTimeout(function() {
+                        syncTypeToggle(id);
+                    }, 0);
+                });
+            });
+            // ==============================================================
+
             $('#editQtyType').on('change', function() {
 
                 let qty = $('#editQty').val();
@@ -2353,6 +2428,9 @@
                     dom: 'rtip',
                     processing: true,
                     serverSide: true,
+                    order: [
+                        [2, 'desc']
+                    ],
 
                     ajax: {
                         url: "{{ route('stock-mutation.data') }}",
@@ -2936,7 +3014,7 @@
 
                 labelField: "text",
 
-                searchField: ["text", "item_code", "item_name"],
+                searchField: ["text", "item_code", "item_name", "item_code_supplier"],
 
                 loadThrottle: 250,
 
@@ -3070,9 +3148,10 @@
                             lotSelect.addOption(opt);
                         });
 
-                        if (res.length === 0) {
+                        // Tanpa lot sama sekali (tidak ada baris, atau satu-satunya
+                        // baris memang tanpa lot): field lot tidak ditampilkan.
+                        if (res.length === 0 || (res.length === 1 && res[0].id === "")) {
 
-                            // Barang tanpa pelacakan lot di lokasi ini.
                             $("#lotWrapper").hide();
                             lotSelect.setValue("", true);
 
@@ -3375,7 +3454,7 @@
             edititemSelect = new TomSelect("#editItem", {
                 valueField: "id",
                 labelField: "text",
-                searchField: ["text", "item_code", "item_name"],
+                searchField: ["text", "item_code", "item_name", "item_code_supplier"],
                 loadThrottle: 250,
                 preload: "focus",
                 create: false,
@@ -3455,7 +3534,7 @@
                             editLotSelect.addOption(opt);
                         });
 
-                        if (res.length === 0) {
+                        if (res.length === 0 || (res.length === 1 && res[0].id === "")) {
 
                             $("#editLotWrapper").hide();
                             editLotSelect.setValue("", true);
@@ -3526,6 +3605,7 @@
 
                         // QTY
                         $('#editQtyType').val(res.qty_type);
+                        syncTypeToggle('editQtyType');
                         $('#editQty').val(parseInt(res.qty));
                         $('#editQtyIn').val(res.qty_in);
                         $('#editQtyOut').val(res.qty_out);

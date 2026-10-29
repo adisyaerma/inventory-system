@@ -225,7 +225,7 @@ class StagingInHistoryExport implements FromQuery, WithColumnFormatting, WithEve
     public function title(): string
     {
         return 'Staging In History';
-    }
+    } 
 
     public function styles(Worksheet $sheet)
     {

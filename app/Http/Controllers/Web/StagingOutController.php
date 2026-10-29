@@ -40,8 +40,6 @@ class StagingOutController extends Controller
 
         $sudahPicking = StagingOut::whereNotNull('picking_date')->count();
 
-        $sudahDikirim = StagingOut::whereNotNull('delivery_receipt_date')->count();
-
         $belumPicking = StagingOut::whereNull('picking_date')->count();
 
         $belumDikirim = StagingOut::whereNull('delivery_receipt_date')->count();
@@ -50,7 +48,7 @@ class StagingOutController extends Controller
             'totalEntry',
             'totalQty',
             'sudahPicking',
-            'sudahDikirim',
+            'belumPicking',
             'customers'
         ))->with([
             'activeFilter' => $request->query('filter'),

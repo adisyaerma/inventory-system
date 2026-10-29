@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\StagingIn;
+use App\Models\StagingInHistory;
 use App\Models\StagingOut;
 
 /**
@@ -62,8 +63,22 @@ class StagingInReturnService
             throw new \RuntimeException('Data staging in asal tidak ditemukan dan tidak bisa dibuat ulang.');
         }
 
+        $oldInId = $out->staging_in_id;
+
         $in = StagingIn::create($snapshot + ['qty' => $qty]);
-        $this->history->logCreated($in);
+
+        $oldHistory = StagingInHistory::where('staging_in_id', $oldInId)->first();
+
+        if ($oldHistory) {
+            // Pakai record history lama: arahkan ke baris baru & aktifkan lagi.
+            $oldHistory->update(['staging_in_id' => $in->id, 'is_active' => true]);
+
+            $this->history->logUpdated($in, [
+                'qty' => ['old' => 0, 'new' => $qty],
+            ]);
+        } else {
+            $this->history->logCreated($in);
+        }
 
         // Semua staging out lain yang berasal dari baris lama ikut diarahkan
         // ke baris baru, supaya tidak membuat baris staging in dobel.

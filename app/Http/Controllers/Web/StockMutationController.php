@@ -22,9 +22,7 @@ class StockMutationController extends Controller
 {
     public function data(Request $request)
     {
-        $query = StockMutation::with(['item.vendor', 'location'])
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id');
+        $query = StockMutation::with(['item.vendor', 'location']);
 
         if ($request->filled('item')) {
             $query->where('item_id', $request->item);
@@ -57,6 +55,8 @@ class StockMutationController extends Controller
         return DataTables::eloquent($query)
 
             ->addIndexColumn()
+
+            ->orderColumn('transaction_date', 'transaction_date $1, id $1')
 
             ->addColumn('checkbox', function ($row) {
                 return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
@@ -465,12 +465,13 @@ class StockMutationController extends Controller
             ->when($keyword !== '', function ($query) use ($keyword) {
 
                 // Tidak peduli huruf besar/kecil (aman untuk PostgreSQL
-                // maupun MySQL). Setiap kata harus cocok di kode ATAU nama.
+                // maupun MySQL). Setiap kata harus cocok di kode (internal/supplier) ATAU nama.
                 foreach (preg_split('/\s+/', $keyword) as $word) {
                     $like = '%'.mb_strtolower($word).'%';
 
                     $query->where(function ($q) use ($like) {
                         $q->whereRaw('LOWER(item_code_internal) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(item_code_supplier) LIKE ?', [$like])
                             ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
                     });
                 }
@@ -494,6 +495,8 @@ class StockMutationController extends Controller
                     'item_code' => $item->item_code_internal,
 
                     'item_name' => $item->name,
+
+                    'item_code_supplier' => $item->item_code_supplier,
 
                 ];
 

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Item;
 use App\Models\Location;
+use App\Models\LocationStock;
 use App\Models\StagingIn;
 use Illuminate\Http\Request;
 
@@ -98,6 +100,30 @@ class ScanBarcodeController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Lokasi tidak ditemukan',
+        ]);
+    }
+
+    public function itemLocations(Request $request, Item $item)
+    {
+        $currentCode = strtolower(trim((string) $request->query('exclude')));
+
+        $locations = LocationStock::with('location')
+            ->where('item_id', $item->id)
+            ->where('quantity', '>', 0)
+            ->get()
+            ->filter(fn ($row) => $row->location
+                && strtolower($row->location->location_code) !== $currentCode)
+            ->map(fn ($row) => [
+                'location_name' => $row->location->location_name,
+                'location_code' => $row->location->location_code,
+                'lot' => $row->lot,
+                'quantity' => (float) $row->quantity,
+            ])
+            ->values();
+
+        return response()->json([
+            'locations' => $locations,
+            'total_qty' => $locations->sum('quantity'),
         ]);
     }
 }

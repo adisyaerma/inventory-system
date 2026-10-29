@@ -168,7 +168,12 @@ class StagingOutHistoryController extends Controller
      */
     public function data(Request $request)
     {
-        $query = $this->baseQuery()->orderByDesc('staging_out_histories.id');
+        $query = $this->baseQuery();
+
+        // Urutan bawaan (terbaru di atas) hanya kalau user belum klik header kolom.
+        if (! $request->has('order')) {
+            $query->orderByDesc('staging_out_histories.id');
+        }
 
         // Filter dipusatkan di StagingOutHistoryExport supaya tabel & export
         // selalu identik.
@@ -177,6 +182,10 @@ class StagingOutHistoryController extends Controller
         return DataTables::eloquent($query)
 
             ->addIndexColumn()
+
+            ->orderColumn('delivery_instruction_date', 'staging_out_histories.delivery_instruction_date $1, staging_out_histories.id $1')
+            ->orderColumn('customer', 'staging_out_histories.customer $1, staging_out_histories.id $1')
+            ->orderColumn('line_item', 'staging_out_histories.line_item $1, staging_out_histories.id $1')
 
             ->addColumn('checkbox', function ($row) {
                 // Semua baris bisa dicentang. data-active=1 menandai history
@@ -433,7 +442,7 @@ class StagingOutHistoryController extends Controller
                                 'restored_staging_out_id' => $newStaging->id,
                                 'cleared_delivery_receipt_date' => $previousReceiptDate,
                             ],
-                            'notes' => 'Dipulihkan ke Staging Out (baris baru #'.$newStaging->id.'), tgl resi pengiriman dikosongkan.',
+                            'notes' => 'Dipulihkan ke Staging Out, tgl resi pengiriman dikosongkan.',
                             'performed_by' => CurrentUser::email(),
                         ]);
                     });

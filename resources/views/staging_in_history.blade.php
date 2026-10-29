@@ -669,7 +669,7 @@
 
 
                 // ============ CHECKBOX BARIS (dipakai Pulihkan & Hapus) ============
-                // Pulihkan hanya menghitung baris berstatus "Dihapus"
+                // Pulihkan hanya menghitung baris berstatus "Dihapus" / "Selesai"
                 // (data-removed="1"); Hapus menghitung semua yang tercentang.
                 function updateBulkButtons() {
                     const restoreCount = $('.historyCheckbox[data-removed="1"]:checked').length;
@@ -746,10 +746,15 @@
                         return;
                     }
 
+                    const completedCount = $('.historyCheckbox[data-removed="1"][data-completed="1"]:checked').length;
+                    const completedWarning = completedCount > 0 ?
+                        `<br><small class="text-danger">${completedCount} di antaranya berstatus <b>Selesai</b>: data tujuannya akan dibatalkan (data di Staging Out dihapus, atau mutasi stok dihapus dan stok dikembalikan).</small>` :
+                        '';
+
                     Swal.fire({
                         icon: 'question',
                         title: 'Pulihkan Data?',
-                        html: `Yakin mau memulihkan <b>${ids.length}</b> data terpilih kembali ke Staging In?`,
+                        html: `Yakin mau memulihkan <b>${ids.length}</b> data terpilih kembali ke Staging In?${completedWarning}`,
                         showCancelButton: true,
                         confirmButtonText: 'Ya, Pulihkan',
                         cancelButtonText: 'Batal',
@@ -1148,4 +1153,4 @@
         </script>
     @endpush
 
-@endsection
+@endsection 

@@ -182,7 +182,6 @@ class ItemHistoryController extends Controller
         }
 
         $stagingOutByMutationId = [];
-        $createdCoveredByMutation = [];
 
         foreach ($stagingOutDetails->where('event_type', 'created')->sortBy('created_at') as $detail) {
             $soNumber = $detail->history?->so_number;
@@ -197,26 +196,24 @@ class ItemHistoryController extends Controller
                 $mutationId = array_shift($mutationOutIdsByKey[$key]);
 
                 $stagingOutByMutationId[$mutationId] = $detail;
-                $createdCoveredByMutation[$detail->id] = true;
             }
         }
 
-        $mutations = $mutationRows
+        $timeline = $mutationRows
             ->map(function ($row) use ($movedToStockByMutationId, $stagingOutByMutationId) {
                 $isIn = $row->qty_in > 0;
 
-                $fromStagingIn = $isIn ? $movedToStockByMutationId->get($row->id) : null;
-
-                $label = $isIn ? 'Barang Masuk (Mutasi)' : 'Barang Keluar (Mutasi)';
+                $label = $isIn ? 'Barang Masuk' : 'Barang Keluar';
                 $notes = $row->description;
 
-                if ($fromStagingIn) {
-                    $label = 'Mutasi Masuk (dari Staging In)';
+                $fromStagingIn = $isIn ? $movedToStockByMutationId->get($row->id) : null;
 
+                if ($fromStagingIn) {
                     $poNumber = $fromStagingIn->history?->po_number;
 
+                    $label = 'Barang Masuk (dari Staging In)';
                     $notes = trim(
-                        'Dipindahkan dari Staging In'.($poNumber ? ' (PO: '.$poNumber.')' : '').
+                        
                         ($row->description ? ' - '.$row->description : '')
                     );
                 }
@@ -224,20 +221,17 @@ class ItemHistoryController extends Controller
                 $fromStagingOut = ! $isIn ? ($stagingOutByMutationId[$row->id] ?? null) : null;
 
                 if ($fromStagingOut) {
-                    $label = 'Mutasi Keluar (dari Staging Out)';
+                    $so = $fromStagingOut->history;
 
-                    $soHistory = $fromStagingOut->history;
-
+                    $label = 'Barang Keluar (dari Staging Out)';
                     $notes = trim(
-                        'Dikeluarkan lewat Staging Out'.
-                        ($soHistory?->customer ? ' - Customer: '.$soHistory->customer : '').
-                        ($soHistory?->do_number ? ' | DO: '.$soHistory->do_number : '')
+                        ($so?->customer ? 'Customer: '.$so->customer : '').
+                        ($so?->do_number ? ' | DO: '.$so->do_number : '')
                     );
                 }
 
                 return [
                     'date' => optional($row->transaction_date)->toDateString(),
-
                     'sort_key' => optional($row->created_at)->timestamp
                         ?? optional($row->transaction_date)->timestamp
                         ?? 0,
@@ -250,69 +244,7 @@ class ItemHistoryController extends Controller
                     'reference' => $row->transaction_number,
                     'notes' => $notes,
                 ];
-            });
-        $hiddenStagingInEvents = ['updated', 'deleted', 'moved_to_stock'];
-
-        $stagingIns = $stagingInDetails
-            ->reject(fn ($d) => in_array($d->event_type, $hiddenStagingInEvents))
-            ->map(function ($row) {
-                $history = $row->history;
-
-                $qty = match ($row->event_type) {
-                    'created' => $row->qty_after,
-                    default => $row->qty_change ?? $row->qty_after,
-                };
-
-                return [
-                    'date' => optional($row->created_at)->toDateString(),
-                    'sort_key' => optional($row->created_at)->timestamp ?? 0,
-                    'source' => 'staging_in',
-                    'type' => 'staging_in_'.$row->event_type,
-                    'label' => 'Staging In - '.$row->event_label,
-                    'qty' => $qty,
-                    'location' => $history->location ?? '-',
-                    'lot' => $row->meta['lot'] ?? null,
-                    'reference' => $history->po_number,
-                    'notes' => $row->notes ?: trim(
-                        ($history->supplier_origin ? 'Supplier: '.$history->supplier_origin.' ' : '')
-                    ),
-                ];
             })
-            ->values();
-
-        $hiddenStagingOutEvents = ['updated', 'deleted', 'delivered'];
-
-        $stagingOuts = $stagingOutDetails
-            ->reject(fn ($d) => in_array($d->event_type, $hiddenStagingOutEvents)
-                || isset($createdCoveredByMutation[$d->id]))
-            ->map(function ($row) {
-                $history = $row->history;
-
-                $qty = match ($row->event_type) {
-                    'created' => $row->qty_after,
-                    default => $row->qty_change ?? $row->qty_after,
-                };
-
-                return [
-                    'date' => optional($row->created_at)->toDateString(),
-                    'sort_key' => optional($row->created_at)->timestamp ?? 0,
-                    'source' => 'staging_out',
-                    'type' => 'staging_out_'.$row->event_type,
-                    'label' => 'Staging Out - '.$row->event_label,
-                    'qty' => $qty,
-                    'location' => null,
-                    'lot' => null,
-                    'reference' => $history->so_number,
-                    'notes' => $row->notes ?: trim(
-                        ($history->customer ? 'Customer: '.$history->customer.' ' : '').
-                        ($history->do_number ? '| DO: '.$history->do_number : '')
-                    ),
-                ];
-            });
-
-        $timeline = $mutations
-            ->concat($stagingIns)
-            ->concat($stagingOuts)
             ->sortBy('sort_key')
             ->values();
 

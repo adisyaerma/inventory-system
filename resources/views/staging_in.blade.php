@@ -148,8 +148,8 @@
                                     <div class="d-flex align-items-center gap-3">
 
                                         <div class=" rounded-3 p-2 flex-shrink-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary" width="1em"
-                                                height="1em" viewBox="0 0 24 24">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="fs-3 text-primary"
+                                                width="1em" height="1em" viewBox="0 0 24 24">
                                                 <path d="M0 0h24v24H0z" fill="none" />
                                                 <path fill="none" stroke="currentColor" stroke-linecap="round"
                                                     stroke-linejoin="round" stroke-width="1.5"
@@ -253,8 +253,8 @@
                                                 </label>
                                             </div>
 
-                                            <div id="importResetWarning"
-                                                class="alert alert-warning small mt-2 mb-0" style="display:none;">
+                                            <div id="importResetWarning" class="alert alert-warning small mt-2 mb-0"
+                                                style="display:none;">
                                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                                 Semua data staging in yang ada saat ini akan dihapus dan diganti
                                                 dengan data dari file yang diupload. Data lama masih bisa
@@ -823,8 +823,7 @@
                                             <label class="as-label">Keterangan</label>
                                             <div class="as-field">
                                                 <i class="bx bx-note"></i>
-                                                <input type="text" class="as-input" name="items[__INDEX__][notes]"
-                                                    placeholder="Opsional">
+                                                <textarea class="as-input" name="items[__INDEX__][notes]" rows="2" placeholder="Opsional"></textarea>
                                             </div>
                                         </div>
 
@@ -844,6 +843,35 @@
             <div class="px-3 pt-3">
 
                 <style>
+                    .as-field:has(textarea) {
+                        align-items: flex-start !important;
+                    }
+
+                    .as-field:has(textarea) i.bx {
+                        position: absolute !important;
+                        top: 12px !important;
+                        bottom: auto !important;
+                        inset-block: 12px auto !important;
+                        margin: 0 !important;
+                        transform: none !important;
+                        translate: none !important;
+                    }
+
+                    .as-field textarea.as-input {
+                        resize: vertical;
+                        min-height: 64px;
+                    }
+
+                    .as-field textarea.as-input {
+                        resize: vertical;
+                        min-height: 60px;
+                    }
+
+                    .as-field textarea.as-input {
+                        resize: vertical;
+                        min-height: 60px;
+                    }
+
                     .filter-toolbar-card {
                         background: #f8f9fb;
                         border: 1px solid #eceef2;
@@ -1170,517 +1198,517 @@
         aria-hidden="true">
 
         <style>
-                        #editStagingModal .modal-content,
-                        #moveStagingModal .modal-content {
-                            border: 0;
-                            border-radius: 1.5rem;
-                            overflow: hidden;
-                            box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
-                        }
+            #editStagingModal .modal-content,
+            #moveStagingModal .modal-content {
+                border: 0;
+                border-radius: 1.5rem;
+                overflow: hidden;
+                box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+            }
 
-                        #editStagingModal .as-hero,
-                        #moveStagingModal .as-hero {
-                            padding: 1.5rem 2rem 1.25rem;
-                            background: #fff;
-                            border-bottom: 1px solid #eceef5;
-                        }
+            #editStagingModal .as-hero,
+            #moveStagingModal .as-hero {
+                padding: 1.5rem 2rem 1.25rem;
+                background: #fff;
+                border-bottom: 1px solid #eceef5;
+            }
 
-                        #editStagingModal .as-hero-icon,
-                        #moveStagingModal .as-hero-icon {
-                            width: 48px;
-                            height: 48px;
-                            border-radius: 1rem;
-                            display: grid;
-                            place-items: center;
-                            font-size: 1.5rem;
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #editStagingModal .as-hero-icon,
+            #moveStagingModal .as-hero-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 1rem;
+                display: grid;
+                place-items: center;
+                font-size: 1.5rem;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #editStagingModal .as-hero h4,
-                        #moveStagingModal .as-hero h4 {
-                            color: #2b3350;
-                            letter-spacing: -.01em;
-                        }
+            #editStagingModal .as-hero h4,
+            #moveStagingModal .as-hero h4 {
+                color: #2b3350;
+                letter-spacing: -.01em;
+            }
 
-                        #editStagingModal .as-hero small,
-                        #moveStagingModal .as-hero small {
-                            color: #8a93a8;
-                        }
+            #editStagingModal .as-hero small,
+            #moveStagingModal .as-hero small {
+                color: #8a93a8;
+            }
 
-                        #editStagingModal .as-po-card,
-                        #moveStagingModal .as-po-card {
-                            margin: 1.25rem 2rem 0;
-                            padding: 1.1rem 1.25rem;
-                            background: #fff;
-                            border-radius: 1.1rem;
-                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
-                        }
+            #editStagingModal .as-po-card,
+            #moveStagingModal .as-po-card {
+                margin: 1.25rem 2rem 0;
+                padding: 1.1rem 1.25rem;
+                background: #fff;
+                border-radius: 1.1rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+            }
 
-                        #editStagingModal .as-body,
-                        #moveStagingModal .as-body {
-                            padding: 1.5rem 2rem .5rem;
-                            background: #f5f6fb;
-                        }
+            #editStagingModal .as-body,
+            #moveStagingModal .as-body {
+                padding: 1.5rem 2rem .5rem;
+                background: #f5f6fb;
+            }
 
-                        #editStagingModal .as-label,
-                        #moveStagingModal .as-label {
-                            display: block;
-                            margin-bottom: .3rem;
-                            font-size: .68rem;
-                            font-weight: 700;
-                            letter-spacing: .06em;
-                            text-transform: uppercase;
-                            color: #8a93a8;
-                        }
+            #editStagingModal .as-label,
+            #moveStagingModal .as-label {
+                display: block;
+                margin-bottom: .3rem;
+                font-size: .68rem;
+                font-weight: 700;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+                color: #8a93a8;
+            }
 
-                        #editStagingModal .as-field,
-                        #moveStagingModal .as-field {
-                            position: relative;
-                        }
+            #editStagingModal .as-field,
+            #moveStagingModal .as-field {
+                position: relative;
+            }
 
-                        #editStagingModal .as-field>i,
-                        #moveStagingModal .as-field>i {
-                            position: absolute;
-                            left: .8rem;
-                            top: 50%;
-                            transform: translateY(-50%);
-                            color: #a5adc2;
-                            font-size: 1.05rem;
-                            pointer-events: none;
-                        }
+            #editStagingModal .as-field>i,
+            #moveStagingModal .as-field>i {
+                position: absolute;
+                left: .8rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #a5adc2;
+                font-size: 1.05rem;
+                pointer-events: none;
+            }
 
-                        #editStagingModal .as-input,
-                        #editStagingModal .as-select,
-                        #moveStagingModal .as-input,
-                        #moveStagingModal .as-select {
-                            width: 100%;
-                            border: 1.5px solid #e6e9f2;
-                            background: #f8f9fd;
-                            border-radius: .75rem;
-                            padding: .5rem .8rem;
-                            font-size: .875rem;
-                            color: #2b3350;
-                            transition: border-color .15s, box-shadow .15s, background .15s;
-                        }
+            #editStagingModal .as-input,
+            #editStagingModal .as-select,
+            #moveStagingModal .as-input,
+            #moveStagingModal .as-select {
+                width: 100%;
+                border: 1.5px solid #e6e9f2;
+                background: #f8f9fd;
+                border-radius: .75rem;
+                padding: .5rem .8rem;
+                font-size: .875rem;
+                color: #2b3350;
+                transition: border-color .15s, box-shadow .15s, background .15s;
+            }
 
-                        #editStagingModal .as-field>i+.as-input,
-                        #editStagingModal .as-field>i+.as-select,
-                        #moveStagingModal .as-field>i+.as-input,
-                        #moveStagingModal .as-field>i+.as-select {
-                            padding-left: 2.35rem;
-                        }
+            #editStagingModal .as-field>i+.as-input,
+            #editStagingModal .as-field>i+.as-select,
+            #moveStagingModal .as-field>i+.as-input,
+            #moveStagingModal .as-field>i+.as-select {
+                padding-left: 2.35rem;
+            }
 
-                        #editStagingModal .as-input:focus,
-                        #editStagingModal .as-select:focus,
-                        #moveStagingModal .as-input:focus,
-                        #moveStagingModal .as-select:focus {
-                            outline: 0;
-                            background: #fff;
-                            border-color: #7c3aed;
-                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
-                        }
+            #editStagingModal .as-input:focus,
+            #editStagingModal .as-select:focus,
+            #moveStagingModal .as-input:focus,
+            #moveStagingModal .as-select:focus {
+                outline: 0;
+                background: #fff;
+                border-color: #7c3aed;
+                box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+            }
 
-                        #editStagingModal .as-input-lg,
-                        #moveStagingModal .as-input-lg {
-                            padding-top: .65rem;
-                            padding-bottom: .65rem;
-                            font-weight: 600;
-                        }
+            #editStagingModal .as-input-lg,
+            #moveStagingModal .as-input-lg {
+                padding-top: .65rem;
+                padding-bottom: .65rem;
+                font-weight: 600;
+            }
 
-                        #editStagingModal .as-hint,
-                        #moveStagingModal .as-hint {
-                            display: inline-flex;
-                            align-items: center;
-                            gap: .3rem;
-                            margin-top: .35rem;
-                            font-size: .72rem;
-                            color: #7c3aed;
-                        }
+            #editStagingModal .as-hint,
+            #moveStagingModal .as-hint {
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+                margin-top: .35rem;
+                font-size: .72rem;
+                color: #7c3aed;
+            }
 
-                        #editStagingModal .as-section-title,
-                        #moveStagingModal .as-section-title {
-                            display: flex;
-                            align-items: center;
-                            gap: .6rem;
-                            font-weight: 700;
-                            color: #2b3350;
-                        }
+            #editStagingModal .as-section-title,
+            #moveStagingModal .as-section-title {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+                font-weight: 700;
+                color: #2b3350;
+            }
 
-                        #editStagingModal .as-count,
-                        #moveStagingModal .as-count {
-                            min-width: 1.6rem;
-                            height: 1.6rem;
-                            padding: 0 .5rem;
-                            display: inline-grid;
-                            place-items: center;
-                            border-radius: 50rem;
-                            font-size: .75rem;
-                            color: #fff;
-                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-                        }
+            #editStagingModal .as-count,
+            #moveStagingModal .as-count {
+                min-width: 1.6rem;
+                height: 1.6rem;
+                padding: 0 .5rem;
+                display: inline-grid;
+                place-items: center;
+                border-radius: 50rem;
+                font-size: .75rem;
+                color: #fff;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            }
 
-                        #editStagingModal .add-item-row,
-                        #moveStagingModal .add-item-row {
-                            position: relative;
-                            background: #fff;
-                            border-radius: 1.1rem;
-                            padding: 1.1rem 1.25rem 1.25rem 1.6rem;
-                            margin-bottom: 1rem;
-                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
-                            transition: box-shadow .2s;
-                            animation: asRowIn .28s ease both;
-                        }
+            #editStagingModal .add-item-row,
+            #moveStagingModal .add-item-row {
+                position: relative;
+                background: #fff;
+                border-radius: 1.1rem;
+                padding: 1.1rem 1.25rem 1.25rem 1.6rem;
+                margin-bottom: 1rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                transition: box-shadow .2s;
+                animation: asRowIn .28s ease both;
+            }
 
-                        #editStagingModal .add-item-row::before,
-                        #moveStagingModal .add-item-row::before {
-                            content: "";
-                            position: absolute;
-                            left: 0;
-                            top: 1rem;
-                            bottom: 1rem;
-                            width: 5px;
-                            border-radius: 0 6px 6px 0;
-                            background: linear-gradient(180deg, #4f46e5, #db2777);
-                        }
+            #editStagingModal .add-item-row::before,
+            #moveStagingModal .add-item-row::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 1rem;
+                bottom: 1rem;
+                width: 5px;
+                border-radius: 0 6px 6px 0;
+                background: linear-gradient(180deg, #4f46e5, #db2777);
+            }
 
-                        #editStagingModal .add-item-row:hover,
-                        #moveStagingModal .add-item-row:hover {
-                            box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
-                        }
+            #editStagingModal .add-item-row:hover,
+            #moveStagingModal .add-item-row:hover {
+                box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
+            }
 
-                        #editStagingModal .add-item-row:focus-within,
-                        #moveStagingModal .add-item-row:focus-within {
-                            z-index: 5;
-                        }
+            #editStagingModal .add-item-row:focus-within,
+            #moveStagingModal .add-item-row:focus-within {
+                z-index: 5;
+            }
 
-                        #editStagingModal .as-row-badge,
-                        #moveStagingModal .as-row-badge {
-                            display: inline-flex;
-                            align-items: center;
-                            gap: .5rem;
-                            font-weight: 700;
-                            font-size: .85rem;
-                            color: #2b3350;
-                        }
+            #editStagingModal .as-row-badge,
+            #moveStagingModal .as-row-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: .5rem;
+                font-weight: 700;
+                font-size: .85rem;
+                color: #2b3350;
+            }
 
-                        #editStagingModal .as-row-badge .row-number,
-                        #moveStagingModal .as-row-badge .row-number {
-                            width: 1.8rem;
-                            height: 1.8rem;
-                            display: grid;
-                            place-items: center;
-                            border-radius: .6rem;
-                            font-size: .8rem;
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #editStagingModal .as-row-badge .row-number,
+            #moveStagingModal .as-row-badge .row-number {
+                width: 1.8rem;
+                height: 1.8rem;
+                display: grid;
+                place-items: center;
+                border-radius: .6rem;
+                font-size: .8rem;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #editStagingModal .btnRemoveItemRow,
-                        #moveStagingModal .btnRemoveItemRow {
-                            width: 2rem;
-                            height: 2rem;
-                            padding: 0;
-                            display: grid;
-                            place-items: center;
-                            border: 0;
-                            border-radius: .65rem;
-                            color: #e11d48;
-                            background: #fff1f4;
-                        }
+            #editStagingModal .btnRemoveItemRow,
+            #moveStagingModal .btnRemoveItemRow {
+                width: 2rem;
+                height: 2rem;
+                padding: 0;
+                display: grid;
+                place-items: center;
+                border: 0;
+                border-radius: .65rem;
+                color: #e11d48;
+                background: #fff1f4;
+            }
 
-                        #editStagingModal .btnRemoveItemRow:hover:not(:disabled),
-                        #moveStagingModal .btnRemoveItemRow:hover:not(:disabled) {
-                            color: #fff;
-                            background: #e11d48;
-                        }
+            #editStagingModal .btnRemoveItemRow:hover:not(:disabled),
+            #moveStagingModal .btnRemoveItemRow:hover:not(:disabled) {
+                color: #fff;
+                background: #e11d48;
+            }
 
-                        #editStagingModal .btnRemoveItemRow:disabled,
-                        #moveStagingModal .btnRemoveItemRow:disabled {
-                            opacity: .35;
-                        }
+            #editStagingModal .btnRemoveItemRow:disabled,
+            #moveStagingModal .btnRemoveItemRow:disabled {
+                opacity: .35;
+            }
 
-                        #editStagingModal .as-add-btn,
-                        #moveStagingModal .as-add-btn {
-                            width: 100%;
-                            padding: .8rem;
-                            border: 2px dashed #c7cbe6;
-                            border-radius: 1rem;
-                            background: transparent;
-                            color: #5b57d6;
-                            font-weight: 600;
-                            font-size: .875rem;
-                            transition: all .15s;
-                        }
+            #editStagingModal .as-add-btn,
+            #moveStagingModal .as-add-btn {
+                width: 100%;
+                padding: .8rem;
+                border: 2px dashed #c7cbe6;
+                border-radius: 1rem;
+                background: transparent;
+                color: #5b57d6;
+                font-weight: 600;
+                font-size: .875rem;
+                transition: all .15s;
+            }
 
-                        #editStagingModal .as-add-btn:hover,
-                        #moveStagingModal .as-add-btn:hover {
-                            border-color: #7c3aed;
-                            background: #fff;
-                            color: #7c3aed;
-                            box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
-                        }
+            #editStagingModal .as-add-btn:hover,
+            #moveStagingModal .as-add-btn:hover {
+                border-color: #7c3aed;
+                background: #fff;
+                color: #7c3aed;
+                box-shadow: 0 8px 20px -10px rgba(124, 58, 237, .45);
+            }
 
-                        #editStagingModal .as-pill-btn,
-                        #moveStagingModal .as-pill-btn {
-                            border: 0;
-                            border-radius: 50rem;
-                            padding: .4rem 1rem;
-                            font-size: .8rem;
-                            font-weight: 600;
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #editStagingModal .as-pill-btn,
+            #moveStagingModal .as-pill-btn {
+                border: 0;
+                border-radius: 50rem;
+                padding: .4rem 1rem;
+                font-size: .8rem;
+                font-weight: 600;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #editStagingModal .as-pill-btn:hover,
-                        #moveStagingModal .as-pill-btn:hover {
-                            color: #fff;
-                            background: #4f46e5;
-                        }
+            #editStagingModal .as-pill-btn:hover,
+            #moveStagingModal .as-pill-btn:hover {
+                color: #fff;
+                background: #4f46e5;
+            }
 
-                        #editStagingModal .as-footer,
-                        #moveStagingModal .as-footer {
-                            display: flex;
-                            justify-content: flex-end;
-                            gap: .6rem;
-                            padding: 1rem 2rem 1.4rem;
-                            background: #f5f6fb;
-                        }
+            #editStagingModal .as-footer,
+            #moveStagingModal .as-footer {
+                display: flex;
+                justify-content: flex-end;
+                gap: .6rem;
+                padding: 1rem 2rem 1.4rem;
+                background: #f5f6fb;
+            }
 
-                        #editStagingModal .as-btn-save,
-                        #moveStagingModal .as-btn-save {
-                            border: 0;
-                            border-radius: .8rem;
-                            padding: .6rem 1.6rem;
-                            font-weight: 600;
-                            color: #fff;
-                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-                            box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
-                        }
+            #editStagingModal .as-btn-save,
+            #moveStagingModal .as-btn-save {
+                border: 0;
+                border-radius: .8rem;
+                padding: .6rem 1.6rem;
+                font-weight: 600;
+                color: #fff;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+            }
 
-                        #editStagingModal .as-btn-save:hover,
-                        #moveStagingModal .as-btn-save:hover {
-                            color: #fff;
-                            filter: brightness(1.08);
-                        }
+            #editStagingModal .as-btn-save:hover,
+            #moveStagingModal .as-btn-save:hover {
+                color: #fff;
+                filter: brightness(1.08);
+            }
 
-                        #editStagingModal .as-btn-cancel,
-                        #moveStagingModal .as-btn-cancel {
-                            border: 0;
-                            border-radius: .8rem;
-                            padding: .6rem 1.3rem;
-                            font-weight: 600;
-                            color: #5a6482;
-                            background: #e9ebf5;
-                        }
+            #editStagingModal .as-btn-cancel,
+            #moveStagingModal .as-btn-cancel {
+                border: 0;
+                border-radius: .8rem;
+                padding: .6rem 1.3rem;
+                font-weight: 600;
+                color: #5a6482;
+                background: #e9ebf5;
+            }
 
-                        #editStagingModal .ts-wrapper .ts-control,
-                        #moveStagingModal .ts-wrapper .ts-control {
-                            min-height: 40px;
-                            border: 1.5px solid #e6e9f2;
-                            border-radius: .75rem;
-                            background: #f8f9fd;
-                            padding: .45rem .8rem;
-                            box-shadow: none;
-                        }
+            #editStagingModal .ts-wrapper .ts-control,
+            #moveStagingModal .ts-wrapper .ts-control {
+                min-height: 40px;
+                border: 1.5px solid #e6e9f2;
+                border-radius: .75rem;
+                background: #f8f9fd;
+                padding: .45rem .8rem;
+                box-shadow: none;
+            }
 
-                        #editStagingModal .ts-wrapper.focus .ts-control,
-                        #moveStagingModal .ts-wrapper.focus .ts-control {
-                            background: #fff;
-                            border-color: #7c3aed;
-                            box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
-                        }
+            #editStagingModal .ts-wrapper.focus .ts-control,
+            #moveStagingModal .ts-wrapper.focus .ts-control {
+                background: #fff;
+                border-color: #7c3aed;
+                box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+            }
 
-                        #editStagingModal .ts-dropdown,
-                        #moveStagingModal .ts-dropdown {
-                            z-index: 1070;
-                            border-radius: .75rem;
-                            border: 0;
-                            box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
-                            overflow: hidden;
-                        }
+            #editStagingModal .ts-dropdown,
+            #moveStagingModal .ts-dropdown {
+                z-index: 1070;
+                border-radius: .75rem;
+                border: 0;
+                box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                overflow: hidden;
+            }
 
-                        #editStagingModal .ts-dropdown .active,
-                        #moveStagingModal .ts-dropdown .active {
-                            background: #eef0ff;
-                            color: #4f46e5;
-                        }
+            #editStagingModal .ts-dropdown .active,
+            #moveStagingModal .ts-dropdown .active {
+                background: #eef0ff;
+                color: #4f46e5;
+            }
 
-                        /* ---------- Kartu seksi (edit & pindah) ---------- */
-                        #editStagingModal .as-card,
-                        #moveStagingModal .as-card {
-                            position: relative;
-                            background: #fff;
-                            border-radius: 1.1rem;
-                            padding: 1.25rem 1.4rem 1.4rem 1.7rem;
-                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
-                        }
+            /* ---------- Kartu seksi (edit & pindah) ---------- */
+            #editStagingModal .as-card,
+            #moveStagingModal .as-card {
+                position: relative;
+                background: #fff;
+                border-radius: 1.1rem;
+                padding: 1.25rem 1.4rem 1.4rem 1.7rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+            }
 
-                        #editStagingModal .as-card::before,
-                        #moveStagingModal .as-card::before {
-                            content: "";
-                            position: absolute;
-                            left: 0;
-                            top: 1.1rem;
-                            bottom: 1.1rem;
-                            width: 5px;
-                            border-radius: 0 6px 6px 0;
-                            background: linear-gradient(180deg, #4f46e5, #db2777);
-                        }
+            #editStagingModal .as-card::before,
+            #moveStagingModal .as-card::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 1.1rem;
+                bottom: 1.1rem;
+                width: 5px;
+                border-radius: 0 6px 6px 0;
+                background: linear-gradient(180deg, #4f46e5, #db2777);
+            }
 
-                        #editStagingModal .as-card-title,
-                        #moveStagingModal .as-card-title {
-                            display: flex;
-                            align-items: center;
-                            gap: .7rem;
-                            margin-bottom: 1.1rem;
-                        }
+            #editStagingModal .as-card-title,
+            #moveStagingModal .as-card-title {
+                display: flex;
+                align-items: center;
+                gap: .7rem;
+                margin-bottom: 1.1rem;
+            }
 
-                        #editStagingModal .as-card-title strong,
-                        #moveStagingModal .as-card-title strong {
-                            display: block;
-                            color: #2b3350;
-                            font-size: .98rem;
-                        }
+            #editStagingModal .as-card-title strong,
+            #moveStagingModal .as-card-title strong {
+                display: block;
+                color: #2b3350;
+                font-size: .98rem;
+            }
 
-                        #editStagingModal .as-card-title small,
-                        #moveStagingModal .as-card-title small {
-                            color: #8a93a8;
-                        }
+            #editStagingModal .as-card-title small,
+            #moveStagingModal .as-card-title small {
+                color: #8a93a8;
+            }
 
-                        #editStagingModal .as-card-icon,
-                        #moveStagingModal .as-card-icon {
-                            width: 2.4rem;
-                            height: 2.4rem;
-                            flex-shrink: 0;
-                            display: grid;
-                            place-items: center;
-                            border-radius: .8rem;
-                            font-size: 1.2rem;
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #editStagingModal .as-card-icon,
+            #moveStagingModal .as-card-icon {
+                width: 2.4rem;
+                height: 2.4rem;
+                flex-shrink: 0;
+                display: grid;
+                place-items: center;
+                border-radius: .8rem;
+                font-size: 1.2rem;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #editStagingModal .as-card-icon.is-pink,
-                        #moveStagingModal .as-card-icon.is-pink {
-                            color: #db2777;
-                            background: #fdf0f7;
-                        }
+            #editStagingModal .as-card-icon.is-pink,
+            #moveStagingModal .as-card-icon.is-pink {
+                color: #db2777;
+                background: #fdf0f7;
+            }
 
-                        #editStagingModal .as-field.as-field-top>i,
-                        #moveStagingModal .as-field.as-field-top>i {
-                            top: .85rem;
-                            transform: none;
-                        }
+            #editStagingModal .as-field.as-field-top>i,
+            #moveStagingModal .as-field.as-field-top>i {
+                top: .85rem;
+                transform: none;
+            }
 
-                        #editStagingModal textarea.as-input,
-                        #moveStagingModal textarea.as-input {
-                            resize: vertical;
-                        }
+            #editStagingModal textarea.as-input,
+            #moveStagingModal textarea.as-input {
+                resize: vertical;
+            }
 
-                        #editStagingModal .as-input:disabled,
-                        #editStagingModal .as-input[readonly] {
-                            background: #eef0f7;
-                            color: #6b7385;
-                            cursor: not-allowed;
-                        }
+            #editStagingModal .as-input:disabled,
+            #editStagingModal .as-input[readonly] {
+                background: #eef0f7;
+                color: #6b7385;
+                cursor: not-allowed;
+            }
 
-                        #moveStagingModal .as-help {
-                            display: block;
-                            margin-top: .35rem;
-                            font-size: .74rem;
-                            color: #8a93a8;
-                        }
+            #moveStagingModal .as-help {
+                display: block;
+                margin-top: .35rem;
+                font-size: .74rem;
+                color: #8a93a8;
+            }
 
-                        /* ---------- Ringkasan item (pindah) ---------- */
-                        #moveStagingModal .as-summary {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                            gap: 1rem;
-                            margin-bottom: 1.25rem;
-                            padding: 1.1rem 1.4rem;
-                            background: #fff;
-                            border-radius: 1.1rem;
-                            box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
-                        }
+            /* ---------- Ringkasan item (pindah) ---------- */
+            #moveStagingModal .as-summary {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 1rem;
+                margin-bottom: 1.25rem;
+                padding: 1.1rem 1.4rem;
+                background: #fff;
+                border-radius: 1.1rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+            }
 
-                        #moveStagingModal .as-chip {
-                            display: inline-flex;
-                            align-items: center;
-                            padding: .25rem .75rem;
-                            border-radius: 50rem;
-                            font-size: .74rem;
-                            font-weight: 600;
-                        }
+            #moveStagingModal .as-chip {
+                display: inline-flex;
+                align-items: center;
+                padding: .25rem .75rem;
+                border-radius: 50rem;
+                font-size: .74rem;
+                font-weight: 600;
+            }
 
-                        #moveStagingModal .as-chip-gray {
-                            color: #5a6482;
-                            background: #eceef6;
-                        }
+            #moveStagingModal .as-chip-gray {
+                color: #5a6482;
+                background: #eceef6;
+            }
 
-                        #moveStagingModal .as-chip-indigo {
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #moveStagingModal .as-chip-indigo {
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #moveStagingModal .as-qty {
-                            flex-shrink: 0;
-                            padding: .45rem 1rem;
-                            border-radius: 50rem;
-                            font-size: .85rem;
-                            font-weight: 700;
-                            color: #fff;
-                            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-                            box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .6);
-                        }
+            #moveStagingModal .as-qty {
+                flex-shrink: 0;
+                padding: .45rem 1rem;
+                border-radius: 50rem;
+                font-size: .85rem;
+                font-weight: 700;
+                color: #fff;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .6);
+            }
 
-                        /* ---------- Pilihan tujuan (pindah) ---------- */
-                        #moveStagingModal .tujuan-option {
-                            height: 100%;
-                            padding: 1rem 1.1rem;
-                            background: #fff;
-                            border: 2px solid #e6e9f2 !important;
-                            border-radius: 1rem;
-                            cursor: pointer;
-                            transition: all .15s;
-                        }
+            /* ---------- Pilihan tujuan (pindah) ---------- */
+            #moveStagingModal .tujuan-option {
+                height: 100%;
+                padding: 1rem 1.1rem;
+                background: #fff;
+                border: 2px solid #e6e9f2 !important;
+                border-radius: 1rem;
+                cursor: pointer;
+                transition: all .15s;
+            }
 
-                        #moveStagingModal .tujuan-option:hover {
-                            border-color: #b9b4f7 !important;
-                        }
+            #moveStagingModal .tujuan-option:hover {
+                border-color: #b9b4f7 !important;
+            }
 
-                        #moveStagingModal .tujuan-option.active {
-                            border-color: #7c3aed !important;
-                            background: #f6f3ff;
-                            box-shadow: 0 10px 22px -12px rgba(124, 58, 237, .55);
-                        }
+            #moveStagingModal .tujuan-option.active {
+                border-color: #7c3aed !important;
+                background: #f6f3ff;
+                box-shadow: 0 10px 22px -12px rgba(124, 58, 237, .55);
+            }
 
-                        #moveStagingModal .tujuan-option .as-tujuan-icon {
-                            width: 2.5rem;
-                            height: 2.5rem;
-                            margin-bottom: .6rem;
-                            display: grid;
-                            place-items: center;
-                            border-radius: .85rem;
-                            font-size: 1.25rem;
-                            color: #4f46e5;
-                            background: #eef0ff;
-                        }
+            #moveStagingModal .tujuan-option .as-tujuan-icon {
+                width: 2.5rem;
+                height: 2.5rem;
+                margin-bottom: .6rem;
+                display: grid;
+                place-items: center;
+                border-radius: .85rem;
+                font-size: 1.25rem;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
 
-                        #moveStagingModal .tujuan-option[data-tujuan="out"] .as-tujuan-icon {
-                            color: #db2777;
-                            background: #fdf0f7;
-                        }
+            #moveStagingModal .tujuan-option[data-tujuan="out"] .as-tujuan-icon {
+                color: #db2777;
+                background: #fdf0f7;
+            }
 
-                        #moveStagingModal .tujuan-option strong {
-                            display: block;
-                            color: #2b3350;
-                        }
+            #moveStagingModal .tujuan-option strong {
+                display: block;
+                color: #2b3350;
+            }
 
-                        #moveStagingModal .tujuan-option small {
-                            color: #8a93a8;
-                        }
+            #moveStagingModal .tujuan-option small {
+                color: #8a93a8;
+            }
         </style>
 
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -2010,8 +2038,7 @@
                                         <label class="as-label">Line Item</label>
                                         <div class="as-field">
                                             <i class="bx bx-hash"></i>
-                                            <input type="text" class="as-input" name="line_item" id="moveLineItem"
-                                                >
+                                            <input type="text" class="as-input" name="line_item" id="moveLineItem">
                                         </div>
                                     </div>
 
@@ -2393,7 +2420,7 @@
                     return new TomSelect(selectId, {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text', 'item_code', 'item_name'],
+                        searchField: ['text', 'item_code', 'item_name', 'item_code_supplier'],
                         loadThrottle: 250,
                         preload: true,
                         create: false,
@@ -2651,13 +2678,15 @@
                 function qtyCheck(label, maxLabel) {
                     return function($el, val) {
                         if (val === '') return label + ' belum diisi.';
-                        if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return label + ' harus berupa angka bulat.';
+                        if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return label +
+                            ' harus berupa angka bulat.';
                         if (Number(val) < 1) return label + ' minimal 1.';
 
                         const max = parseFloat($el.attr('max'));
 
                         if (!isNaN(max) && Number(val) > max) {
-                            return label + ' melebihi ' + (maxLabel || 'stok yang tersedia') + '. Maksimal: ' + max + '.';
+                            return label + ' melebihi ' + (maxLabel || 'stok yang tersedia') + '. Maksimal: ' +
+                                max + '.';
                         }
 
                         return null;
@@ -2799,7 +2828,8 @@
 
                     if (status === 404) {
                         return showSimpleAlert('warning', 'Data tidak ditemukan',
-                            'Data ini mungkin sudah dihapus atau dipindahkan oleh pengguna lain. Muat ulang halaman untuk melihat data terbaru.');
+                            'Data ini mungkin sudah dihapus atau dipindahkan oleh pengguna lain. Muat ulang halaman untuk melihat data terbaru.'
+                        );
                     }
 
                     if (msg && !looksTechnical(msg)) {
@@ -2832,7 +2862,7 @@
                     return new TomSelect(el, {
                         valueField: 'id',
                         labelField: 'text',
-                        searchField: ['text', 'item_code', 'item_name'],
+                        searchField: ['text', 'item_code', 'item_name', 'item_code_supplier'],
                         loadThrottle: 250,
                         preload: true,
                         create: false,
@@ -3142,20 +3172,22 @@
                     let id = $('#editId').val();
 
                     if (reportChecks(collectChecks([{
-                            el: '#editItemId',
-                            target: '#editItemSelect',
-                            validate: requiredCheck('Barang belum dipilih. Cari dan pilih barang dari daftar.')
-                        },
-                        {
-                            el: '#editQty',
-                            validate: function($el, val) {
-                                if (val === '') return null; // kosong = tidak mengubah qty
-                                if (isNaN(Number(val)) || !Number.isInteger(Number(val))) return 'Qty harus berupa angka bulat.';
-                                if (Number(val) < 0) return 'Qty tidak boleh negatif.';
-                                return null;
+                                el: '#editItemId',
+                                target: '#editItemSelect',
+                                validate: requiredCheck(
+                                    'Barang belum dipilih. Cari dan pilih barang dari daftar.')
+                            },
+                            {
+                                el: '#editQty',
+                                validate: function($el, val) {
+                                    if (val === '') return null; // kosong = tidak mengubah qty
+                                    if (isNaN(Number(val)) || !Number.isInteger(Number(val)))
+                                        return 'Qty harus berupa angka bulat.';
+                                    if (Number(val) < 0) return 'Qty tidak boleh negatif.';
+                                    return null;
+                                }
                             }
-                        }
-                    ]))) return;
+                        ]))) return;
 
                     $.ajax({
 
@@ -3390,45 +3422,45 @@
                     let tujuan = $('#moveDestination').val();
 
                     if (reportChecks(collectChecks([{
-                            el: '#moveQty',
-                            validate: qtyCheck('Qty yang dipindah', 'sisa barang di staging in')
-                        },
-                        {
-                            el: '#moveLocationSelect',
-                            when: function() {
-                                return tujuan === 'stock';
+                                el: '#moveQty',
+                                validate: qtyCheck('Qty yang dipindah', 'sisa barang di staging in')
                             },
-                            validate: requiredCheck('Lokasi gudang tujuan belum dipilih.')
-                        },
-                        {
-                            el: '#moveTransactionDate',
-                            when: function() {
-                                return tujuan === 'stock';
+                            {
+                                el: '#moveLocationSelect',
+                                when: function() {
+                                    return tujuan === 'stock';
+                                },
+                                validate: requiredCheck('Lokasi gudang tujuan belum dipilih.')
                             },
-                            validate: requiredCheck('Tanggal transaksi belum diisi.')
-                        },
-                        {
-                            el: '#moveSoNumber',
-                            when: function() {
-                                return tujuan !== 'stock';
+                            {
+                                el: '#moveTransactionDate',
+                                when: function() {
+                                    return tujuan === 'stock';
+                                },
+                                validate: requiredCheck('Tanggal transaksi belum diisi.')
                             },
-                            validate: requiredCheck('No. SO belum diisi.')
-                        },
-                        {
-                            el: '#moveLineItem',
-                            when: function() {
-                                return tujuan !== 'stock';
+                            {
+                                el: '#moveSoNumber',
+                                when: function() {
+                                    return tujuan !== 'stock';
+                                },
+                                validate: requiredCheck('No. SO belum diisi.')
                             },
-                            validate: requiredCheck('Line item belum diisi.')
-                        },
-                        {
-                            el: '#moveDeliveryInstructionDate',
-                            when: function() {
-                                return tujuan !== 'stock';
+                            {
+                                el: '#moveLineItem',
+                                when: function() {
+                                    return tujuan !== 'stock';
+                                },
+                                validate: requiredCheck('Line item belum diisi.')
                             },
-                            validate: requiredCheck('Tanggal instruksi kirim belum diisi.')
-                        }
-                    ]))) return;
+                            {
+                                el: '#moveDeliveryInstructionDate',
+                                when: function() {
+                                    return tujuan !== 'stock';
+                                },
+                                validate: requiredCheck('Tanggal instruksi kirim belum diisi.')
+                            }
+                        ]))) return;
 
                     let url = tujuan === 'stock' ?
                         "{{ route('stagings-in.move-to-stock', ':id') }}".replace(':id',

@@ -15,6 +15,7 @@ use App\Models\StockMutation;
 use App\Models\Vendor;
 use App\Services\StagingInHistoryService;
 use App\Services\StagingInReturnService;
+use App\Services\StagingOutHistoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -648,12 +649,13 @@ class StagingInController extends Controller
             ->when($keyword !== '', function ($query) use ($keyword) {
                 // Pencarian tidak peduli huruf besar/kecil (aman untuk
                 // PostgreSQL maupun MySQL). Setiap kata harus cocok di
-                // kode ATAU nama barang, jadi "fluke 87" tetap ketemu.
+                // kode (internal/supplier) ATAU nama barang, jadi "fluke 87" tetap ketemu.
                 foreach (preg_split('/\s+/', $keyword) as $word) {
                     $like = '%'.mb_strtolower($word).'%';
 
                     $query->where(function ($q) use ($like) {
                         $q->whereRaw('LOWER(item_code_internal) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(item_code_supplier) LIKE ?', [$like])
                             ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
                     });
                 }
@@ -669,6 +671,7 @@ class StagingInController extends Controller
                     'text' => $item->item_code_internal.' | '.$item->name,
                     'item_code' => $item->item_code_internal,
                     'item_name' => $item->name,
+                    'item_code_supplier' => $item->item_code_supplier,
                     'item_owner' => optional($item->vendor)->name,
                 ];
             })
@@ -831,6 +834,10 @@ class StagingInController extends Controller
             // Catat asalnya supaya qty bisa dikembalikan ke staging in kalau
             // staging out ini dihapus / qty-nya diedit.
             app(StagingInReturnService::class)->link($stagingOut, $staging);
+
+            // Catat history Staging Out untuk baris baru ini (sama seperti
+            // saat dibuat lewat form Staging Out).
+            app(StagingOutHistoryService::class)->logCreated($stagingOut);
 
             $remaining = $staging->qty - $validated['qty'];
 

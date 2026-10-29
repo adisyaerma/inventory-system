@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Web;
 use App\Exports\StagingInHistoryDetailExport;
 use App\Exports\StagingInHistoryExport;
 use App\Http\Controllers\Controller;
+use App\Models\LocationStock;
 use App\Models\StagingIn;
 use App\Models\StagingInHistory;
 use App\Models\StagingInHistoryDetail;
+use App\Models\StagingOut;
+use App\Models\StockMutation;
+use App\Services\StagingOutHistoryService;
+use App\Services\StagingOutStockService;
 use App\Support\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -163,7 +168,12 @@ class StagingInHistoryController extends Controller
      */
     public function data(Request $request)
     {
-        $query = $this->baseQuery()->orderByDesc('staging_in_histories.id');
+        $query = $this->baseQuery();
+
+        // Urutan bawaan (terbaru di atas) hanya kalau user belum klik header kolom.
+        if (! $request->has('order')) {
+            $query->orderByDesc('staging_in_histories.id');
+        }
 
         // Filter dipusatkan di StagingInHistoryExport supaya tabel & export
         // selalu identik.
@@ -173,16 +183,16 @@ class StagingInHistoryController extends Controller
 
             ->addIndexColumn()
 
+            ->orderColumn('arrival_date', 'staging_in_histories.arrival_date $1, staging_in_histories.id $1')
+            ->orderColumn('supplier_origin', 'staging_in_histories.supplier_origin $1, staging_in_histories.id $1')
+            ->orderColumn('initial_qty', 'staging_in_histories.initial_qty $1, staging_in_histories.id $1')
+
             ->addColumn('checkbox', function ($row) {
                 $status = $this->statusMeta($row->is_active, $row->last_event_type);
 
-                // Semua baris bisa dicentang (untuk Hapus). data-removed=1
-                // menandai baris berstatus "Dihapus" -- hanya ini yang ikut
-                // dihitung/dikirim oleh tombol Pulihkan. data-active=1
-                // menandai history yang barisnya masih ada di Staging In,
-                // dipakai untuk peringatan tambahan di konfirmasi Hapus.
                 return '<input type="checkbox" class="form-check-input historyCheckbox"
-                    data-removed="'.($status['label'] === 'Dihapus' ? '1' : '0').'"
+                    data-removed="'.(in_array($status['label'], ['Dihapus', 'Selesai'], true) ? '1' : '0').'"
+                    data-completed="'.($status['label'] === 'Selesai' ? '1' : '0').'"
                     data-active="'.($row->is_active ? '1' : '0').'"
                     value="'.$row->id.'">';
             })
@@ -417,7 +427,10 @@ class StagingInHistoryController extends Controller
     }
 
     /**
-     * Pulihkan sejumlah history yang berstatus "Dihapus" sekaligus --
+     * Pulihkan sejumlah history yang berstatus "Dihapus" ATAU "Selesai"
+     * (sudah dipindah ke stok / Staging Out) sekaligus. Untuk "Selesai",
+     * pemindahannya dibatalkan dulu di tujuan (lihat reverseCompletedMove()).
+     * Selebihnya sama dengan di bawah --
      * dipanggil dari tombol "Pulihkan" setelah user centang baris-baris
      * yang mau dipulihkan di tabel (mirip pola bulkDestroy di modul lain).
      *
@@ -473,8 +486,11 @@ class StagingInHistoryController extends Controller
                 $lastDetail = $history->details->last();
                 $label = ($history->po_number ?: 'History #'.$history->id);
 
-                if ($history->is_active || ! $lastDetail || ! in_array($lastDetail->event_type, self::REMOVED_EVENTS, true)) {
-                    $errors[] = "{$label}: dilewati -- statusnya bukan \"Dihapus\", tidak perlu/tidak bisa dipulihkan.";
+                $isCompleted = $lastDetail && in_array($lastDetail->event_type, self::COMPLETED_EVENTS, true);
+                $isRemoved = $lastDetail && in_array($lastDetail->event_type, self::REMOVED_EVENTS, true);
+
+                if ($history->is_active || ! ($isCompleted || $isRemoved)) {
+                    $errors[] = "{$label}: dilewati -- statusnya bukan \"Dihapus\" atau \"Selesai\", tidak perlu/tidak bisa dipulihkan.";
 
                     continue;
                 }
@@ -491,9 +507,24 @@ class StagingInHistoryController extends Controller
                     // Dengan SAVEPOINT, kegagalan 1 baris cuma di-ROLLBACK
                     // TO SAVEPOINT itu sendiri, baris lain & transaksi
                     // luarnya tetap aman dilanjutkan.
-                    DB::transaction(function () use ($history) {
+                    DB::transaction(function () use ($history, $lastDetail, $isCompleted) {
 
                         $snapshot = $this->reconstructSnapshot($history);
+
+                        // Status "Selesai" (sudah dipindah ke stok / Staging
+                        // Out): batalkan dulu pemindahannya di tujuan
+                        // (hapus baris Staging Out, atau hapus mutasi stok
+                        // + hitung ulang saldo). Kalau tidak bisa dibatalkan
+                        // dengan aman, throw -- seluruh baris ini batal
+                        // (rollback ke SAVEPOINT) dan dilaporkan sebagai error.
+                        $reverseMeta = [];
+                        $reverseNote = null;
+
+                        if ($isCompleted) {
+                            [$movedQty, $reverseMeta, $reverseNote] = $this->reverseCompletedMove($lastDetail);
+
+                            $snapshot['qty'] = $movedQty;
+                        }
 
                         $newStagingIn = StagingIn::create([
                             'item_id' => $snapshot['item_id'],
@@ -516,8 +547,9 @@ class StagingInHistoryController extends Controller
                             'qty_before' => 0,
                             'qty_change' => $snapshot['qty'],
                             'qty_after' => $snapshot['qty'],
-                            'meta' => ['restored_staging_in_id' => $newStagingIn->id],
-                            'notes' => 'Dipulihkan kembali ke Staging In (baris baru #'.$newStagingIn->id.')',
+                            'meta' => ['restored_staging_in_id' => $newStagingIn->id] + $reverseMeta,
+                            'notes' => 'Dipulihkan kembali ke Staging In (baris baru #'.$newStagingIn->id.')'
+                                .($reverseNote ? ' -- '.$reverseNote : ''),
                             'performed_by' => CurrentUser::email(),
                         ]);
                     });
@@ -571,6 +603,170 @@ class StagingInHistoryController extends Controller
             'errors' => [],
             'message' => $deleted.' history berhasil dihapus.',
         ]);
+    }
+
+    /**
+     * Batalkan pemindahan TERAKHIR yang membuat siklus ini berstatus
+     * "Selesai". Mengembalikan [qty yang dipulihkan, meta, catatan].
+     *
+     * - moved_to_staging_out: baris staging_outs tujuan DIHAPUS (stok
+     *   dikembalikan dulu kalau sumbernya stok). Ditolak kalau barisnya
+     *   sudah tidak ada (sudah terkirim / dihapus) atau qty-nya sudah
+     *   berubah dari qty yang dulu dipindah.
+     * - moved_to_stock: baris stock_mutations tujuan DIHAPUS, lalu saldo
+     *   mutasi sesudahnya + location_stocks dihitung ulang. Ditolak kalau
+     *   mutasinya sudah tidak ada / sudah berubah, atau kalau setelah
+     *   dihapus saldo ada yang jadi minus (stok sudah terpakai transaksi
+     *   lain).
+     *
+     * Dipanggil di dalam DB::transaction(), jadi setiap RuntimeException
+     * di sini otomatis membatalkan seluruh pemulihan baris itu.
+     */
+    private function reverseCompletedMove(StagingInHistoryDetail $last): array
+    {
+        $meta = is_string($last->meta) ? json_decode($last->meta, true) : $last->meta;
+        $meta = (array) $meta;
+
+        // Pemindahan terakhir menghabiskan sisa qty, jadi qty_before = qty
+        // yang dipindah = qty yang harus kembali ke Staging In.
+        $qty = (int) ($last->qty_before ?? $last->qty_change ?? 0);
+
+        if ($qty <= 0) {
+            throw new \RuntimeException('qty yang dipindah tidak terbaca dari history.');
+        }
+
+        if ($last->event_type === 'moved_to_staging_out') {
+
+            $stagingOutId = $meta['staging_out_id'] ?? null;
+
+            $stagingOut = $stagingOutId
+                ? StagingOut::lockForUpdate()->find($stagingOutId)
+                : null;
+
+            if (! $stagingOut) {
+                throw new \RuntimeException('data di Staging Out sudah tidak ada (sudah terkirim atau sudah dihapus), jadi tidak bisa dipulihkan otomatis.');
+            }
+
+            if ((int) $stagingOut->qty !== $qty) {
+                throw new \RuntimeException('qty di Staging Out sudah berubah (sekarang '.(int) $stagingOut->qty.', dulu dipindah '.$qty.'), pulihkan manual.');
+            }
+
+            // Sumbernya stok? kembalikan dulu qty ke location_stock.
+            if ($stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id) {
+                app(StagingOutStockService::class)->reverse($stagingOut);
+            }
+
+            // Catat history Staging Out SEBELUM barisnya hilang.
+            app(StagingOutHistoryService::class)->logDeleted($stagingOut);
+
+            $stagingOut->delete();
+
+            return [
+                $qty,
+                ['reversed' => 'moved_to_staging_out', 'deleted_staging_out_id' => (int) $stagingOutId],
+                'data Staging Out #'.$stagingOutId.' ('.($meta['so_number'] ?? '-').') dihapus',
+            ];
+        }
+
+        // moved_to_stock
+        $mutationId = $meta['stock_mutation_id'] ?? null;
+
+        $mutation = $mutationId
+            ? StockMutation::lockForUpdate()->find($mutationId)
+            : null;
+
+        if (! $mutation) {
+            throw new \RuntimeException('mutasi stok tujuan sudah tidak ada, jadi tidak bisa dipulihkan otomatis.');
+        }
+
+        if ((int) $mutation->qty_in !== $qty || (int) $mutation->qty_out !== 0) {
+            throw new \RuntimeException('mutasi stok sudah berubah dari yang dulu dibuat, pulihkan manual.');
+        }
+
+        $this->removeMutationAndRecalculate($mutation);
+
+        return [
+            $qty,
+            ['reversed' => 'moved_to_stock', 'deleted_stock_mutation_id' => (int) $mutationId],
+            'mutasi stok #'.$mutationId.' dihapus dan stok dikembalikan',
+        ];
+    }
+
+    /**
+     * Hapus satu baris stock_mutations lalu hitung ulang saldo (qty_balance)
+     * mutasi SESUDAHNYA untuk item+lokasi+lot yang sama, dan samakan
+     * location_stocks.quantity. Logikanya mengikuti
+     * StagingInController::recalculateLocationStock() (saldo awal = saldo
+     * mutasi sebelumnya, atau opening_balance kalau tidak ada).
+     *
+     * Throw kalau ada saldo yang jadi minus -- artinya stok itu sudah
+     * dipakai transaksi lain dan tidak aman ditarik kembali.
+     */
+    private function removeMutationAndRecalculate(StockMutation $mutation): void
+    {
+        $itemId = $mutation->item_id;
+        $locationId = $mutation->location_id;
+        $lot = $mutation->lot;
+        $date = $mutation->transaction_date;
+        $id = $mutation->id;
+
+        $mutation->delete();
+
+        $scope = fn () => StockMutation::where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot);
+
+        $previous = $scope()
+            ->where(function ($q) use ($date, $id) {
+                $q->where('transaction_date', '<', $date)
+                    ->orWhere(function ($q2) use ($date, $id) {
+                        $q2->where('transaction_date', $date)->where('id', '<', $id);
+                    });
+            })
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->first();
+
+        $locationStock = LocationStock::where('item_id', $itemId)
+            ->where('location_id', $locationId)
+            ->where('lot', $lot)
+            ->lockForUpdate()
+            ->first();
+
+        $balance = $previous
+            ? $previous->qty_balance
+            : ($locationStock ? $locationStock->opening_balance : 0);
+
+        $later = $scope()
+            ->where(function ($q) use ($date, $id) {
+                $q->where('transaction_date', '>', $date)
+                    ->orWhere(function ($q2) use ($date, $id) {
+                        $q2->where('transaction_date', $date)->where('id', '>', $id);
+                    });
+            })
+            ->orderBy('transaction_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($later as $row) {
+            $balance += $row->qty_in;
+            $balance -= $row->qty_out;
+
+            if ($balance < 0) {
+                throw new \RuntimeException('stok di gudang sudah terpakai transaksi lain, jika dipulihkan saldo akan minus.');
+            }
+
+            $row->update(['qty_balance' => $balance]);
+        }
+
+        LocationStock::updateOrCreate(
+            [
+                'item_id' => $itemId,
+                'location_id' => $locationId,
+                'lot' => $lot,
+            ],
+            ['quantity' => $balance]
+        );
     }
 
     /**

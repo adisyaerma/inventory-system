@@ -365,7 +365,7 @@
 
                                 </div>
 
-                                <div class="mt-2">
+                                <div class="mt-2 d-flex flex-wrap gap-2">
                                     <button
                                         type="button"
                                         class="btn btn-outline-primary btn-sm btnMutation d-inline-flex align-items-center gap-1"
@@ -374,6 +374,19 @@
 
                                         <i class="bx bx-history fs-6"></i>
                                         <span class="small text-nowrap">Lihat Mutasi</span>
+                                        <i class="bx bx-chevron-down arrow fs-6"></i>
+
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-success btn-sm btnLocations d-inline-flex align-items-center gap-1"
+                                        style="border-radius:999px;"
+                                        data-item="${item.id}"
+                                        data-exclude="${response.location.location_code ?? ''}">
+
+                                        <i class="bx bx-map-pin fs-6"></i>
+                                        <span class="small text-nowrap">Lokasi Lain</span>
                                         <i class="bx bx-chevron-down arrow fs-6"></i>
 
                                     </button>
@@ -387,6 +400,14 @@
                         <div
                             class="mutation-panel mt-3"
                             id="mutation-${item.id}"
+                            style="display:none;">
+
+                        </div>
+
+                        <!-- PANEL LOKASI LAIN -->
+                        <div
+                            class="mutation-panel mt-3"
+                            id="locations-${item.id}"
                             style="display:none;">
 
                         </div>
@@ -1039,6 +1060,81 @@ ${item.description??'-'}
 
             });
 
+        });
+    </script>
+
+    <script>
+        $(document).on('click', '.btnLocations', function() {
+
+            let button = $(this);
+            let itemId = button.data('item');
+            let exclude = button.data('exclude') || '';
+            let panel = $("#locations-" + itemId);
+
+            if (panel.is(":visible")) {
+                panel.slideUp(200);
+                button.removeClass("open");
+                button.find(".arrow").removeClass("bx-chevron-up").addClass("bx-chevron-down");
+                return;
+            }
+
+            panel.html(`
+                <div class="loading-mutation">
+                    <div class="spinner-border text-success"></div>
+                    <div class="small text-muted mt-2">Mengambil data lokasi...</div>
+                </div>
+            `);
+
+            panel.slideDown(200);
+            button.addClass("open");
+            button.find(".arrow").removeClass("bx-chevron-down").addClass("bx-chevron-up");
+
+            $.get("/item/" + itemId + "/locations", {
+                exclude: exclude
+            }, function(data) {
+
+                if (!data.locations.length) {
+                    panel.html(`
+                        <div class="d-flex align-items-center gap-2 text-muted py-3 px-1">
+                            <i class="bx bx-map-alt fs-4"></i>
+                            <span class="small">Barang ini tidak ada di lokasi lain.</span>
+                        </div>
+                    `);
+                    return;
+                }
+
+                let html = `
+                    <div class="card border-0" style="background:#f8f9fc; border-radius:14px;">
+                        <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
+                            <div class="fw-semibold text-success d-flex align-items-center">
+                                <i class="bx bx-map-pin fs-5 me-1"></i>
+                                <span>Lokasi Lain</span>
+                            </div>
+                            <span class="qty-pill" style="background:#e9f9ee; color:#15803d;">
+                                <i class='bx bx-cube'></i> Total ${parseFloat(data.total_qty)}
+                            </span>
+                        </div>
+                        <div class="card-body pt-2">
+                `;
+
+                data.locations.forEach(function(loc) {
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="fw-semibold text-dark">${loc.location_name}</span>
+                                <span class="meta-chip"><i class='bx bx-barcode'></i> ${loc.location_code ?? '-'}</span>
+                                ${loc.lot ? `<span class="lot-chip"><i class='bx bx-layer'></i> Lot ${loc.lot}</span>` : ''}
+                            </div>
+                            <span class="qty-pill" style="background:#e8f0fe; color:#1d4ed8;">
+                                <i class='bx bx-cube'></i> ${parseFloat(loc.quantity)}
+                            </span>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+                panel.html(html);
+            });
         });
     </script>
 @endpush

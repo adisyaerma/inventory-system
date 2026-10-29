@@ -126,9 +126,9 @@
             </div>
         </div>
 
-        <!-- Sudah Dikirim -->
+        <!-- Belum Picking -->
         <div class="col-md-6 col-xl-3 col-sm-6">
-            <div class="card border-0 shadow-sm h-100 stat-card-clickable" id="statCardDikirim" data-status="sudah_dikirim">
+            <div class="card border-0 shadow-sm h-100 stat-card-clickable" id="statCardBelumPicking" data-status="belum_picking">
                 <div class="card-body d-flex align-items-center">
 
                     <div class="icon-box bg-warning-subtle text-warning me-4">
@@ -136,9 +136,9 @@
                     </div>
 
                     <div>
-                        <small class="text-muted d-block">Sudah Dikirim</small>
+                        <small class="text-muted d-block">Belum Picking</small>
                         <h4 class="fw-bold mb-1">
-                            {{ number_format($sudahDikirim, 0, ',', '.') }}
+                            {{ number_format($belumPicking, 0, ',', '.') }}
                         </h4>
                         <small class="text-warning">Jumlah Entry</small>
                     </div>
@@ -1225,7 +1225,6 @@
                                     <option value="belum_picking">Belum Picking</option>
                                     <option value="sudah_picking">Sudah Picking</option>
                                     <option value="belum_dikirim">Belum Dikirim</option>
-                                    <option value="sudah_dikirim">Sudah Dikirim</option>
                                 </select>
                             </div>
                         </div>
@@ -2490,12 +2489,11 @@
                     $('.stat-card-clickable').removeClass('stat-card-active');
                     if (status === 'sudah_picking') {
                         $('#statCardPicking').addClass('stat-card-active');
-                    } else if (status === 'sudah_dikirim') {
-                        $('#statCardDikirim').addClass('stat-card-active');
+                    } else if (status === 'belum_picking') {
+                        $('#statCardBelumPicking').addClass('stat-card-active');
                     } else if (status === '') {
                         $('#statCardAll').addClass('stat-card-active');
                     }
-                    // status 'belum_picking' tidak punya card khusus, jadi tidak ada yang di-highlight
                 }
 
                 $('#customLength').change(function() {

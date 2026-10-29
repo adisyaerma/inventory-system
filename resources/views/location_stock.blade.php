@@ -561,6 +561,84 @@
                 padding: .9rem 1rem 1.1rem;
             }
         }
+
+        /* ---------- Baris lokasi + lot (kompak) ---------- */
+        .modal-aesthetic .loc-group+.loc-group {
+            margin-top: .65rem;
+            padding-top: .15rem;
+            border-top: 1px dashed #dcdff0;
+        }
+
+        .modal-aesthetic .loc-same {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            min-height: 42px;
+            padding: 0 .75rem;
+            font-size: .85rem;
+            color: #6b7280;
+            background: #f7f8ff;
+            border-radius: .65rem;
+        }
+
+        .modal-aesthetic .loc-same i {
+            color: #9aa0d6;
+            font-size: 1.1rem;
+        }
+
+        .modal-aesthetic .loc-same-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .modal-aesthetic .loc-actions {
+            gap: .35rem;
+        }
+
+        .modal-aesthetic .loc-actions button {
+            flex: 1 1 0;
+            min-width: 0;
+            min-height: 42px;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            border: 0;
+            border-radius: .65rem;
+            transition: all .15s;
+        }
+
+        .modal-aesthetic .loc-add-lot {
+            color: #4f46e5;
+            background: #eef0ff;
+        }
+
+        /* Tombol + cukup satu per lokasi (baris pertama); baris lot tambahan hanya sampah */
+        .modal-aesthetic .loc-group>.loc-row:not(:first-child) .loc-add-lot {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .modal-aesthetic .loc-add-lot:hover {
+            color: #fff;
+            background: #4f46e5;
+        }
+
+        .modal-aesthetic .loc-rm {
+            color: #e11d48;
+            background: #fff1f4;
+        }
+
+        .modal-aesthetic .loc-rm:hover {
+            color: #fff;
+            background: #e11d48;
+        }
+
+        .modal-aesthetic .loc-lot.is-invalid {
+            border-color: #e11d48;
+        }
     </style>
 
     <div class="card">
@@ -748,7 +826,7 @@
                                                         class="as-pill-btn">
 
                                                         <i class="bx bx-plus"></i>
-                                                        Tambah
+                                                        Tambah Lokasi
 
                                                     </button>
 
@@ -756,96 +834,19 @@
 
 
                                                 {{-- ================= LOCATION CONTAINER ================= --}}
-                                                <div id="locationContainer">
-
-                                                    {{-- HEADER --}}
-                                                    <div class="row g-2 mb-2 fw-semibold small text-secondary">
-
-                                                        <div class="col-5">
-                                                            Lokasi
-                                                        </div>
-
-                                                        <div class="col-3">
-                                                            Lot <span class="fw-normal text-muted">(opsional)</span>
-                                                        </div>
-
-                                                        <div class="col-2">
-                                                            Qty
-                                                        </div>
-
-                                                        <div class="col-2 text-center">
-                                                            Aksi
-                                                        </div>
-
-                                                    </div>
-
-
-                                                    {{-- RECORD PERTAMA --}}
-                                                    <div class="row g-2 align-items-center location-item">
-
-                                                        {{-- LOKASI --}}
-                                                        <div class="col-5">
-
-                                                            <select name="locations[0][location]"
-                                                                class="form-select form-select-sm location-select"
-                                                                required>
-
-                                                                <option value="">
-                                                                    Pilih / Ketik Lokasi
-                                                                </option>
-
-                                                                @foreach ($locations as $location)
-                                                                    <option value="{{ $location->location_name }}">
-                                                                        {{ $location->location_name }}
-                                                                    </option>
-                                                                @endforeach
-
-                                                            </select>
-
-                                                        </div>
-
-
-                                                        {{-- LOT --}}
-                                                        <div class="col-3">
-
-                                                            <input type="text" class="form-control form-control-sm"
-                                                                name="locations[0][lot]"
-                                                                placeholder="No. Lot">
-
-                                                        </div>
-
-
-                                                        {{-- QTY --}}
-                                                        <div class="col-2">
-
-                                                            <input type="number" class="form-control form-control-sm"
-                                                                name="locations[0][quantity]" min="0"
-                                                                placeholder="0" required>
-
-                                                        </div>
-
-
-                                                        {{-- AKSI --}}
-                                                        <div class="col-2 d-grid">
-
-                                                            <button type="button"
-                                                                class="btn btn-outline-danger btn-sm btnRemove">
-
-                                                                <i class="bx bx-trash"></i>
-
-                                                            </button>
-
-                                                        </div>
-
-                                                    </div>
-
-                                                    <small class="text-muted d-block mt-2">
-                                                        <i class="bx bx-info-circle"></i>
-                                                        Satu lokasi bisa memiliki lebih dari satu lot. Kosongkan Lot
-                                                        jika barang di lokasi ini tidak dikelola per lot.
-                                                    </small>
-
+                                                <div class="row g-2 mb-2 fw-semibold small text-secondary">
+                                                    <div class="col-5">Lokasi</div>
+                                                    <div class="col-3">Lot <span class="fw-normal text-muted">(opsional)</span></div>
+                                                    <div class="col-2">Qty</div>
+                                                    <div class="col-2 text-center">Aksi</div>
                                                 </div>
+                                                <div id="locationContainer" class="loc-editor"></div>
+                                                <small class="text-muted d-block mt-2">
+                                                    <i class="bx bx-info-circle"></i>
+                                                    Satu lokasi bisa punya beberapa lot: klik tombol <b>+</b> pada baris lokasi tersebut.
+                                                    Tombol <b>Tambah Lokasi</b> di atas hanya untuk lokasi yang berbeda. Kosongkan Lot jika
+                                                    barang tidak dikelola per lot.
+                                                </small>
 
                                             </div>
 
@@ -1072,7 +1073,7 @@
 
                 .filter-toolbar {
                     display: grid;
-                    grid-template-columns: repeat(3, 1fr);
+                    grid-template-columns: repeat(4, 1fr);
                     gap: .75rem 1rem;
                     align-items: end;
                 }
@@ -1403,7 +1404,7 @@
                                             class="as-pill-btn">
 
                                             <i class="bx bx-plus"></i>
-                                            Tambah
+                                            Tambah Lokasi
 
                                         </button>
 
@@ -1411,35 +1412,19 @@
 
 
                                     {{-- ================= LOCATION CONTAINER ================= --}}
-                                    <div id="editLocationContainer">
-
-                                        {{-- HEADER --}}
-                                        <div class="row g-2 mb-2 fw-semibold small text-secondary">
-
-                                            <div class="col-5">
-                                                Lokasi
-                                            </div>
-
-                                            <div class="col-3">
-                                                Lot <span class="fw-normal text-muted">(opsional)</span>
-                                            </div>
-
-                                            <div class="col-2">
-                                                Qty
-                                            </div>
-
-                                            <div class="col-2 text-center">
-                                                Aksi
-                                            </div>
-
-                                        </div>
-
+                                    <div class="row g-2 mb-2 fw-semibold small text-secondary">
+                                        <div class="col-5">Lokasi</div>
+                                        <div class="col-3">Lot <span class="fw-normal text-muted">(opsional)</span></div>
+                                        <div class="col-2">Qty</div>
+                                        <div class="col-2 text-center">Aksi</div>
                                     </div>
-
+                                    <div id="editLocationContainer" class="loc-editor"></div>
+                                    
                                     <small class="text-muted d-block mt-2">
                                         <i class="bx bx-info-circle"></i>
-                                        Satu lokasi bisa memiliki lebih dari satu lot. Kosongkan Lot jika barang di
-                                        lokasi ini tidak dikelola per lot.
+                                        Satu lokasi bisa punya beberapa lot: klik tombol <b>+</b> pada baris lokasi tersebut.
+                                        Tombol <b>Tambah Lokasi</b> di atas hanya untuk lokasi yang berbeda. Kosongkan Lot jika
+                                        barang tidak dikelola per lot.
                                     </small>
 
                                 </div>
@@ -2335,10 +2320,20 @@
 
             });
 
-            // ================================= FORM TAMBAH LOKASI =================================
-            let index = 1;
+            // ================================= EDITOR LOKASI + LOT (TAMBAH & EDIT) =================================
+            // Satu baris = satu lot. Baris pertama dalam satu kelompok memegang pilihan
+            // lokasi; baris berikutnya (lot tambahan) otomatis memakai lokasi yang sama.
+            // Payload ke server tetap flat: locations[k][location|lot|quantity],
+            // jadi controller tidak perlu diubah.
 
-            function initTomSelect(element) {
+            function escAttr(v) {
+                return String(v === null || v === undefined ? '' : v)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;');
+            }
+
+            function initLocSelect(element) {
 
                 if (element.tomselect) return;
 
@@ -2365,101 +2360,236 @@
                 });
             }
 
-            document.querySelectorAll('.location-select').forEach(function(el) {
-                initTomSelect(el);
-            });
+            function locToast(icon, title) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: icon,
+                    title: title,
+                    showConfirmButton: false,
+                    timer: 2500,
+                    didOpen: () => {
+                        document.querySelector('.swal2-container').style.zIndex = '9999999';
+                    }
+                });
+            }
 
-            $('#btnAddLocation').click(function() {
-
-                let html = `
-    <div class="row g-2 align-items-center location-item mt-2">
-        <div class="col-5">
-            <select
-                name="locations[${index}][location]"
-                class="form-select form-select-sm location-select"
-                required>
-                <option value="">Pilih / Ketik Lokasi</option>
-                @foreach ($locations as $location)
-                    <option value="{{ $location->location_name }}">
-                        {{ $location->location_name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
+            function locRowHtml(lot, qty) {
+                return `
+    <div class="row g-2 align-items-center location-item mt-2 loc-row">
+        <input type="hidden" class="loc-hidden-loc">
+        <div class="col-5 loc-cell"></div>
         <div class="col-3">
-            <input
-                type="text"
-                class="form-control form-control-sm"
-                name="locations[${index}][lot]"
-                placeholder="No. Lot">
+            <input type="text" class="form-control form-control-sm loc-lot"
+                value="${escAttr(lot)}" placeholder="No. Lot">
         </div>
         <div class="col-2">
-            <input
-                type="number"
-                class="form-control form-control-sm"
-                name="locations[${index}][quantity]"
-                min="0"
-                placeholder="0"
-                required>
+            <input type="number" class="form-control form-control-sm loc-qty"
+                value="${escAttr(qty)}" min="0" step="any" placeholder="0" required>
         </div>
-        <div class="col-2 d-grid">
-            <button type="button" class="btn btn-outline-danger btn-sm btnRemove">
+        <div class="col-2 loc-actions">
+            <button type="button" class="loc-add-lot" title="Tambah lot di lokasi ini">
+                <i class="bx bx-plus"></i>
+            </button>
+            <button type="button" class="loc-rm" title="Hapus baris ini">
                 <i class="bx bx-trash"></i>
             </button>
         </div>
-    </div>
-    `;
+    </div>`;
+            }
 
-                $('#locationContainer').append(html);
+            function clearLocCell($row) {
+                let select = $row.find('select.location-select')[0];
+                if (select && select.tomselect) select.tomselect.destroy();
+                $row.find('.loc-cell').empty();
+            }
 
-                let select = $('#locationContainer .location-item:last .location-select')[0];
+            // Baris ini memegang pilihan lokasi (dropdown)
+            function setLocHead($row, location) {
 
-                initTomSelect(select);
+                clearLocCell($row);
 
-                index++;
-            });
+                let options = allLocations.map(function(l) {
+                    return `<option value="${escAttr(l)}">${escAttr(l)}</option>`;
+                }).join('');
 
-            $(document).on('click', '.btnRemove', function() {
+                $row.find('.loc-cell').html(`
+        <select class="form-select form-select-sm location-select" required>
+            <option value="">Pilih / Ketik Lokasi</option>
+            ${options}
+        </select>`);
 
-                if ($('#locationContainer .location-item').length == 1) {
+                let select = $row.find('select.location-select')[0];
+                initLocSelect(select);
 
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'warning',
-                        title: 'Minimal harus ada satu lokasi.',
-                        showConfirmButton: false,
-                        timer: 2500,
-                        didOpen: () => {
-                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                if (location) {
+                    if (!select.tomselect.options[location]) {
+                        select.tomselect.addOption({
+                            value: location,
+                            text: location
+                        });
+                    }
+                    select.tomselect.setValue(location, true);
+                }
+            }
+
+            // Baris ini lot tambahan: ikut lokasi baris pertama kelompoknya
+            function setLocSub($row) {
+                clearLocCell($row);
+                $row.find('.loc-cell').html(`
+        <div class="loc-same">
+            <i class="bx bx-subdirectory-right"></i>
+            <span class="loc-same-name"></span>
+        </div>`);
+            }
+
+            // Nomori ulang field + tandai duplikat. Return false kalau ada lokasi+lot ganda.
+            function reindexLocEditor(container) {
+
+                let k = 0;
+                let seen = {};
+                let ok = true;
+
+                $(container).find('.loc-lot').removeClass('is-invalid');
+
+                $(container).find('.loc-group').each(function() {
+
+                    let loc = String($(this).find('select.location-select').val() || '').trim();
+
+                    $(this).find('.loc-row').each(function() {
+
+                        let $r = $(this);
+
+                        $r.find('.loc-hidden-loc').attr('name', `locations[${k}][location]`).val(loc);
+                        $r.find('.loc-lot').attr('name', `locations[${k}][lot]`);
+                        $r.find('.loc-qty').attr('name', `locations[${k}][quantity]`);
+                        $r.find('.loc-same-name').text(loc || 'pilih lokasi di atas');
+                        k++;
+
+                        if (loc !== '') {
+                            let key = loc.toUpperCase() + '||' + String($r.find('.loc-lot').val()).trim();
+                            if (seen[key]) {
+                                $r.find('.loc-lot').addClass('is-invalid');
+                                ok = false;
+                            }
+                            seen[key] = true;
                         }
                     });
+                });
 
-                    return;
+                return ok;
+            }
+
+            function addLocGroup(container, location, lots) {
+
+                lots = (lots && lots.length) ? lots : [{
+                    lot: '',
+                    qty: ''
+                }];
+
+                let $g = $('<div class="loc-group"></div>');
+                $(container).append($g);
+
+                lots.forEach(function(x, i) {
+                    let $r = $(locRowHtml(x.lot, x.qty));
+                    $g.append($r);
+                    if (i === 0) {
+                        setLocHead($r, location);
+                    } else {
+                        setLocSub($r);
+                    }
+                });
+
+                reindexLocEditor(container);
+
+                return $g;
+            }
+
+            function clearLocEditor(container) {
+                $(container).find('select.location-select').each(function() {
+                    if (this.tomselect) this.tomselect.destroy();
+                });
+                $(container).empty();
+            }
+
+            // Tambah lot di lokasi yang sama (baris baru di bawah kelompoknya)
+            $(document).on('click', '.loc-add-lot', function() {
+                let $g = $(this).closest('.loc-group');
+                let $r = $(locRowHtml('', ''));
+                $g.append($r);
+                setLocSub($r);
+                reindexLocEditor($g.closest('.loc-editor'));
+                $r.find('.loc-lot').trigger('focus');
+            });
+
+            // Hapus satu baris lot
+            $(document).on('click', '.loc-rm', function() {
+
+                let $row = $(this).closest('.loc-row');
+                let $g = $row.closest('.loc-group');
+                let $editor = $g.closest('.loc-editor');
+                let $rows = $g.find('.loc-row');
+
+                if ($rows.length === 1) {
+                    // lot terakhir di lokasi ini -> hapus lokasinya
+                    if ($editor.find('.loc-group').length <= 1) {
+                        locToast('warning', 'Minimal harus ada satu lokasi.');
+                        return;
+                    }
+                    clearLocCell($row);
+                    $g.remove();
+
+                } else if ($row.is($rows.first())) {
+                    // baris pemegang lokasi dihapus -> lokasi dipindah ke baris berikutnya
+                    let loc = $row.find('select.location-select').val() || '';
+                    clearLocCell($row);
+                    $row.remove();
+                    setLocHead($g.find('.loc-row').first(), loc);
+
+                } else {
+                    $row.remove();
                 }
 
-                let item = $(this).closest('.location-item');
-                let select = item.find('.location-select')[0];
+                reindexLocEditor($editor);
+            });
 
-                if (select.tomselect) {
-                    select.tomselect.destroy();
-                }
+            $(document).on('change', '.loc-editor select.location-select', function() {
+                reindexLocEditor($(this).closest('.loc-editor'));
+            });
 
-                item.remove();
+            $(document).on('input', '.loc-editor .loc-lot', function() {
+                reindexLocEditor($(this).closest('.loc-editor'));
+            });
+
+            // Cegah submit kalau ada lokasi + lot yang sama persis
+            ['formLocationStock', 'editLocationStockForm'].forEach(function(id) {
+                let form = document.getElementById(id);
+                if (!form) return;
+
+                form.addEventListener('submit', function(e) {
+                    let editor = form.querySelector('.loc-editor');
+                    if (editor && !reindexLocEditor(editor)) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        locToast('error', 'Ada lokasi dengan lot yang sama. Ubah nomor lot atau gabungkan qty-nya.');
+                    }
+                }, true);
+            });
+            // ==========================================================================================
+
+
+            // ================================= FORM TAMBAH =================================
+            addLocGroup('#locationContainer');
+
+            $('#btnAddLocation').click(function() {
+                let $g = addLocGroup('#locationContainer');
+                $g.find('select.location-select')[0].tomselect.focus();
             });
 
             // Reset form Tambah setiap kali modalnya ditutup
             $('#addLocationStockModal').on('hidden.bs.modal', function() {
 
-                $('#locationContainer .location-item').each(function() {
-                    let select = $(this).find('.location-select')[0];
-                    if (select && select.tomselect) {
-                        select.tomselect.destroy();
-                    }
-                    $(this).remove();
-                });
-
-                index = 1;
+                clearLocEditor('#locationContainer');
 
                 $('#formLocationStock')[0].reset();
 
@@ -2470,116 +2600,18 @@
 
                 $('#selectedItemInfo').addClass('d-none');
 
-                // tambahkan kembali 1 baris lokasi kosong sebagai default
-                $('#btnAddLocation').click();
+                // kembalikan 1 baris lokasi kosong sebagai default
+                addLocGroup('#locationContainer');
             });
             // ==========================================================================================
 
 
-            // ================================= FORM EDIT LOKASI =================================
-            let editIndex = 0;
-
-            function initEditTomSelect(element) {
-
-                if (element.tomselect) return;
-
-                new TomSelect(element, {
-                    create: true,
-                    persist: false,
-                    createOnBlur: true,
-                    allowEmptyOption: true,
-                    placeholder: "Pilih atau ketik lokasi...",
-                    dropdownDirection: "up",
-
-                    onOptionAdd: function(value, data) {
-                        addGlobalLocation(value);
-                    }
-                });
-
-                allLocations.forEach(function(loc) {
-                    if (!element.tomselect.options[loc]) {
-                        element.tomselect.addOption({
-                            value: loc,
-                            text: loc
-                        });
-                    }
-                });
-            }
-
-            function addEditLocationRow(location = "", qty = "", lot = "") {
-
-                let html = `
-    <div class="row g-2 align-items-center location-item mt-2">
-        <div class="col-5">
-            <select
-                name="locations[${editIndex}][location]"
-                class="form-select form-select-sm edit-location-select"
-                required>
-                <option value="">Pilih / Ketik Lokasi</option>
-                @foreach ($locations as $location)
-                    <option value="{{ $location->location_name }}">
-                        {{ $location->location_name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-3">
-            <input
-                type="text"
-                class="form-control form-control-sm"
-                name="locations[${editIndex}][lot]"
-                value="${lot !== null && lot !== undefined ? lot : ''}"
-                placeholder="No. Lot">
-        </div>
-        <div class="col-2">
-            <input
-                type="number"
-                class="form-control form-control-sm"
-                name="locations[${editIndex}][quantity]"
-                value="${qty !== '' && qty !== null ? parseFloat(qty) : ''}"
-                min="0"
-                required>
-        </div>
-        <div class="col-2 d-grid">
-            <button type="button" class="btn btn-outline-danger btn-sm btnEditRemove">
-                <i class="bx bx-trash"></i>
-            </button>
-        </div>
-    </div>
-    `;
-
-                $('#editLocationContainer').append(html);
-
-                let select = $('#editLocationContainer .location-item:last .edit-location-select')[0];
-
-                initEditTomSelect(select);
-
-                if (location != "") {
-                    if (!select.tomselect.options[location]) {
-                        select.tomselect.addOption({
-                            value: location,
-                            text: location
-                        });
-                    }
-                    select.tomselect.setValue(location);
-                }
-
-                editIndex++;
-            }
-
+            // ================================= FORM EDIT =================================
             $(document).on('click', '.btnEditLocationStock', function() {
 
                 let id = $(this).data('id');
 
-                $('#editLocationContainer .location-item').each(function() {
-                    let select = $(this).find('.edit-location-select')[0];
-                    if (select && select.tomselect) {
-                        select.tomselect.destroy();
-                    }
-                    $(this).remove();
-                });
-
-                editIndex = 0;
+                clearLocEditor('#editLocationContainer');
 
                 $.ajax({
                     url: '/location-stock/' + id + '/edit',
@@ -2592,13 +2624,37 @@
                         $('#edit_item_name').text(res.item.name ?? '-');
                         $('#edit_item_vendor').text(res.item.vendor ? res.item.vendor.name : '-');
 
+                        // Kelompokkan baris stok per lokasi
+                        let groups = [];
+                        let byName = {};
+
                         res.item.locations.forEach(function(loc) {
-                            addEditLocationRow(
-                                loc.location_name,
-                                loc.pivot.quantity,
-                                loc.pivot.lot
-                            );
+
+                            let name = loc.location_name;
+
+                            if (!byName[name]) {
+                                byName[name] = {
+                                    name: name,
+                                    lots: []
+                                };
+                                groups.push(byName[name]);
+                            }
+
+                            let q = loc.pivot.quantity;
+
+                            byName[name].lots.push({
+                                lot: loc.pivot.lot ?? '',
+                                qty: (q !== '' && q !== null && q !== undefined) ? parseFloat(q) : ''
+                            });
                         });
+
+                        groups.forEach(function(g) {
+                            addLocGroup('#editLocationContainer', g.name, g.lots);
+                        });
+
+                        if (!groups.length) {
+                            addLocGroup('#editLocationContainer');
+                        }
 
                         $('#editLocationStockModal').modal('show');
                     }
@@ -2606,26 +2662,11 @@
             });
 
             $('#btnEditLocation').click(function() {
-                addEditLocationRow();
-            });
-
-            $(document).on('click', '.btnEditRemove', function() {
-
-                if ($('#editLocationContainer .location-item').length == 1) {
-                    alert('Minimal satu lokasi.');
-                    return;
-                }
-
-                let row = $(this).closest('.location-item');
-                let select = row.find('.edit-location-select')[0];
-
-                if (select.tomselect) {
-                    select.tomselect.destroy();
-                }
-
-                row.remove();
+                let $g = addLocGroup('#editLocationContainer');
+                $g.find('select.location-select')[0].tomselect.focus();
             });
             // ==========================================================================================
+
         </script>
 
         <script>

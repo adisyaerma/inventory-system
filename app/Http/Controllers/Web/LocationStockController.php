@@ -494,7 +494,7 @@ class LocationStockController extends Controller
         // Nama file sekarang menyertakan tanggal & jam export, supaya
         // tidak ada lagi beberapa file "stock.xlsx" yang saling menimpa
         // atau membingungkan kapan data itu diambil.
-        $filename = 'data_stok_'.now()->format('Y-m-d_His').'.xlsx';
+        $filename = 'stok_'.now()->format('Y-m-d_His').'.xlsx';
 
         return Excel::download(new LocationStockExport($request), $filename);
     }
