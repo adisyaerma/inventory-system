@@ -205,16 +205,53 @@ class ItemHistoryController extends Controller
         return implode(' | ', $parts);
     }
 
-    private function stagingInRows($details, $mutationRows)
+    /**
+     * Tentukan arah (in/out) dan judul untuk satu event staging.
+     * Return [null, null] kalau event itu bukan pergerakan barang
+     * (tidak ada perubahan qty), supaya tidak ditampilkan di riwayat.
+     */
+    private function stagingMovement(string $area, string $eventType, $qty): array
     {
-        $mutationIds = $mutationRows->pluck('id');
+        if ($qty === null || (float) $qty == 0.0) {
+            return [null, null];
+        }
 
+        $name = $area === 'in' ? 'Staging In' : 'Staging Out';
+
+        if ($eventType === 'created') {
+            return ['in', 'Masuk ke '.$name];
+        }
+
+        if (str_starts_with($eventType, 'moved') || str_contains($eventType, 'delete')) {
+            $dest = '';
+
+            if (str_contains($eventType, 'delete')) {
+                $dest = ' (data dihapus)';
+            } elseif (str_contains($eventType, 'stock')) {
+                $dest = ' (ke Stok)';
+            } elseif ($area === 'in' && str_contains($eventType, 'out')) {
+                $dest = ' (ke Staging Out)';
+            }
+
+            return ['out', 'Keluar dari '.$name.$dest];
+        }
+
+        // event lain (mis. data diubah) yang mengubah qty
+        return (float) $qty > 0
+            ? ['in', 'Masuk ke '.$name.' (qty ditambah)']
+            : ['out', 'Keluar dari '.$name.' (qty dikurangi)'];
+    }
+
+    private function stagingInRows($details)
+    {
         return $details
-            // "Dipindah ke Stok" yang sudah punya mutasi tampil lewat mutasinya.
-            ->reject(fn ($d) => $d->event_type === 'moved_to_stock'
-                && ! empty($d->meta['stock_mutation_id'])
-                && $mutationIds->contains($d->meta['stock_mutation_id']))
             ->map(function ($d) {
+                [$direction, $title] = $this->stagingMovement('in', (string) $d->event_type, $d->qty_change);
+
+                if ($direction === null) {
+                    return null;
+                }
+
                 $meta = is_array($d->meta) ? $d->meta : [];
 
                 $notes = $d->event_type === 'updated'
@@ -231,8 +268,9 @@ class ItemHistoryController extends Controller
                     'sort_key' => optional($d->created_at)->timestamp ?? 0,
                     'source' => 'staging_in',
                     'type' => 'staging_in',
-                    'label' => 'Staging In: '.(StagingInHistoryDetail::EVENT_TYPES[$d->event_type] ?? $d->event_type),
-                    'qty' => $d->qty_change !== null ? (float) $d->qty_change : null,
+                    'direction' => $direction,
+                    'label' => $title,
+                    'qty' => abs((float) $d->qty_change),
                     'location' => $d->history?->location ?: '-',
                     'lot' => null,
                     'reference' => $d->history?->po_number,
@@ -240,6 +278,7 @@ class ItemHistoryController extends Controller
                     'by' => $d->performed_by,
                 ];
             })
+            ->filter()
             ->values();
     }
 
@@ -250,7 +289,15 @@ class ItemHistoryController extends Controller
 
         return $details
             ->reject(fn ($d) => in_array($d->id, $matchedDetailIds, true))
+            // Status pengiriman (picking / sudah dikirim) bukan pergerakan barang.
+            ->reject(fn ($d) => in_array($d->event_type, ['delivered', 'picking_confirmed'], true))
             ->map(function ($d) {
+                [$direction, $title] = $this->stagingMovement('out', (string) $d->event_type, $d->qty_change);
+
+                if ($direction === null) {
+                    return null;
+                }
+
                 $meta = is_array($d->meta) ? $d->meta : [];
 
                 $notes = $d->event_type === 'updated'
@@ -265,26 +312,15 @@ class ItemHistoryController extends Controller
                     $notes = trim($notes.($notes ? ' | ' : '').$d->notes);
                 }
 
-                $date = optional($d->created_at)->toDateString();
-
-                if ($d->event_type === 'delivered' && ! empty($meta['delivery_date'])) {
-                    $date = Carbon::parse($meta['delivery_date'])->toDateString();
-                } elseif ($d->event_type === 'picking_confirmed' && ! empty($meta['picking_date'])) {
-                    $date = Carbon::parse($meta['picking_date'])->toDateString();
-                }
-
                 return [
-                    'date' => $date,
-                    'date_label' => match ($d->event_type) {
-                        'delivered' => 'Tgl Kirim',
-                        'picking_confirmed' => 'Tgl Picking',
-                        default => 'Tanggal',
-                    },
+                    'date' => optional($d->created_at)->toDateString(),
+                    'date_label' => 'Tanggal',
                     'sort_key' => optional($d->created_at)->timestamp ?? 0,
                     'source' => 'staging_out',
                     'type' => 'staging_out',
-                    'label' => 'Staging Out: '.(StagingOutHistoryDetail::EVENT_TYPES[$d->event_type] ?? $d->event_type),
-                    'qty' => $d->qty_change !== null ? (float) $d->qty_change : null,
+                    'direction' => $direction,
+                    'label' => $title,
+                    'qty' => abs((float) $d->qty_change),
                     'location' => $meta['location_name'] ?? '-',
                     'lot' => $meta['lot'] ?? null,
                     'reference' => $d->history?->so_number,
@@ -292,6 +328,7 @@ class ItemHistoryController extends Controller
                     'by' => $d->performed_by,
                 ];
             })
+            ->filter()
             ->values();
     }
 
@@ -373,7 +410,7 @@ class ItemHistoryController extends Controller
                 if ($fromStagingIn) {
                     $poNumber = $fromStagingIn->history?->po_number;
 
-                    $label = 'Barang Masuk (dari Staging In)';
+                    $label = 'Masuk ke Stok (dari Staging In)';
                     $notes = trim(
                         
                         ($row->description ? ' - '.$row->description : '')
@@ -385,7 +422,7 @@ class ItemHistoryController extends Controller
                 if ($fromStagingOut) {
                     $so = $fromStagingOut->history;
 
-                    $label = 'Barang Keluar (dari Staging Out)';
+                    $label = 'Keluar dari Stok (ke Staging Out)';
                     $notes = trim(
                         ($so?->customer ? 'Customer: '.$so->customer : '').
                         ($so?->do_number ? ' | DO: '.$so->do_number : '')
@@ -414,6 +451,7 @@ class ItemHistoryController extends Controller
                         ?? 0,
                     'source' => 'mutation',
                     'type' => $isIn ? 'mutation_in' : 'mutation_out',
+                    'direction' => $isIn ? 'in' : 'out',
                     'label' => $label,
                     'qty' => (float) ($isIn ? $row->qty_in : $row->qty_out),
                     'location' => $row->location->location_name ?? '-',
@@ -423,7 +461,7 @@ class ItemHistoryController extends Controller
                     'by' => null,
                 ];
             })
-            ->concat($this->stagingInRows($stagingInDetails, $mutationRows))
+            ->concat($this->stagingInRows($stagingInDetails))
             ->concat($this->stagingOutRows($stagingOutDetails, $stagingOutByMutationId))
             // Urut berdasarkan tgl masuk/kirim (terlama di atas); kalau tanggal
             // sama, urut berdasarkan waktu data dibuat.

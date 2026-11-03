@@ -62,8 +62,8 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-0 pt-4 px-4">
-            <h5 class="mb-0 fw-bold">Activity Timeline</h5>
-            <small class="text-muted">Riwayat lengkap: mutasi stok, pindah lokasi, Staging In, dan Staging Out</small>
+            <h5 class="mb-0 fw-bold">Barang Masuk &amp; Keluar</h5>
+            <small class="text-muted">Catatan setiap barang masuk dan keluar, baik dari stok maupun staging</small>
         </div>
         <div class="card-body">
             <div id="itemTimeline" class="history-timeline"></div>
@@ -148,22 +148,45 @@
                 return d.toLocaleDateString('sv-SE');
             }
 
-            const eventStyle = {
+            // Semua kejadian disederhanakan jadi MASUK / KELUAR.
+            // Sumbernya (Stok / Staging In / Staging Out) hanya jadi keterangan kecil.
+            const eventMeta = {
                 mutation_in: {
-                    color: 'success',
-                    icon: 'bi-box-arrow-in-down'
-                },
-                mutation_out: {
-                    color: 'danger',
-                    icon: 'bi-box-arrow-up'
+                    dir: 'in',
+                    source: 'Stok'
                 },
                 staging_in: {
-                    color: 'info',
-                    icon: 'bi-truck'
+                    dir: 'in',
+                    source: 'Staging In'
+                },
+                mutation_out: {
+                    dir: 'out',
+                    source: 'Stok'
                 },
                 staging_out: {
-                    color: 'warning',
-                    icon: 'bi-truck-flatbed'
+                    dir: 'out',
+                    source: 'Staging Out'
+                },
+            };
+
+            const dirStyle = {
+                in: {
+                    label: 'Masuk',
+                    color: 'success',
+                    icon: 'bi-box-arrow-in-down',
+                    sign: '+'
+                },
+                out: {
+                    label: 'Keluar',
+                    color: 'danger',
+                    icon: 'bi-box-arrow-up',
+                    sign: '-'
+                },
+                other: {
+                    label: null,
+                    color: 'secondary',
+                    icon: 'bi-dot',
+                    sign: ''
                 },
             };
 
@@ -176,11 +199,10 @@
                 let html = '';
 
                 timeline.forEach(function(row) {
-                    const style = eventStyle[row.type] || {
-                        color: 'secondary',
-                        icon: 'bi-dot'
-                    };
-                    const qtySign = row.type === 'mutation_out' ? '-' : (row.type === 'mutation_in' ? '+' : '');
+                    const fallback = eventMeta[row.type] || {};
+                    const dir = row.direction || fallback.dir || 'other';
+                    const style = dirStyle[dir] || dirStyle.other;
+                    const title = row.label || style.label || '-';
 
                     html += `
                         <div class="timeline-item">
@@ -189,12 +211,13 @@
                             </div>
                             <div class="timeline-body">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <span class="fw-semibold small text-${style.color}">${row.label}</span>
+                                    <span class="fw-semibold small text-${style.color}">
+                                        ${title}
+                                    </span>
                                     <span class="text-muted" style="font-size:.72rem;">${formatDateOnly(row.date)}</span>
                                 </div>
                                 <div class="small mt-2">
-                                    <div>${row.date_label || 'Tanggal'}: <span class="fw-semibold">${formatDateOnly(row.date)}</span></div>
-                                    ${row.qty !== null && row.qty !== undefined ? `<div>Qty: <span class="fw-semibold">${qtySign}${formatQty(row.qty)}</span></div>` : ''}
+                                    ${row.qty !== null && row.qty !== undefined ? `<div>Qty: <span class="fw-semibold text-${style.color}">${style.sign}${formatQty(Math.abs(Number(row.qty)))}</span></div>` : ''}
                                     ${row.location ? `<div>Lokasi: ${row.location}${row.lot ? ' (Lot: ' + row.lot + ')' : ''}</div>` : ''}
                                     ${row.reference ? `<div>No. Referensi: <span class="text-primary">${row.reference}</span></div>` : ''}
                                 </div>

@@ -2842,7 +2842,7 @@
 
                 clearLocEditor('#editLocationContainer');
 
-                $.ajax({l
+                $.ajax({
                     url: '/location-stock/' + id + '/edit',
                     type: 'GET',
                     success: function(res) {
