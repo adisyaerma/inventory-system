@@ -1043,9 +1043,6 @@ class StagingOutController extends Controller
                 foreach ($validated['items'] as $line) {
                     $line['so_number'] = $validated['so_number'] ?? null;
 
-                    // Barang eksternal tidak menyentuh stok — kosongkan
-                    // lokasi/lot biar tidak ada data nyasar walaupun user
-                    // sempat mengisinya lalu ganti pilihan ke "Eksternal".
                     if ($line['source_type'] === 'external') {
                         $line['location_id'] = null;
                         $line['lot'] = null;
@@ -1053,20 +1050,12 @@ class StagingOutController extends Controller
 
                     $staging = StagingOut::create($line);
 
-                    // Stok tetap dipotong walau langsung selesai, karena
-                    // barangnya memang sudah keluar (mutasi stok tidak ikut
-                    // dihapus).
                     if ($staging->source_type === 'stock') {
                         $this->applyStockOut($staging);
                     }
 
                     $this->history->logCreated($staging);
 
-                    // Tgl resi pengiriman sudah terisi sejak awal berarti
-                    // barang sudah terkirim: cukup riwayatnya saja yang
-                    // disimpan. Dicatat sebagai "delivered" (status
-                    // Selesai), BUKAN logDeleted(), lalu barisnya dihapus
-                    // dari tabel aktif.
                     if (! empty($line['delivery_receipt_date'])) {
                         $this->history->logAutoDelivered(
                             $staging,
@@ -1203,11 +1192,6 @@ class StagingOutController extends Controller
 
                 $this->history->logUpdated($stagingOut, $changes);
 
-                // Begitu tgl resi pengiriman terisi, data tidak lagi relevan di
-                // tabel aktif staging out — cukup riwayatnya saja yang
-                // disimpan. Dicatat sebagai "delivered" (status Selesai),
-                // BUKAN logDeleted() yang artinya dibuang/dibatalkan.
-                // Log dulu baru dihapus, supaya history tetap utuh.
                 if ($justDelivered) {
                     $this->history->logAutoDelivered(
                         $stagingOut,
@@ -1234,7 +1218,7 @@ class StagingOutController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * Remove the specified resource from storage.
      */

@@ -63,7 +63,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-0 pt-4 px-4">
             <h5 class="mb-0 fw-bold">Activity Timeline</h5>
-            <small class="text-muted">Riwayat barang masuk dan keluar (berdasarkan mutasi stok)</small>
+            <small class="text-muted">Riwayat lengkap: mutasi stok, pindah lokasi, Staging In, dan Staging Out</small>
         </div>
         <div class="card-body">
             <div id="itemTimeline" class="history-timeline"></div>
@@ -132,6 +132,15 @@
         </style>
 
         <script>
+            function formatQty(value) {
+                if (value === null || value === undefined || value === '') return '-';
+                const n = Number(value);
+                if (isNaN(n)) return value;
+                return n.toLocaleString('id-ID', {
+                    maximumFractionDigits: 2
+                });
+            }
+
             function formatDateOnly(value) {
                 if (!value) return '-';
                 const d = new Date(value);
@@ -171,7 +180,7 @@
                         color: 'secondary',
                         icon: 'bi-dot'
                     };
-                    const qtySign = (row.type === 'mutation_out' || row.type === 'staging_out') ? '-' : '+';
+                    const qtySign = row.type === 'mutation_out' ? '-' : (row.type === 'mutation_in' ? '+' : '');
 
                     html += `
                         <div class="timeline-item">
@@ -184,11 +193,13 @@
                                     <span class="text-muted" style="font-size:.72rem;">${formatDateOnly(row.date)}</span>
                                 </div>
                                 <div class="small mt-2">
-                                    <div>Qty: <span class="fw-semibold">${qtySign}${row.qty ?? '-'}</span></div>
+                                    <div>${row.date_label || 'Tanggal'}: <span class="fw-semibold">${formatDateOnly(row.date)}</span></div>
+                                    ${row.qty !== null && row.qty !== undefined ? `<div>Qty: <span class="fw-semibold">${qtySign}${formatQty(row.qty)}</span></div>` : ''}
                                     ${row.location ? `<div>Lokasi: ${row.location}${row.lot ? ' (Lot: ' + row.lot + ')' : ''}</div>` : ''}
                                     ${row.reference ? `<div>No. Referensi: <span class="text-primary">${row.reference}</span></div>` : ''}
                                 </div>
                                 ${row.notes ? `<div class="small text-muted mt-1">${row.notes}</div>` : ''}
+                                ${row.by ? `<div class="text-muted mt-1" style="font-size:.72rem;"><i class="bi bi-person"></i> ${row.by}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -208,7 +219,7 @@
                 locations.forEach(function(loc) {
                     html += `
                         <span class="badge bg-secondary bg-opacity-10 text-secondary border">
-                            ${loc.location}${loc.lot ? ' &middot; Lot: ' + loc.lot : ''} (${loc.quantity})
+                            ${loc.location}${loc.lot ? ' &middot; Lot: ' + loc.lot : ''} (${formatQty(loc.quantity)})
                         </span>
                     `;
                 });

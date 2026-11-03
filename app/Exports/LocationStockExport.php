@@ -104,8 +104,23 @@ class LocationStockExport implements FromCollection, WithEvents
             $query->where('vendor_id', $this->request->vendor_id);
         }
 
-        if ($this->request->filled('incoterms')) {
-            $query->applyFilters(['incoterms' => $this->request->incoterms]);
+        // Filter Incoterms: mode "exclude" (Kecualikan) atau "only" (Hanya) --
+        // sama persis dengan LocationStockController::data().
+        $incotermsValues = array_values(array_filter((array) $this->request->input('incoterms', [])));
+        $incotermsMode = $this->request->input('incoterms_mode') === 'only' ? 'only' : 'exclude';
+
+        if (! empty($incotermsValues)) {
+            $normalized = array_values(array_unique(array_map(
+                fn ($v) => preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $v)),
+                $incotermsValues
+            )));
+            $placeholders = implode(',', array_fill(0, count($normalized), '?'));
+            $operator = $incotermsMode === 'only' ? 'in' : 'not in';
+
+            $query->whereRaw(
+                "regexp_replace(upper(coalesce(incoterms, '')), '[^A-Z0-9]', '', 'g') $operator ($placeholders)",
+                $normalized
+            );
         }
 
         if ($this->request->filled('search')) {
@@ -196,8 +211,8 @@ class LocationStockExport implements FromCollection, WithEvents
             ? optional(Vendor::find($this->request->vendor_id))->name
             : null;
 
-        $incotermsLabel = $this->request->filled('incoterms')
-            ? ($this->request->incoterms === Item::FILTER_NON_VHS ? 'Non VHS' : $this->request->incoterms)
+        $incotermsLabel = ! empty($incotermsValues)
+            ? ($incotermsMode === 'only' ? 'Hanya: ' : 'Kecualikan: ').implode(', ', $incotermsValues)
             : 'Semua Incoterms';
 
         $rows = [];

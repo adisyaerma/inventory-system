@@ -140,6 +140,161 @@ class ItemHistoryController extends Controller
         );
     }
 
+    private const FIELD_LABELS = [
+        'qty' => 'Qty',
+        'item_id' => 'Barang',
+        'po_number' => 'PO',
+        'supplier_origin' => 'Supplier',
+        'location' => 'Lokasi',
+        'location_name' => 'Lokasi',
+        'arrival_date' => 'Tgl Kedatangan',
+        'incoterms' => 'Incoterms',
+        'so_number' => 'SO',
+        'customer' => 'Customer',
+        'line_item' => 'Line Item',
+        'delivery_instruction_date' => 'Tgl Instruksi Kirim',
+        'picking_date' => 'Tgl Picking',
+        'do_number' => 'DO',
+        'delivery_date' => 'Tgl Kirim',
+        'staging_location' => 'Lokasi Staging',
+        'lot' => 'Lot',
+        'notes' => 'Catatan',
+        'transaction_date' => 'Tgl Transaksi',
+        'transaction_number' => 'No. Transaksi',
+    ];
+
+    private function fmtValue($value): string
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+
+        return is_scalar($value) ? (string) $value : (string) json_encode($value);
+    }
+
+    /** Ringkas perubahan event "updated": Qty: 5 → 3 | Lokasi: A → B */
+    private function describeChanges(array $changes): string
+    {
+        $parts = [];
+
+        foreach ($changes as $field => $change) {
+            if (! is_array($change) || ! array_key_exists('new', $change)) {
+                continue;
+            }
+
+            $parts[] = (self::FIELD_LABELS[$field] ?? $field).': '
+                .$this->fmtValue($change['old'] ?? null).' → '.$this->fmtValue($change['new']);
+        }
+
+        return implode(' | ', $parts);
+    }   
+
+    /** Ringkas meta event selain "updated" (id teknis dilewati). */
+    private function describeMeta(array $meta): string
+    {
+        $parts = [];
+
+        foreach ($meta as $field => $value) {
+            if (! isset(self::FIELD_LABELS[$field]) || $value === null || $value === '') {
+                continue;
+            }
+
+            $parts[] = self::FIELD_LABELS[$field].': '.$this->fmtValue($value);
+        }
+
+        return implode(' | ', $parts);
+    }
+
+    private function stagingInRows($details, $mutationRows)
+    {
+        $mutationIds = $mutationRows->pluck('id');
+
+        return $details
+            // "Dipindah ke Stok" yang sudah punya mutasi tampil lewat mutasinya.
+            ->reject(fn ($d) => $d->event_type === 'moved_to_stock'
+                && ! empty($d->meta['stock_mutation_id'])
+                && $mutationIds->contains($d->meta['stock_mutation_id']))
+            ->map(function ($d) {
+                $meta = is_array($d->meta) ? $d->meta : [];
+
+                $notes = $d->event_type === 'updated'
+                    ? $this->describeChanges($meta)
+                    : $this->describeMeta($meta);
+
+                if (! empty($d->notes)) {
+                    $notes = trim($notes.($notes ? ' | ' : '').$d->notes);
+                }
+
+                return [
+                    'date' => optional($d->created_at)->toDateString(),
+                    'date_label' => 'Tanggal',
+                    'sort_key' => optional($d->created_at)->timestamp ?? 0,
+                    'source' => 'staging_in',
+                    'type' => 'staging_in',
+                    'label' => 'Staging In: '.(StagingInHistoryDetail::EVENT_TYPES[$d->event_type] ?? $d->event_type),
+                    'qty' => $d->qty_change !== null ? (float) $d->qty_change : null,
+                    'location' => $d->history?->location ?: '-',
+                    'lot' => null,
+                    'reference' => $d->history?->po_number,
+                    'notes' => $notes,
+                    'by' => $d->performed_by,
+                ];
+            })
+            ->values();
+    }
+
+    private function stagingOutRows($details, array $matchedCreated)
+    {
+        // "Data Dibuat" yang sudah punya mutasi keluar tampil lewat mutasinya.
+        $matchedDetailIds = collect($matchedCreated)->map(fn ($d) => $d->id)->all();
+
+        return $details
+            ->reject(fn ($d) => in_array($d->id, $matchedDetailIds, true))
+            ->map(function ($d) {
+                $meta = is_array($d->meta) ? $d->meta : [];
+
+                $notes = $d->event_type === 'updated'
+                    ? $this->describeChanges($meta)
+                    : $this->describeMeta($meta);
+
+                if (! empty($d->history?->customer) && $d->event_type === 'created') {
+                    $notes = trim('Customer: '.$d->history->customer.($notes ? ' | '.$notes : ''));
+                }
+
+                if (! empty($d->notes)) {
+                    $notes = trim($notes.($notes ? ' | ' : '').$d->notes);
+                }
+
+                $date = optional($d->created_at)->toDateString();
+
+                if ($d->event_type === 'delivered' && ! empty($meta['delivery_date'])) {
+                    $date = Carbon::parse($meta['delivery_date'])->toDateString();
+                } elseif ($d->event_type === 'picking_confirmed' && ! empty($meta['picking_date'])) {
+                    $date = Carbon::parse($meta['picking_date'])->toDateString();
+                }
+
+                return [
+                    'date' => $date,
+                    'date_label' => match ($d->event_type) {
+                        'delivered' => 'Tgl Kirim',
+                        'picking_confirmed' => 'Tgl Picking',
+                        default => 'Tanggal',
+                    },
+                    'sort_key' => optional($d->created_at)->timestamp ?? 0,
+                    'source' => 'staging_out',
+                    'type' => 'staging_out',
+                    'label' => 'Staging Out: '.(StagingOutHistoryDetail::EVENT_TYPES[$d->event_type] ?? $d->event_type),
+                    'qty' => $d->qty_change !== null ? (float) $d->qty_change : null,
+                    'location' => $meta['location_name'] ?? '-',
+                    'lot' => $meta['lot'] ?? null,
+                    'reference' => $d->history?->so_number,
+                    'notes' => $notes,
+                    'by' => $d->performed_by,
+                ];
+            })
+            ->values();
+    }
+
     private function buildHistoryData(Item $item): array
     {
         $locations = LocationStock::with('location')
@@ -206,6 +361,13 @@ class ItemHistoryController extends Controller
                 $label = $isIn ? 'Barang Masuk' : 'Barang Keluar';
                 $notes = $row->description;
 
+                $isMove = empty($row->transaction_number)
+                    && str_starts_with((string) $row->description, 'Pindah lokasi');
+
+                if ($isMove) {
+                    $label = $isIn ? 'Pindah Lokasi (Masuk)' : 'Pindah Lokasi (Keluar)';
+                }
+
                 $fromStagingIn = $isIn ? $movedToStockByMutationId->get($row->id) : null;
 
                 if ($fromStagingIn) {
@@ -230,22 +392,45 @@ class ItemHistoryController extends Controller
                     );
                 }
 
+                // Masuk: tgl masuk = transaction_date di stock_mutations.
+                // Keluar: tgl kirim = tgl resi pengiriman di staging out
+                // (fallback ke transaction_date kalau belum terisi).
+                $date = optional($row->transaction_date)->toDateString();
+                $dateLabel = $isMove ? 'Tgl Pindah' : ($isIn ? 'Tgl Masuk' : 'Tgl Kirim');
+
+                if ($fromStagingOut) {
+                    $deliveryDate = $fromStagingOut->history?->delivery_date;
+
+                    if (! empty($deliveryDate)) {
+                        $date = Carbon::parse($deliveryDate)->toDateString();
+                    }
+                }
+
                 return [
-                    'date' => optional($row->transaction_date)->toDateString(),
+                    'date' => $date,
+                    'date_label' => $dateLabel,
                     'sort_key' => optional($row->created_at)->timestamp
                         ?? optional($row->transaction_date)->timestamp
                         ?? 0,
                     'source' => 'mutation',
                     'type' => $isIn ? 'mutation_in' : 'mutation_out',
                     'label' => $label,
-                    'qty' => $isIn ? $row->qty_in : $row->qty_out,
+                    'qty' => (float) ($isIn ? $row->qty_in : $row->qty_out),
                     'location' => $row->location->location_name ?? '-',
                     'lot' => $row->lot,
                     'reference' => $row->transaction_number,
                     'notes' => $notes,
+                    'by' => null,
                 ];
             })
-            ->sortBy('sort_key')
+            ->concat($this->stagingInRows($stagingInDetails, $mutationRows))
+            ->concat($this->stagingOutRows($stagingOutDetails, $stagingOutByMutationId))
+            // Urut berdasarkan tgl masuk/kirim (terlama di atas); kalau tanggal
+            // sama, urut berdasarkan waktu data dibuat.
+            ->sortBy([
+                fn ($a, $b) => strcmp((string) $a['date'], (string) $b['date']),
+                fn ($a, $b) => $a['sort_key'] <=> $b['sort_key'],
+            ])
             ->values();
 
         return [

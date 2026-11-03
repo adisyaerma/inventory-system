@@ -1130,12 +1130,199 @@
                     font-size: .85rem;
                 }
 
-                .filter-toolbar .input-group .select2-container .select2-selection__arrow {
+                                .filter-toolbar .input-group .select2-container .select2-selection__arrow {
                     height: 29px !important;
                 }
 
                 .filter-toolbar .input-group:focus-within .select2-container .select2-selection--single {
                     box-shadow: none;
+                }
+
+                .filter-toolbar {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+
+                .exclude-row {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: .6rem .75rem;
+                    margin-top: .9rem;
+                    padding-top: .9rem;
+                    border-top: 1px dashed #dde1e8;
+                }
+
+                .exclude-row .filter-label {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: .4rem;
+                }
+
+                /* ---------- Filter Incoterms (minimalis) ---------- */
+                .exclude-row .filter-label {
+                    font-size: .72rem;
+                    font-weight: 600;
+                    letter-spacing: .04em;
+                    text-transform: uppercase;
+                    color: #6c757d;
+                }
+
+                .incoterms-group {
+                    display: flex;
+                    align-items: center;
+                    gap: .6rem;
+                    flex: 1 1 auto;
+                    max-width: 520px;
+                }
+
+                /* Segmented toggle: Kecualikan | Hanya */
+                .inc-seg {
+                    display: inline-flex;
+                    flex-shrink: 0;
+                    padding: 3px;
+                    gap: 2px;
+                    background: #f1f3f5;
+                    border-radius: .6rem;
+                }
+
+                .inc-seg button {
+                    border: 0;
+                    background: transparent;
+                    padding: .22rem .8rem;
+                    font-size: .78rem;
+                    font-weight: 600;
+                    line-height: 1.4;
+                    color: #6c757d;
+                    border-radius: .45rem;
+                    cursor: pointer;
+                    transition: background .15s, color .15s, box-shadow .15s;
+                }
+
+                .inc-seg button:hover {
+                    color: #343a40;
+                }
+
+                .inc-seg button.active {
+                    background: #fff;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+                }
+
+                .incoterms-group.mode-exclude .inc-seg button.active {
+                    color: #c92a3a;
+                }
+
+                .incoterms-group.mode-only .inc-seg button.active {
+                    color: #0d6efd;
+                }
+
+                /* select asli disembunyikan, dikendalikan lewat toggle */
+                #incotermsMode {
+                    display: none;
+                }
+
+                .exclude-select-wrap {
+                    flex: 1 1 auto;
+                    min-width: 0;
+                }
+
+                .incoterms-group .select2-container {
+                    width: 100% !important;
+                }
+
+                .incoterms-group .select2-container--default .select2-selection--multiple {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: .25rem;
+                    padding: .15rem .5rem !important;
+                    min-height: 33px;
+                    background: #fff;
+                    border: 1px solid #e3e6ea;
+                    border-radius: .6rem;
+                    box-shadow: none;
+                    transition: border-color .15s, box-shadow .15s;
+                }
+
+                .incoterms-group .select2-container--default.select2-container--focus .select2-selection--multiple,
+                .incoterms-group .select2-container--default.select2-container--open .select2-selection--multiple {
+                    border-color: #86b7fe;
+                    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .1);
+                }
+
+                /* di Select2 4.1 daftar pilihan & kolom ketik bersaudara: satukan dalam 1 baris flex */
+                .incoterms-group .select2-selection--multiple .select2-selection__rendered {
+                    display: contents !important;
+                }
+
+                .incoterms-group .select2-selection--multiple .select2-selection__choice {
+                    display: inline-flex;
+                    flex-direction: row-reverse;
+                    align-items: center;
+                    gap: .3rem;
+                    margin: 0 !important;
+                    padding: 0 .55rem !important;
+                    border: 0 !important;
+                    border-radius: 999px !important;
+                    font-size: .72rem;
+                    font-weight: 600;
+                    line-height: 1.6;
+                }
+
+                .incoterms-group .select2-selection--multiple .select2-selection__choice__remove {
+                    position: static !important;
+                    float: none !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: 0 !important;
+                    background: transparent !important;
+                    font-size: .9rem;
+                    line-height: 1;
+                    color: inherit !important;
+                    opacity: .55;
+                }
+
+                .incoterms-group .select2-selection--multiple .select2-selection__choice__remove:hover {
+                    opacity: 1;
+                }
+
+                .incoterms-group .select2-search--inline {
+                    flex: 1 1 24px;
+                    min-width: 24px;
+                    margin: 0 !important;
+                    padding: 0;
+                    float: none !important;
+                }
+
+                .incoterms-group .select2-search--inline .select2-search__field {
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 .1rem;
+                    font-size: .8rem;
+                    height: 1.5rem;
+                    line-height: 1.5rem;
+                    text-align: left;
+                }
+
+                .incoterms-group.mode-exclude .select2-selection__choice {
+                    background: #fdecee !important;
+                    color: #c92a3a !important;
+                }
+
+                .incoterms-group.mode-only .select2-selection__choice {
+                    background: #e7f1ff !important;
+                    color: #0d6efd !important;
+                }
+
+                @media (max-width: 575.98px) {
+                    .incoterms-group {
+                        flex-wrap: wrap;
+                        max-width: 100%;
+                    }
+
+                    .exclude-select-wrap {
+                        flex-basis: 100%;
+                    }
                 }
 
                 @media (max-width: 991.98px) {
@@ -1232,23 +1419,33 @@
                         </div>
                     </div>
 
-                    <!-- Incoterms -->
-                    <div class="filter-group">
-                        <label class="filter-label" for="filterIncoterms">Incoterms</label>
-                        <div class="input-group input-group-sm shadow-sm">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-arrow-left-right text-muted"></i>
-                            </span>
-                            <select id="filterIncoterms" class="form-select border-start-0 w-100">
-                                <option value="">Semua Incoterms</option>
+                </div>
+
+                <!-- Filter Incoterms: Kecualikan / Hanya -->
+                <div class="exclude-row">
+                    <span class="filter-label">
+                        <i class="bi bi-funnel"></i> Incoterms
+                    </span>
+
+                    <div class="incoterms-group mode-exclude" id="incotermsGroup">
+                        <select id="incotermsMode" class="form-select" title="Mode filter incoterms">
+                            <option value="exclude">Kecualikan</option>
+                            <option value="only">Hanya</option>
+                        </select>
+
+                        <div class="inc-seg" role="group" aria-label="Mode filter incoterms">
+                            <button type="button" data-mode="exclude" class="active">Kecualikan</button>
+                            <button type="button" data-mode="only">Hanya</button>
+                        </div>
+
+                        <div class="exclude-select-wrap">
+                            <select id="filterIncoterms" multiple>
                                 @foreach ($incoterms as $opt)
                                     <option value="{{ $opt }}">{{ $opt }}</option>
                                 @endforeach
-                                <option value="NON_VHS">Non VHS</option>
                             </select>
                         </div>
                     </div>
-
                 </div>
 
             </div>
@@ -1483,7 +1680,30 @@
 
                 $('#filterIncoterms').select2({
                     width: '100%',
-                    minimumResultsForSearch: Infinity
+                    placeholder: 'Semua incoterms',
+                    closeOnSelect: false
+                });
+
+                // Nilai filter incoterms: mode (exclude/only) + daftar incoterms
+                function getIncotermsFilter() {
+                    return {
+                        mode: $('#incotermsMode').val() === 'only' ? 'only' : 'exclude',
+                        values: $('#filterIncoterms').val() || []
+                    };
+                }
+
+                function syncIncotermsRowMode() {
+                    let isOnly = $('#incotermsMode').val() === 'only';
+                    $('#incotermsGroup')
+                        .toggleClass('mode-only', isOnly)
+                        .toggleClass('mode-exclude', !isOnly);
+                    $('#incotermsGroup .inc-seg button').each(function() {
+                        $(this).toggleClass('active', $(this).data('mode') === (isOnly ? 'only' : 'exclude'));
+                    });
+                }
+
+                $('#incotermsGroup .inc-seg button').on('click', function() {
+                    $('#incotermsMode').val($(this).data('mode')).trigger('change');
                 });
 
                 $('#filterVendor').select2({
@@ -1506,7 +1726,9 @@
                         data: function(d) {
                             d.location_id = $('#filterLocation').val();
                             d.vendor_id = $('#filterVendor').val();
-                            d.incoterms = $('#filterIncoterms').val();
+                            let inc = getIncotermsFilter();
+                            d.incoterms_mode = inc.mode;
+                            d.incoterms = inc.values;
                             d.filter = activeUrlFilter;
                         }
                     },
@@ -1578,7 +1800,7 @@
 
                     let locationId = $('#filterLocation').val();
                     let vendorId = $('#filterVendor').val();
-                    let incoterms = $('#filterIncoterms').val();
+                    let inc = getIncotermsFilter();
                     let search = $('#customSearch').val().trim();
 
                     let url = new URL("{{ route('location-stock.export') }}");
@@ -1589,8 +1811,11 @@
                     if (vendorId) {
                         url.searchParams.set('vendor_id', vendorId);
                     }
-                    if (incoterms) {
-                        url.searchParams.set('incoterms', incoterms);
+                    if (inc.values.length) {
+                        url.searchParams.set('incoterms_mode', inc.mode);
+                        inc.values.forEach(function(v) {
+                            url.searchParams.append('incoterms[]', v);
+                        });
                     }
                     if (search) url.searchParams.append('search', search);
 
@@ -1609,7 +1834,9 @@
 
                 });
 
-                $('#filterVendor, #filterIncoterms').change(function() {
+                $('#incotermsMode').change(syncIncotermsRowMode);
+
+                $('#filterVendor, #filterIncoterms, #incotermsMode').change(function() {
 
                     activeUrlFilter = '';
                     window.history.replaceState({}, '', window.location.pathname);
@@ -1635,7 +1862,9 @@
 
                     $('#filterLocation').val(null).trigger('change');
                     $('#filterVendor').val(null).trigger('change');
-                    $('#filterIncoterms').val('').trigger('change');
+                    $('#incotermsMode').val('exclude');
+                    syncIncotermsRowMode();
+                    $('#filterIncoterms').val(null).trigger('change');
                     $('#customSearch').val('');
 
                     table.search('').draw();
@@ -2613,7 +2842,7 @@
 
                 clearLocEditor('#editLocationContainer');
 
-                $.ajax({
+                $.ajax({l
                     url: '/location-stock/' + id + '/edit',
                     type: 'GET',
                     success: function(res) {

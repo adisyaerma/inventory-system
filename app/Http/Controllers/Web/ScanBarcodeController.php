@@ -7,7 +7,9 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StagingIn;
+use App\Models\StockMutation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ScanBarcodeController extends Controller
 {
@@ -50,6 +52,7 @@ class ScanBarcodeController extends Controller
                 'success' => true,
                 'type' => 'location',
                 'location' => [
+                    'id' => $location->id,
                     'location_name' => $location->location_name,
                     'location_code' => $location->location_code,
                     'status' => $location->status,
@@ -100,6 +103,147 @@ class ScanBarcodeController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Lokasi tidak ditemukan',
+        ]);
+    }
+
+    /**
+     * Daftar lokasi untuk dropdown tujuan (Tom Select) / pencarian hasil scan.
+     * q = kata kunci, exact=1 = cocok persis kode/nama, exclude = id lokasi asal.
+     */
+    public function locationOptions(Request $request)
+    {
+        $q = strtolower(trim((string) $request->query('q', '')));
+
+        $query = Location::query();
+
+        if ($request->filled('exclude')) {
+            $query->where('id', '!=', (int) $request->query('exclude'));
+        }
+
+        if ($request->boolean('exact')) {
+            $query->where(function ($w) use ($q) {
+                $w->whereRaw('LOWER(location_code) = ?', [$q])
+                    ->orWhereRaw('LOWER(location_name) = ?', [$q]);
+            });
+        } elseif ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->whereRaw('LOWER(location_code) LIKE ?', ['%'.$q.'%'])
+                    ->orWhereRaw('LOWER(location_name) LIKE ?', ['%'.$q.'%']);
+            });
+        }
+
+        return response()->json(
+            $query->orderBy('location_code')
+                ->limit(30)
+                ->get(['id', 'location_code', 'location_name'])
+                ->map(fn ($l) => [
+                    'id' => $l->id,
+                    'location_code' => $l->location_code,
+                    'location_name' => $l->location_name,
+                    'label' => $l->location_name ?: $l->location_code,
+                ])
+                ->values()
+        );
+    }
+
+    /**
+     * Pindahkan stok satu barang (item + lot) dari satu lokasi ke lokasi lain.
+     * location_stock sumber berkurang, tujuan bertambah, dan dicatat dua baris
+     * stock_mutations (keluar di sumber, masuk di tujuan).
+     */
+    public function move(Request $request)
+    {
+        $data = $request->validate([
+            'item_id' => 'required|integer|exists:items,id',
+            'from_location_id' => 'required|integer|exists:locations,id',
+            'lot' => 'nullable|string',
+            'qty' => 'required|numeric|gt:0',
+            'to_location_id' => 'required|integer|exists:locations,id',
+        ]);
+
+        $lot = ($data['lot'] ?? '') !== '' ? $data['lot'] : null;
+        $qty = round((float) $data['qty'], 2);
+        $target = Location::findOrFail($data['to_location_id']);
+
+        if ((int) $target->id === (int) $data['from_location_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lokasi tujuan sama dengan lokasi asal.',
+            ], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($data, $lot, $qty, $target) {
+                $from = LocationStock::where('item_id', $data['item_id'])
+                    ->where('location_id', $data['from_location_id'])
+                    ->where('lot', $lot)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $from || (float) $from->quantity < $qty) {
+                    throw new \RuntimeException('Stok di lokasi asal tidak mencukupi.');
+                }
+
+                $to = LocationStock::where('item_id', $data['item_id'])
+                    ->where('location_id', $target->id)
+                    ->where('lot', $lot)
+                    ->lockForUpdate()
+                    ->first();
+    
+                if (! $to) {
+                    $to = LocationStock::create([
+                        'item_id' => $data['item_id'],
+                        'location_id' => $target->id,
+                        'lot' => $lot,
+                        'opening_balance' => 0,
+                        'quantity' => 0,
+                    ]);
+                }
+
+                $fromLocation = Location::find($data['from_location_id']);
+
+                $from->quantity = (float) $from->quantity - $qty;
+                $from->save();
+
+                $to->quantity = (float) $to->quantity + $qty;
+                $to->save();
+
+                $today = now()->toDateString();
+
+                StockMutation::create([
+                    'item_id' => $data['item_id'],
+                    'location_id' => $from->location_id,
+                    'lot' => $lot,
+                    'transaction_date' => $today,
+                    'transaction_number' => null,
+                    'description' => 'Pindah lokasi ke '.$target->location_name,
+                    'qty_in' => 0,
+                    'qty_out' => $qty,
+                    'qty_balance' => $from->quantity,
+                ]);
+
+                StockMutation::create([
+                    'item_id' => $data['item_id'],  
+                    'location_id' => $target->id,
+                    'lot' => $lot,
+                    'transaction_date' => $today,
+                    'transaction_number' => null,
+                    'description' => 'Pindah lokasi dari '.($fromLocation->location_name ?? '-'),
+                    'qty_in' => $qty,
+                    'qty_out' => 0,
+                    'qty_balance' => $to->quantity,
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang berhasil dipindahkan ke '.$target->location_name.'.',
         ]);
     }
 

@@ -156,7 +156,7 @@ class StagingOutHistoryController extends Controller
                 'staging_outs.qty as running_qty',
                 'staging_outs.source_type as running_source_type',
                 'ld.event_type as last_event_type',
-                'ld.qty_after as last_qty_after',
+                DB::raw('(select d3.qty_after from staging_out_history_details d3 where d3.staging_out_history_id = staging_out_histories.id and d3.qty_after is not null order by d3.id desc limit 1) as last_qty_after'),
                 'ld.meta as last_meta',
                 'ld.event_at as last_event_at',
                 'cd.created_meta as created_meta',
@@ -963,7 +963,7 @@ class StagingOutHistoryController extends Controller
 
         $currentQty = $history->is_active
             ? (int) optional($staging)->qty
-            : (int) ($lastDetail->qty_after ?? $history->initial_qty);
+            : (int) ($history->details->whereNotNull('qty_after')->last()?->qty_after ?? $history->initial_qty);
 
         $source = $this->resolveSource($history, $staging);
 

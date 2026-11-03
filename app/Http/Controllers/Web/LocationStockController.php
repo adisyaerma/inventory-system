@@ -82,10 +82,28 @@ class LocationStockController extends Controller
 
         }
 
-        // Filter incoterms (VHS / FLUKE / NORD LOCK / NON_VHS) -- logika sama dengan export
-        if ($request->filled('incoterms')) {
+        // Filter Incoterms: mode "exclude" (Kecualikan) atau "only" (Hanya) --
+        // logika sama dengan export. Dibandingkan secara normal (huruf besar,
+        // tanpa spasi/tanda baca): "NORD LOCK" = "Nord-Lock" = "nordlock".
+        $incotermsValues = array_values(array_filter((array) $request->input('incoterms', [])));
 
-            $query->applyFilters($request->only(['incoterms']));
+        if (! empty($incotermsValues)) {
+
+            $incotermsMode = $request->input('incoterms_mode') === 'only' ? 'only' : 'exclude';
+
+            $normalized = array_values(array_unique(array_map(
+                fn ($v) => preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $v)),
+                $incotermsValues
+            )));
+            $placeholders = implode(',', array_fill(0, count($normalized), '?'));
+            $operator = $incotermsMode === 'only' ? 'in' : 'not in';
+
+            // exclude: item tanpa incoterms (NULL -> '') tetap ikut tampil.
+            // only   : item tanpa incoterms tidak ikut.
+            $query->whereRaw(
+                "regexp_replace(upper(coalesce(incoterms, '')), '[^A-Z0-9]', '', 'g') $operator ($placeholders)",
+                $normalized
+            );
 
         }
 
