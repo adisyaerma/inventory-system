@@ -1661,6 +1661,107 @@
 
 
 
+
+    {{-- ================= MODAL PINDAHKAN BARANG (sama seperti Scan Lokasi) ================= --}}
+    <div class="modal fade" id="moveStockModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
+
+                    <div class="as-hero flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="as-hero-icon"><i class="bx bx-transfer-alt"></i></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Pindahkan Barang</h4>
+                                    <small>Pindahkan stok barang ke lokasi lain.</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                    </div>
+
+                    <div class="as-body flex-grow-1 overflow-auto">
+
+                        <div id="moveStockAlert" class="as-alert d-none"></div>
+
+                        <div class="as-summary">
+                            <div>
+                                <div class="fw-bold" id="moveStockItemName">-</div>
+                                <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="as-chip as-chip-gray"><i class="bx bx-map-pin me-1"></i><span id="moveStockFromName">0 asal dipilih</span></span>
+                                    <i class="bx bx-right-arrow-alt text-muted"></i>
+                                    <span class="as-chip as-chip-indigo">Lokasi Tujuan</span>
+                                </div>
+                            </div>
+                            <span class="as-qty"><span id="moveStockAvail">0</span> dipindah</span>
+                        </div>
+
+                        <div class="as-card mb-3">
+                            <div class="as-card-title">
+                                <div class="as-card-icon is-pink"><i class="bx bx-transfer-alt"></i></div>
+                                <div>
+                                    <strong>Detail Perpindahan</strong>
+                                    <small>Pilih asal, isi jumlah, lalu pilih atau scan lokasi tujuan.</small>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="as-label">Asal (lokasi &amp; lot) - bisa pilih lebih dari satu</label>
+                                    <select id="moveStockSource" multiple placeholder="Pilih lokasi &amp; lot asal..."></select>
+                                </div>
+
+                                <div class="col-12 d-none" id="moveStockQtyWrap">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="as-label mb-0">Qty dipindah</label>
+                                        <button type="button" class="as-pill-btn" id="btnMoveStockAll">Pindahkan semua</button>
+                                    </div>
+                                    <div id="moveStockQtyList"></div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="as-label">Lokasi Tujuan</label>
+                                    <div class="d-flex gap-2 align-items-start">
+                                        <div class="flex-grow-1" style="min-width:0;">
+                                            <select id="moveStockTarget" placeholder="Cari kode / nama lokasi..."></select>
+                                        </div>
+                                        <button type="button" class="as-cam-btn" id="btnMoveStockCam" title="Scan barcode lokasi">
+                                            <i class="bx bx-camera"></i>
+                                        </button>
+                                    </div>
+                                    <small class="as-help">Ketik untuk mencari, atau scan barcode lokasi dengan kamera.</small>
+                                    <div id="moveStockScanStatus" class="as-scan-status d-none"></div>
+                                </div>
+                            </div>
+
+                            <div id="moveStockCamWrap" class="d-none text-center mt-4">
+                                <div class="d-flex justify-content-center">
+                                    <div class="scanner-box" style="max-width:220px;">
+                                        <div id="moveStockReader"></div>
+                                        <div class="scanner-corner tl"></div>
+                                        <div class="scanner-corner tr"></div>
+                                        <div class="scanner-corner bl"></div>
+                                        <div class="scanner-corner br"></div>
+                                    </div>
+                                </div>
+                                <small class="as-help">Arahkan kamera ke barcode lokasi tujuan</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="as-footer flex-shrink-0">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="as-btn-save" id="btnConfirmMoveStock">
+                            <i class="bx bx-transfer-alt me-1"></i> Pindahkan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @push('script')
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
@@ -2951,6 +3052,427 @@
                         });
 
                     }
+                });
+            });
+        </script>
+
+        <style>
+            /* ---------- Modal Pindahkan Barang (gaya sama dengan Scan Lokasi) ---------- */
+            .scanner-box { width: 100%; max-width: 280px; aspect-ratio: 1 / 1; position: relative; }
+            .scanner-corner { position: absolute; width: 26px; height: 26px; border: 3px solid #2563eb; z-index: 2; pointer-events: none; }
+            .scanner-corner.tl { top: -4px; left: -4px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+            .scanner-corner.tr { top: -4px; right: -4px; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+            .scanner-corner.bl { bottom: -4px; left: -4px; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+            .scanner-corner.br { bottom: -4px; right: -4px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+            #moveStockReader { width: 100%; height: 100%; overflow: hidden; border-radius: 12px; }
+            #moveStockReader video, #moveStockReader canvas { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 12px; }
+            .ts-dropdown { z-index: 2500 !important; }
+            .swal2-container { z-index: 3000 !important; }
+            .ts-dropdown.move-dd { border-radius: .75rem; border: 0; box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3); overflow: hidden; }
+            .ts-dropdown.move-dd .active { background: #eef0ff; color: #4f46e5; }
+            #moveStockModal select.as-input { padding-left: .8rem; }
+            #moveStockModal .modal-content { border: 0; border-radius: 1.4rem; overflow: hidden; box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35); }
+            #moveStockModal .as-hero { padding: 1.5rem 2rem 1.25rem; background: #fff; border-bottom: 1px solid #eceef5; }
+            #moveStockModal .as-hero-icon { width: 48px; height: 48px; border-radius: 1rem; display: grid; place-items: center; font-size: 1.5rem; color: #4f46e5; background: #eef0ff; }
+            #moveStockModal .as-hero h4 { color: #2b3350; letter-spacing: -.01em; }
+            #moveStockModal .as-hero small { color: #8a93a8; }
+            #moveStockModal .as-body { padding: 1.5rem 2rem .5rem; background: #f5f6fb; }
+            #moveStockModal .as-alert { margin-bottom: 1rem; padding: .7rem 1rem; border-radius: .8rem; font-size: .85rem; font-weight: 600; color: #be123c; background: #fff1f4; border: 1px solid #fecdd6; }
+            #moveStockModal .as-label { display: block; margin-bottom: .3rem; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #8a93a8; }
+            #moveStockModal .as-field { position: relative; }
+            #moveStockModal .as-field > i { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: #a5adc2; font-size: 1.05rem; pointer-events: none; }
+            #moveStockModal .as-input { width: 100%; border: 1.5px solid #e6e9f2; background: #f8f9fd; border-radius: .75rem; padding: .5rem .8rem; font-size: .875rem; color: #2b3350; transition: border-color .15s, box-shadow .15s, background .15s; }
+            #moveStockModal .as-field > i + .as-input { padding-left: 2.35rem; }
+            #moveStockModal .as-input:focus { outline: 0; background: #fff; border-color: #7c3aed; box-shadow: 0 0 0 4px rgba(124, 58, 237, .12); }
+            #moveStockModal .as-help { display: block; margin-top: .35rem; font-size: .74rem; color: #8a93a8; }
+            #moveStockModal .as-pill-btn { border: 0; border-radius: 50rem; padding: .35rem .9rem; font-size: .75rem; font-weight: 600; color: #4f46e5; background: #eef0ff; }
+            #moveStockModal .as-pill-btn:hover { color: #fff; background: #4f46e5; }
+            #moveStockModal .as-scan-status { display: inline-flex; align-items: center; gap: .4rem; margin-top: .5rem; padding: .3rem .8rem; border-radius: 50rem; font-size: .76rem; font-weight: 600; }
+            #moveStockModal .as-scan-status.is-wait { color: #4f46e5; background: #eef0ff; }
+            #moveStockModal .as-scan-status.is-ok { color: #047857; background: #e7f8f0; }
+            #moveStockModal .as-scan-status.is-fail { color: #be123c; background: #fff1f4; }
+            #moveStockModal .as-cam-btn { flex-shrink: 0; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: .75rem; font-size: 1.2rem; color: #4f46e5; background: #eef0ff; transition: all .15s; }
+            #moveStockModal .as-cam-btn:hover { color: #fff; background: #4f46e5; }
+            #moveStockModal .as-summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; padding: 1.1rem 1.4rem; background: #fff; border-radius: 1.1rem; box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12); }
+            #moveStockModal .as-chip { display: inline-flex; align-items: center; padding: .25rem .75rem; border-radius: 50rem; font-size: .74rem; font-weight: 600; }
+            #moveStockModal .as-chip-gray { color: #5a6482; background: #eceef6; }
+            #moveStockModal .as-chip-indigo { color: #4f46e5; background: #eef0ff; }
+            #moveStockModal .as-qty { flex-shrink: 0; padding: .45rem 1rem; border-radius: 50rem; font-size: .85rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .6); }
+            #moveStockModal .as-card { position: relative; background: #fff; border-radius: 1.1rem; padding: 1.25rem 1.4rem 1.4rem 1.7rem; box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12); }
+            #moveStockModal .as-card::before { content: ""; position: absolute; left: 0; top: 1.1rem; bottom: 1.1rem; width: 5px; border-radius: 0 6px 6px 0; background: linear-gradient(180deg, #4f46e5, #db2777); }
+            #moveStockModal .as-card-title { display: flex; align-items: center; gap: .7rem; margin-bottom: 1.1rem; }
+            #moveStockModal .as-card-title strong { display: block; color: #2b3350; font-size: .98rem; }
+            #moveStockModal .as-card-title small { color: #8a93a8; }
+            #moveStockModal .as-card-icon { width: 2.4rem; height: 2.4rem; flex-shrink: 0; display: grid; place-items: center; border-radius: .8rem; font-size: 1.2rem; color: #4f46e5; background: #eef0ff; }
+            #moveStockModal .as-card-icon.is-pink { color: #db2777; background: #fdf0f7; }
+            #moveStockModal .as-footer { display: flex; justify-content: flex-end; gap: .6rem; padding: 1rem 2rem 1.4rem; background: #f5f6fb; }
+            #moveStockModal .as-btn-save { border: 0; border-radius: .8rem; padding: .6rem 1.6rem; font-weight: 600; color: #fff; background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65); }
+            #moveStockModal .as-btn-save:hover { color: #fff; filter: brightness(1.08); }
+            #moveStockModal .as-btn-save:disabled { opacity: .6; }
+            #moveStockModal .as-btn-cancel { border: 0; border-radius: .8rem; padding: .6rem 1.3rem; font-weight: 600; color: #5a6482; background: #e9ebf5; }
+            #moveStockModal .ts-wrapper .ts-control { min-height: 40px; border: 1.5px solid #e6e9f2; border-radius: .75rem; background: #f8f9fd; padding: .45rem .8rem; box-shadow: none; }
+            #moveStockModal .ts-wrapper.focus .ts-control { background: #fff; border-color: #7c3aed; box-shadow: 0 0 0 4px rgba(124, 58, 237, .12); }
+        </style>
+
+        <script>
+            $(function() {
+                const modalEl = document.getElementById('moveStockModal');
+                const moveModal = new bootstrap.Modal(modalEl, { focus: false });
+                const optionsUrl = "{{ route('scan.location.options') }}";
+
+                let moveScanner = null;
+                let moveItemId = null;
+                let moveSources = [];
+                let moveQtyByIdx = {};
+                let moveLastScan = '';
+
+                function esc(t) { return $('<div>').text(t).html(); }
+                function fmt(n) { return Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 }); }
+                function srcLabel(s) { return (s.location_name || '-') + (s.lot ? ' · Lot ' + s.lot : ' · Tanpa lot') + ' (' + fmt(s.qty) + ')'; }
+
+                // Lokasi asal yang dikecualikan dari tujuan: hanya kalau semua asal satu lokasi
+                function excludeId() {
+                    const ids = tsSrc.items.map(function(i) { return moveSources[i].location_id; });
+                    const uniq = ids.filter(function(v, i) { return ids.indexOf(v) === i; });
+                    return uniq.length === 1 ? uniq[0] : '';
+                }
+
+                const tsSrc = new TomSelect('#moveStockSource', {
+                    plugins: ['remove_button'],
+                    maxItems: null,
+                    hideSelected: true,
+                    closeAfterSelect: false,
+                    dropdownParent: 'body',
+                    onInitialize: function() { this.dropdown.classList.add('move-dd'); }
+                });
+
+                const ts = new TomSelect('#moveStockTarget', {
+                    valueField: 'id',
+                    labelField: 'label',
+                    searchField: ['location_name', 'location_code'],
+                    maxOptions: 30,
+                    preload: 'focus',
+                    loadThrottle: 250,
+                    dropdownParent: 'body',
+                    onInitialize: function() { this.dropdown.classList.add('move-dd'); },
+                    shouldLoad: function() { return true; },
+                    load: function(query, callback) {
+                        $.get(optionsUrl, { q: query, exclude: excludeId() })
+                            .done(function(res) { callback(res); })
+                            .fail(function() { callback(); });
+                    },
+                    render: {
+                        option: function(d, e) {
+                            return '<div class="py-1">' + e(d.location_name || d.location_code || '-') + '</div>';
+                        },
+                        item: function(d, e) {
+                            return '<div>' + e(d.location_name || d.location_code || '-') + '</div>';
+                        },
+                        no_results: function() {
+                            return '<div class="no-results p-2 small text-muted">Lokasi tidak ditemukan</div>';
+                        }
+                    }
+                });
+
+                function showAlert(msg) { $('#moveStockAlert').text(msg).removeClass('d-none'); }
+                function hideAlert() { $('#moveStockAlert').addClass('d-none').text(''); }
+
+                function setScanStatus(type, html) {
+                    $('#moveStockScanStatus')
+                        .removeClass('d-none is-wait is-ok is-fail')
+                        .addClass('is-' + type)
+                        .html(html);
+                }
+
+                function clearScanStatus() { $('#moveStockScanStatus').addClass('d-none').empty(); }
+
+                function resetTarget() {
+                    ts.clear(true);
+                    ts.clearOptions();
+                    ts.loadedSearches = {};
+                }
+
+                // Simpan qty yang sedang diketik, lalu gambar ulang daftar qty per asal
+                function renderQtyList() {
+                    $('#moveStockQtyList .ms-qty').each(function() {
+                        moveQtyByIdx[$(this).data('idx')] = $(this).val();
+                    });
+
+                    const selected = tsSrc.items;
+                    let total = 0;
+                    let html = '';
+
+                    selected.forEach(function(i) {
+                        const s = moveSources[i];
+                        const val = moveQtyByIdx[i] !== undefined ? moveQtyByIdx[i] : s.qty;
+                        total += parseFloat(val) || 0;
+
+                        html += '<div class="d-flex align-items-center gap-2 mb-2">'
+                            + '<div class="flex-grow-1 small fw-semibold" style="min-width:0;">' + esc(srcLabel(s)) + '</div>'
+                            + '<div class="as-field" style="width:150px;flex-shrink:0;">'
+                            + '<i class="bx bx-cube-alt"></i>'
+                            + '<input type="number" class="as-input ms-qty" data-idx="' + i + '" min="0.01" step="0.01" max="' + s.qty + '" value="' + val + '">'
+                            + '</div></div>';
+                    });
+
+                    $('#moveStockQtyList').html(html);
+                    $('#moveStockQtyWrap').toggleClass('d-none', !selected.length);
+                    $('#moveStockFromName').text(selected.length + ' asal dipilih');
+                    $('#moveStockAvail').text(fmt(total));
+                }
+
+                tsSrc.on('change', function() {
+                    renderQtyList();
+
+                    // Tujuan tidak boleh sama dengan salah satu asal
+                    const t = ts.getValue();
+                    const srcLocIds = tsSrc.items.map(function(i) { return String(moveSources[i].location_id); });
+                    if (t && srcLocIds.indexOf(String(t)) !== -1) {
+                        resetTarget();
+                        clearScanStatus();
+                        moveLastScan = '';
+                    }
+                });
+
+                $(document).on('input', '#moveStockQtyList .ms-qty', function() {
+                    moveQtyByIdx[$(this).data('idx')] = $(this).val();
+                    let total = 0;
+                    $('#moveStockQtyList .ms-qty').each(function() { total += parseFloat($(this).val()) || 0; });
+                    $('#moveStockAvail').text(fmt(total));
+                });
+
+                $('#btnMoveStockAll').on('click', function() {
+                    $('#moveStockQtyList .ms-qty').each(function() {
+                        const i = $(this).data('idx');
+                        $(this).val(moveSources[i].qty);
+                        moveQtyByIdx[i] = moveSources[i].qty;
+                    });
+                    $('#moveStockQtyList .ms-qty').first().trigger('input');
+                });
+
+                function stopCamera() {
+                    if (!moveScanner) return Promise.resolve();
+                    const sc = moveScanner;
+                    moveScanner = null;
+                    return sc.stop().catch(function() {}).then(function() {
+                        $('#moveStockCamWrap').addClass('d-none');
+                    });
+                }
+
+                function startCamera() {
+                    if (typeof Html5Qrcode === 'undefined') {
+                        showAlert('Scanner kamera tidak tersedia di halaman ini.');
+                        return;
+                    }
+
+                    $('#moveStockCamWrap').removeClass('d-none');
+                    moveScanner = new Html5Qrcode('moveStockReader');
+                    moveScanner.start(
+                        { facingMode: 'environment' },
+                        { fps: 5, qrbox: 180, aspectRatio: 1 },
+                        function(text) {
+                            if (text === moveLastScan) return;
+                            moveLastScan = text;
+
+                            ts.setTextboxValue(text);
+                            setScanStatus('wait', '<i class="bx bx-loader-alt bx-spin"></i> Kode terbaca: ' + esc(text) + ' &mdash; mencari lokasi...');
+                            lookupTarget(text);
+                        },
+                        function() {}
+                    ).catch(function() {
+                        moveScanner = null;
+                        $('#moveStockCamWrap').addClass('d-none');
+                        showAlert('Kamera tidak dapat dibuka.');
+                    });
+                }
+
+                function lookupTarget(text) {
+                    const safe = esc(text);
+
+                    $.get(optionsUrl, { q: text, exact: 1, exclude: excludeId() })
+                        .done(function(res) {
+                            if (!res.length) {
+                                moveLastScan = '';
+                                setScanStatus('fail', '<i class="bx bx-error-circle"></i> Kode terbaca: ' + safe + ' &mdash; lokasi tidak ditemukan');
+                                return;
+                            }
+
+                            hideAlert();
+                            ts.addOption(res[0]);
+                            ts.setValue(res[0].id);
+                            setScanStatus('ok', '<i class="bx bx-check-circle"></i> Kode terbaca: ' + safe + ' &mdash; ' + esc(res[0].location_name || ''));
+                            stopCamera();
+                        })
+                        .fail(function() {
+                            moveLastScan = '';
+                            setScanStatus('fail', '<i class="bx bx-error-circle"></i> Kode terbaca: ' + safe + ' &mdash; gagal mencari lokasi');
+                        });
+                }
+
+                $(document).on('click', '.btnMoveStock', function() {
+                    const id = $(this).data('id');
+
+                    $.get('/location-stock/' + id + '/edit')
+                        .done(function(res) {
+                            moveSources = (res.item.locations || [])
+                                .filter(function(l) { return Number(l.pivot.quantity) > 0; })
+                                .map(function(l) {
+                                    return {
+                                        location_id: l.id,
+                                        location_name: l.location_name,
+                                        lot: l.pivot.lot ? String(l.pivot.lot) : '',
+                                        qty: Number(l.pivot.quantity)
+                                    };
+                                });
+
+                            if (!moveSources.length) {
+                                Swal.fire({ icon: 'info', title: 'Tidak ada stok', text: 'Barang ini tidak punya stok yang bisa dipindahkan.' });
+                                return;
+                            }
+
+                            moveItemId = id;
+                            moveQtyByIdx = {};
+
+                            hideAlert();
+                            clearScanStatus();
+                            resetTarget();
+                            moveLastScan = '';
+
+                            $('#moveStockItemName').text(
+                                [res.item.item_code_internal, res.item.name].filter(Boolean).join(' - ') || '-'
+                            );
+
+                            tsSrc.clear(true);
+                            tsSrc.clearOptions();
+                            moveSources.forEach(function(s, i) {
+                                tsSrc.addOption({ value: String(i), text: srcLabel(s) });
+                            });
+                            tsSrc.refreshOptions(false);
+
+                            // hanya satu asal -> langsung terpilih
+                            if (moveSources.length === 1) tsSrc.setValue(['0'], true);
+                            renderQtyList();
+
+                            moveModal.show();
+                        })
+                        .fail(function() {
+                            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Data stok barang tidak dapat dimuat.' });
+                        });
+                });
+
+                $('#btnMoveStockCam').on('click', function() {
+                    if (moveScanner) {
+                        stopCamera();
+                    } else {
+                        hideAlert();
+                        startCamera();
+                    }
+                });
+
+                modalEl.addEventListener('hidden.bs.modal', function() {
+                    stopCamera();
+                });
+
+                $('#btnConfirmMoveStock').on('click', function() {
+                    hideAlert();
+
+                    const target = ts.getValue();
+                    const selected = tsSrc.items.slice();
+
+                    if (!selected.length) {
+                        showAlert('Pilih minimal satu asal (lokasi & lot).');
+                        return;
+                    }
+
+                    if (!target) {
+                        showAlert('Pilih atau scan lokasi tujuan terlebih dahulu.');
+                        return;
+                    }
+
+                    const jobs = [];
+
+                    for (let k = 0; k < selected.length; k++) {
+                        const i = selected[k];
+                        const s = moveSources[i];
+                        const qty = parseFloat($('#moveStockQtyList .ms-qty[data-idx="' + i + '"]').val());
+
+                        if (String(s.location_id) === String(target)) {
+                            showAlert('Lokasi tujuan sama dengan asal: ' + (s.location_name || '-') + '.');
+                            return;
+                        }
+
+                        if (!qty || qty <= 0 || qty > s.qty) {
+                            showAlert('Qty tidak valid untuk ' + (s.location_name || '-') + (s.lot ? ' · Lot ' + s.lot : '') + '. Maksimal ' + fmt(s.qty) + '.');
+                            return;
+                        }
+
+                        jobs.push({ idx: i, src: s, qty: qty });
+                    }
+
+                    const targetName = (ts.options[target] && ts.options[target].location_name) || 'lokasi tujuan';
+                    const btn = $(this).prop('disabled', true);
+                    let doneCount = 0;
+
+                    function finishOk() {
+                        modalEl.addEventListener('hidden.bs.modal', function() {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: doneCount + ' asal berhasil dipindahkan ke ' + targetName + '.',
+                                timer: 2500,
+                                showConfirmButton: false
+                            });
+                            table.ajax.reload(null, false);
+                        }, { once: true });
+
+                        btn.prop('disabled', false);
+                        moveModal.hide();
+                    }
+
+                    function next(n) {
+                        if (n >= jobs.length) {
+                            finishOk();
+                            return;
+                        }
+
+                        const j = jobs[n];
+
+                        $.ajax({
+                            url: "{{ route('scan.location.move') }}",
+                            method: 'POST',
+                            data: {
+                                _token: "{{ csrf_token() }}",
+                                item_id: moveItemId,
+                                from_location_id: j.src.location_id,
+                                lot: j.src.lot,
+                                qty: j.qty,
+                                to_location_id: target
+                            }
+                        }).done(function() {
+                            doneCount++;
+                            // yang sudah berhasil dikeluarkan dari pilihan supaya tidak terkirim dua kali
+                            tsSrc.removeItem(String(j.idx), true);
+                            next(n + 1);
+                        }).fail(function(xhr) {
+                            const r = xhr.responseJSON || {};
+                            const msg = r.message
+                                || (r.errors ? Object.values(r.errors).flat()[0] : '')
+                                || 'Terjadi kesalahan (' + xhr.status + ').';
+
+                            showAlert('Gagal memindahkan ' + (j.src.location_name || '-') + (j.src.lot ? ' · Lot ' + j.src.lot : '') + ': ' + msg
+                                + (doneCount ? ' (' + doneCount + ' asal sebelumnya sudah berhasil dipindahkan)' : ''));
+
+                            if (doneCount) {
+                                renderQtyList();
+                                table.ajax.reload(null, false);
+                            }
+
+                            btn.prop('disabled', false);
+                        });
+                    }
+
+                    next(0);
                 });
             });
         </script>

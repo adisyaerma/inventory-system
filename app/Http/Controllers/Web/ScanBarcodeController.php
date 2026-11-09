@@ -34,7 +34,9 @@ class ScanBarcodeController extends Controller
             ->first();
 
         if ($location) {
-            $items = $location->items->map(function ($item) {
+            $items = $location->items
+                ->filter(fn ($item) => (float) $item->pivot->quantity > 0)
+                ->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'item_code_internal' => $item->item_code_internal,
@@ -57,7 +59,7 @@ class ScanBarcodeController extends Controller
                     'location_code' => $location->location_code,
                     'status' => $location->status,
                 ],
-                'total_item' => $items->count(),
+                'total_item' => $items->pluck('id')->unique()->count(),
                 'total_qty' => $items->sum('quantity'),
                 'items' => $items->values(),
             ]);

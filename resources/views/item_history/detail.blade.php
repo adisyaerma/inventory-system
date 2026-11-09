@@ -182,6 +182,12 @@
                     icon: 'bi-box-arrow-up',
                     sign: '-'
                 },
+                move: {
+                    label: 'Pindah Lokasi',
+                    color: 'primary',
+                    icon: 'bi-arrow-left-right',
+                    sign: ''
+                },
                 other: {
                     label: null,
                     color: 'secondary',

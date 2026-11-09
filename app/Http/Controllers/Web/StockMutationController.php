@@ -12,6 +12,7 @@ use App\Models\LocationStock;
 use App\Models\StockMutation;
 use App\Models\Vendor;
 use App\Support\StockBaseline;
+use App\Support\StockTotalBalance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +115,19 @@ class StockMutationController extends Controller
 
             ->editColumn('qty_balance', function ($row) {
                 return rtrim(rtrim(number_format($row->qty_balance, 2, '.', ''), '0'), '.');
+            })
+
+            // Saldo TOTAL barang (semua lokasi + lot) setelah mutasi ini. Hanya
+            // tampilan; qty_balance di atas tetap saldo per lokasi + lot.
+            // Mutasi riwayat sebelum stock opname tidak ikut dihitung -> "-".
+            ->addColumn('total_balance', function ($row) {
+                $info = StockTotalBalance::forItem((int) $row->item_id)[$row->id] ?? null;
+
+                if (! $info || ! $info['effective']) {
+                    return '-';
+                }
+
+                return rtrim(rtrim(number_format($info['total'], 2, '.', ''), '0'), '.');
             })
 
             ->editColumn('description', function ($row) {

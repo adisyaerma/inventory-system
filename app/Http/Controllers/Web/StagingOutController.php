@@ -789,6 +789,12 @@ class StagingOutController extends Controller
                 $validator->errors()->add('location_id', 'Lokasi wajib dipilih untuk sumber stok.');
             }
 
+            // Qty kosong / bukan bulat / < 1 sudah dilaporkan aturan dasar:
+            // jangan dobel dan jangan lanjut cek stok dengan qty yang tidak valid.
+            if ($validator->errors()->has('qty')) {
+                return;
+            }
+
             if (! $request->filled('qty') || (int) $request->qty < 1) {
                 $validator->errors()->add('qty', 'Qty wajib diisi dan lebih dari 0 untuk sumber stok.');
             }
@@ -1133,11 +1139,21 @@ class StagingOutController extends Controller
      */
     public function update(Request $request, StagingOut $stagingOut)
     {
-        $validator = Validator::make($request->all(), $this->baseValidationRules(), [
+        $rules = $this->baseValidationRules();
+
+        // Saat edit, qty wajib diisi dan minimal 1 (sama seperti form tambah).
+        // Qty kosong/0 sebelumnya lolos untuk barang eksternal dan, kalau barisnya
+        // berasal dari Staging In, seluruh qty-nya ikut "dikembalikan" diam-diam.
+        $rules['qty'] = ['required', 'integer', 'min:1'];
+
+        $validator = Validator::make($request->all(), $rules, [
             'item_id.exists' => 'Barang tidak ditemukan',
             'location_id.exists' => 'Lokasi tidak ditemukan',
             'source_type.required' => 'Sumber barang wajib dipilih',
             'source_type.in' => 'Sumber barang tidak valid',
+            'qty.required' => 'Qty wajib diisi.',
+            'qty.integer' => 'Qty harus berupa angka bulat (tanpa koma).',
+            'qty.min' => 'Qty minimal 1.',
         ]);
 
         $this->validateStockAvailability($validator, $request, $stagingOut);
@@ -1198,6 +1214,13 @@ class StagingOutController extends Controller
                         $stagingOut->do_number,
                         $stagingOut->delivery_receipt_date
                     );
+
+                    // Sama seperti store(): pastikan tgl picking ikut tercatat di
+                    // header history sebelum barisnya dipindahkan ke history.
+                    if ($stagingOut->picking_date) {
+                        StagingOutHistory::firstOrCreateForStaging($stagingOut)
+                            ->update(['picking_date' => $stagingOut->picking_date]);
+                    }
 
                     $stagingOut->delete();
                 }

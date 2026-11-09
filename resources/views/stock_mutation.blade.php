@@ -1505,7 +1505,8 @@
                             <th>No. Transaksi</th>
                             <th>Qty Masuk</th>
                             <th>Qty Keluar</th>
-                            <th>Qty Akhir</th>
+                            <th title="Saldo di lokasi & lot pada baris ini">Saldo Lokasi</th>
+                            <th title="Total semua lokasi & lot untuk barang ini">Saldo Total</th>
                             <th>Deskripsi</th>
                             <th>Aksi</th>
                         </tr>
@@ -2488,6 +2489,12 @@
                             name: 'qty_balance'
                         },
                         {
+                            data: 'total_balance',
+                            name: 'total_balance',
+                            orderable: false,
+                            searchable: false
+                        },
+                        {
                             data: 'description',
                             name: 'description'
                         },
@@ -2502,7 +2509,7 @@
                     scrollX: true,
                     autoWidth: false,
                     columnDefs: [{
-                        targets: [3, 10],
+                        targets: [3, 11],
                         width: "250px",
                         className: "text-wrap"
                     }],

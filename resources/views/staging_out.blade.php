@@ -2599,28 +2599,69 @@
                     let $qtyInput = $(cfg.qtyInputSel);
                     let $qtyHint = $(cfg.qtyHintSel);
 
+                    // Penanda permintaan terbaru: respon AJAX yang sudah basi (modal sudah
+                    // ditutup / dibuka ulang / item diganti) tidak boleh mengisi select lagi,
+                    // kalau tidak opsi lokasi/lot bisa dobel atau nyasar ke data lain.
+                    let locReq = 0;
+                    let lotReq = 0;
+
                     function resetLot() {
+                        lotReq++;
                         $lotSelect.html('<option value="">-- Pilih Lot --</option>').prop('disabled', true);
                         $qtyHint.text('');
                         $qtyInput.removeAttr('max');
                     }
 
                     function resetLocationLot() {
+                        locReq++;
                         $locationSelect.html('<option value="">-- Pilih Lokasi --</option>').prop(
                             'disabled', true);
                         resetLot();
                     }
 
-                    function toggleVisibility() {
+                    function toggleVisibility(e) {
                         let isStock = $stockRadio.is(':checked');
                         $stockFields.toggleClass('d-none', !isStock);
 
                         if (!isStock) {
                             resetLocationLot();
+                            return;
+                        }
+
+                        // User pindah dari Eksternal ke Stok padahal barang sudah dipilih:
+                        // daftar lokasi belum pernah dimuat, jadi muat sekarang.
+                        // (Hanya untuk klik user, bukan .trigger('change') dari kode.)
+                        if (e && e.originalEvent && cfg.getItemId() && $locationSelect.prop('disabled')) {
+                            loadLocations(cfg.getItemId());
                         }
                     }
 
                     $extRadio.add($stockRadio).on('change', toggleVisibility);
+
+                    // Pilih opsi lot berdasarkan nilainya. Opsi "(Tanpa Lot)" dan placeholder
+                    // "-- Pilih Lot --" sama-sama bernilai '', jadi yang dicari hanya opsi
+                    // lot asli (punya data-qty) supaya hint & batas qty ikut terisi.
+                    function selectLot(value) {
+                        let wanted = (value === null || value === undefined) ? '' : String(value);
+
+                        let $opt = $lotSelect.find('option').filter(function() {
+                            return this.getAttribute('data-qty') !== null && this.value === wanted;
+                        }).first();
+
+                        if ($opt.length) {
+                            $opt.prop('selected', true);
+                        }
+
+                        $lotSelect.trigger('change');
+                    }
+
+                    // true = ada pilihan lot, tapi belum ada yang dipilih.
+                    function needsLot() {
+                        let hasLots = $lotSelect.find('option[data-qty]').length > 0;
+                        let chosen = $lotSelect.find('option:selected')[0];
+
+                        return hasLots && (!chosen || chosen.getAttribute('data-qty') === null);
+                    }
 
                     function loadLocations(itemId) {
                         resetLocationLot();
@@ -2629,10 +2670,14 @@
                             return $.Deferred().resolve([]).promise();
                         }
 
+                        let token = locReq;
+
                         return $.getJSON("{{ route('stagings-out.search-location-for-item') }}", {
                             item_id: itemId,
                             staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
                         }).then(function(res) {
+                            if (token !== locReq) return res;
+
                             $locationSelect.prop('disabled', false);
 
                             res.forEach(function(loc) {
@@ -2643,6 +2688,12 @@
                             });
 
                             return res;
+                        }, function(xhr) {
+                            if (token === locReq) {
+                                showToast('error', 'Gagal memuat daftar lokasi. Coba pilih barang lagi.');
+                            }
+
+                            return xhr;
                         });
                     }
 
@@ -2653,11 +2704,15 @@
                             return $.Deferred().resolve([]).promise();
                         }
 
+                        let token = lotReq;
+
                         return $.getJSON("{{ route('stagings-out.search-lot-for-item-location') }}", {
                             item_id: itemId,
                             location_id: locationId,
                             staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
                         }).then(function(res) {
+                            if (token !== lotReq) return res;
+
                             $lotSelect.prop('disabled', false);
 
                             res.forEach(function(lotRow) {
@@ -2671,10 +2726,16 @@
                             // Kalau cuma ada 1 lot, langsung pilihkan biar user
                             // ga perlu klik lagi (banyak item tidak pakai lot).
                             if (res.length === 1) {
-                                $lotSelect.val(res[0].id).trigger('change');
+                                selectLot(res[0].id);
                             }
 
                             return res;
+                        }, function(xhr) {
+                            if (token === lotReq) {
+                                showToast('error', 'Gagal memuat daftar lot. Coba pilih lokasi lagi.');
+                            }
+
+                            return xhr;
                         });
                     }
 
@@ -2697,6 +2758,8 @@
                     return {
                         loadLocations: loadLocations,
                         loadLots: loadLots,
+                        selectLot: selectLot,
+                        needsLot: needsLot,
                         reset: function() {
                             $extRadio.prop('checked', true);
                             resetLocationLot();
@@ -2762,7 +2825,11 @@
                 }
 
                 let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', function(itemId) {
-                    editSourceType.loadLocations(itemId);
+                    // Untuk barang eksternal daftar lokasi tidak dipakai; kalau nanti user
+                    // pindah ke "Dari Stok", daftarnya dimuat saat itu (lihat toggleVisibility).
+                    if ($('#editSourceStock').is(':checked')) {
+                        editSourceType.loadLocations(itemId);
+                    }
                 });
 
                 // ================= ALERT HELPER (SweetAlert) =================
@@ -3565,13 +3632,16 @@
 
                                 editSourceType.loadLocations(res.item_id).then(function() {
 
-                                    $('#editLocationSelect').val(res.location_id);
+                                    $('#editLocationSelect').val(String(res.location_id));
 
                                     return editSourceType.loadLots(res.item_id, res.location_id);
 
                                 }).then(function() {
 
-                                    $('#editLotSelect').val(res.lot || '').trigger('change');
+                                    // "(Tanpa Lot)" & placeholder sama-sama bernilai '' —
+                                    // selectLot() memilih opsi lot yang asli supaya hint
+                                    // stok dan batas qty ikut terisi.
+                                    editSourceType.selectLot(res.lot);
 
                                 });
                             }
@@ -3614,8 +3684,16 @@
                             validate: requiredCheck('Lokasi belum dipilih. Pilih lokasi yang memiliki stok barang ini.')
                         },
                         {
+                            el: '#editLotSelect',
+                            when: function() {
+                                return editIsStock() && editSourceType.needsLot();
+                            },
+                            validate: function() {
+                                return 'Lot belum dipilih. Pilih lot barang yang akan diambil dari stok.';
+                            }
+                        },
+                        {
                             el: '#editQty',
-                            when: editIsStock,
                             validate: qtyCheck('Qty', 'sisa stok pada lot ini')
                         }
                     ]))) return;

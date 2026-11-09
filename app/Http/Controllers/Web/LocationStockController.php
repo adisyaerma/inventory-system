@@ -181,6 +181,16 @@ class LocationStockController extends Controller
 <div class="d-flex align-items-center gap-2">
 
     <button
+        class="btn btn-sm bg-warning bg-opacity-10 text-warning rounded-3 border-0 btnMoveStock"
+        type="button"
+        title="Pindahkan barang"
+        data-id="'.$row->id.'">
+
+        <i class="bx bx-transfer-alt fs-5"></i>
+
+    </button>
+
+    <button
         class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEditLocationStock"
         type="button"
         data-id="'.$row->id.'">

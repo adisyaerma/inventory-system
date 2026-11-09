@@ -25,7 +25,7 @@ return new class extends Migration
 
             $table->string('lot')->nullable();
 
-            $table->date('transaction_date')->nullable();
+            $table->date('transaction_date')->nullable();   
 
             $table->string('transaction_number')->nullable();
 

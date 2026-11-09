@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\StockMutation;
 use App\Models\Vendor;
+use App\Support\StockTotalBalance;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
@@ -37,6 +38,13 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * tambahan untuk dibaca manusia; StockMutationImport hanya membaca
  * index 0-9 jadi kolom ini otomatis diabaikan saat file hasil export
  * ini di-upload lagi sebagai file import.
+ *
+ * Kolom "Saldo Total" (saldo semua lokasi + lot untuk barang itu setelah
+ * mutasi tsb, sama dengan kolom Saldo Total di tabel Mutasi Stok) ditaruh
+ * SETELAH Vendor (index 11 / kolom L) dengan alasan yang sama: murni info
+ * tambahan, diabaikan StockMutationImport. "Qty Balance" (index 9) tetap
+ * saldo per lokasi + lot (= kolom Saldo Lokasi di tabel). Nilai "-" berarti
+ * mutasi riwayat sebelum stock opname (tidak ikut dihitung ke saldo).
  *
  * Baris juga diurutkan & di-merge per kombinasi item+lokasi+lot (bukan
  * cuma per item), supaya pola "sel kosong = warisan dari baris di
@@ -70,7 +78,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  */
 class StockMutationExport implements FromArray, WithEvents
 {
-    private const DATA_COLUMNS = 11;
+    private const DATA_COLUMNS = 12;
 
     /**
      * Merge range untuk kolom yang konstan per ITEM (Item Code, Item
@@ -250,6 +258,7 @@ class StockMutationExport implements FromArray, WithEvents
             'Qty Out',
             'Qty Balance',
             'Vendor',
+            'Saldo Total',
         ];
 
         // Baris data mulai persis setelah baris heading.
@@ -257,7 +266,12 @@ class StockMutationExport implements FromArray, WithEvents
 
         $itemGroups = $mutations->groupBy('item_id');
 
-        foreach ($itemGroups as $itemMutations) {
+        foreach ($itemGroups as $itemId => $itemMutations) {
+
+            // Saldo total barang ini setelah tiap mutasi (dihitung dari SEMUA
+            // mutasi barang itu, bukan hanya yang lolos filter, supaya
+            // angkanya sama dengan yang tampil di tabel).
+            $totalBalances = StockTotalBalance::forItem((int) $itemId);
 
             $itemStartRow = $excelRow;
             $firstInItem = true;
@@ -289,6 +303,7 @@ class StockMutationExport implements FromArray, WithEvents
                         $mutation->qty_out,
                         $mutation->qty_balance,
                         $firstInItem ? ($mutation->item->vendor->name ?? '-') : '',
+                        $this->totalBalanceCell($totalBalances[$mutation->id] ?? null),
                     ];
 
                     $firstInItem = false;
@@ -311,6 +326,16 @@ class StockMutationExport implements FromArray, WithEvents
         }
 
         return array_merge($rows, $dataRows);
+    }
+
+    /** Saldo total untuk satu baris; "-" kalau mutasi riwayat sebelum stock opname. */
+    protected function totalBalanceCell(?array $info)
+    {
+        if (! $info || ! $info['effective']) {
+            return '-';
+        }
+
+        return round($info['total'], 2);
     }
 
     public function registerEvents(): array
@@ -357,7 +382,7 @@ class StockMutationExport implements FromArray, WithEvents
                 // Fallback kalau deteksi di atas entah kenapa gagal.
                 $headingRow = $headingRow ?? $this->headingRowNumber;
 
-                $lastCol = chr(64 + self::DATA_COLUMNS); // K
+                $lastCol = chr(64 + self::DATA_COLUMNS); // L
 
                 $sheet->getStyle("A{$headingRow}:{$lastCol}{$headingRow}")
                     ->applyFromArray([
@@ -427,6 +452,14 @@ class StockMutationExport implements FromArray, WithEvents
                     ->getNumberFormat()
                     ->setFormatCode('#,##0.##');
 
+                $sheet->getStyle("L{$firstDataRow}:L{$lastRow}")
+                    ->getNumberFormat()
+                    ->setFormatCode('#,##0.##');
+
+                $sheet->getStyle("L{$firstDataRow}:L{$lastRow}")
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
                 $sheet->getColumnDimension('A')->setWidth(18); // Item Code
                 $sheet->getColumnDimension('B')->setWidth(35); // Item Name
                 $sheet->getColumnDimension('C')->setWidth(25); // Location
@@ -438,6 +471,7 @@ class StockMutationExport implements FromArray, WithEvents
                 $sheet->getColumnDimension('I')->setWidth(12); // Qty Out
                 $sheet->getColumnDimension('J')->setWidth(12); // Qty Balance
                 $sheet->getColumnDimension('K')->setWidth(25); // Vendor
+                $sheet->getColumnDimension('L')->setWidth(14); // Saldo Total
             },
 
         ];

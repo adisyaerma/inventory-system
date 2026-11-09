@@ -1362,7 +1362,7 @@ ${item.description??'-'}
                         <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="fw-semibold text-dark">${loc.location_name}</span>
-                                <span class="meta-chip"><i class='bx bx-barcode'></i> ${loc.location_code ?? '-'}</span>
+                                ${loc.location_code && loc.location_code !== loc.location_name ? `<span class="meta-chip"><i class='bx bx-barcode'></i> ${loc.location_code}</span>` : ''}
                                 ${loc.lot ? `<span class="lot-chip"><i class='bx bx-layer'></i> Lot ${loc.lot}</span>` : ''}
                             </div>
                             <span class="qty-pill" style="background:#e8f0fe; color:#1d4ed8;">

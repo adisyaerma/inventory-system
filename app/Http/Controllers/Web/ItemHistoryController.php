@@ -294,7 +294,8 @@ class ItemHistoryController extends Controller
             ->map(function ($d) {
                 [$direction, $title] = $this->stagingMovement('out', (string) $d->event_type, $d->qty_change);
 
-                if ($direction === null) {
+                // "Masuk ke Staging Out" tidak ditampilkan; cukup sisi barang keluarnya.
+                if ($direction === null || $direction === 'in') {
                     return null;
                 }
 
@@ -330,6 +331,55 @@ class ItemHistoryController extends Controller
             })
             ->filter()
             ->values();
+    }
+
+    private function isMoveRow($m): bool
+    {
+        return empty($m->transaction_number)
+            && str_starts_with((string) $m->description, 'Pindah lokasi');
+    }
+
+    /** Pasangkan mutasi keluar+masuk "Pindah lokasi" jadi 1 baris. */
+    private function pairMoves($mutationRows): array
+    {
+        $ins = $mutationRows->filter(fn ($m) => $m->qty_in > 0 && $this->isMoveRow($m))->sortBy('created_at')->values();
+        $outs = $mutationRows->filter(fn ($m) => $m->qty_out > 0 && $this->isMoveRow($m))->sortBy('created_at')->values();
+
+        $used = [];
+        $rows = [];
+
+        foreach ($outs as $out) {
+            $in = $ins->first(fn ($i) => ! isset($used[$i->id])
+                && (float) $i->qty_in == (float) $out->qty_out
+                && (string) $i->lot === (string) $out->lot
+                && str_contains((string) $out->description, $i->location->location_name ?? '#')
+                && str_contains((string) $i->description, $out->location->location_name ?? '#'));
+
+            if (! $in) {
+                continue;
+            }
+
+            $used[$in->id] = true;
+            $used[$out->id] = true;
+
+            $rows[] = [
+                'date' => optional($in->transaction_date)->toDateString(),
+                'date_label' => 'Tgl Pindah',
+                'sort_key' => optional($in->created_at)->timestamp ?? 0,
+                'source' => 'mutation',
+                'type' => 'mutation_move',
+                'direction' => 'move',
+                'label' => 'Pindah Lokasi',
+                'qty' => (float) $in->qty_in,
+                'location' => ($out->location->location_name ?? '-').' → '.($in->location->location_name ?? '-'),
+                'lot' => $in->lot,
+                'reference' => null,
+                'notes' => null,
+                'by' => null,
+            ];
+        }
+
+        return [$rows, $used];
     }
 
     private function buildHistoryData(Item $item): array
@@ -374,24 +424,67 @@ class ItemHistoryController extends Controller
         }
 
         $stagingOutByMutationId = [];
+        $unmatchedOutDetails = [];
 
         foreach ($stagingOutDetails->where('event_type', 'created')->sortBy('created_at') as $detail) {
             $soNumber = $detail->history?->so_number;
 
-            if (empty($soNumber)) {
-                continue;
+            if (! empty($soNumber)) {
+                $key = $soNumber.'|'.(float) $detail->qty_after;
+
+                if (! empty($mutationOutIdsByKey[$key])) {
+                    $mutationId = array_shift($mutationOutIdsByKey[$key]);
+
+                    $stagingOutByMutationId[$mutationId] = $detail;
+
+                    continue;
+                }
             }
 
-            $key = $soNumber.'|'.(float) $detail->qty_after;
+            $unmatchedOutDetails[] = $detail;
+        }
 
-            if (! empty($mutationOutIdsByKey[$key])) {
-                $mutationId = array_shift($mutationOutIdsByKey[$key]);
+        // Cadangan: no SO kosong / tidak cocok -> cocokkan lewat qty, lokasi, lot,
+        // dan waktu terdekat (mutasi keluar dibuat bersamaan dengan data staging out).
+        foreach ($unmatchedOutDetails as $detail) {
+            $meta = is_array($detail->meta) ? $detail->meta : [];
+            $qty = abs((float) ($detail->qty_after ?: $detail->qty_change));
+            $locName = $meta['location_name'] ?? $meta['location'] ?? null;
+            $lot = (string) ($meta['lot'] ?? '');
+            $at = optional($detail->created_at)->timestamp ?? 0;
 
-                $stagingOutByMutationId[$mutationId] = $detail;
+            $best = null;
+            $bestDiff = 3600;
+
+            foreach ($mutationRows as $m) {
+                if ($m->qty_out <= 0
+                    || isset($stagingOutByMutationId[$m->id])
+                    || $this->isMoveRow($m)
+                    || abs((float) $m->qty_out - $qty) > 0.0001
+                    || (string) ($m->lot ?? '') !== $lot
+                    || ($locName !== null && ($m->location->location_name ?? null) !== $locName)) {
+                    continue;
+                }
+
+                $diff = abs((optional($m->created_at)->timestamp ?? 0) - $at);
+
+                if ($diff <= $bestDiff) {
+                    $best = $m;
+                    $bestDiff = $diff;
+                }
+            }
+
+            if ($best) {
+                $stagingOutByMutationId[$best->id] = $detail;
             }
         }
 
+        [$moveRows, $pairedIds] = $this->pairMoves($mutationRows);
+
+        $mutationIdSet = $mutationRows->pluck('id')->flip()->all();
+
         $timeline = $mutationRows
+            ->reject(fn ($row) => isset($pairedIds[$row->id]))
             ->map(function ($row) use ($movedToStockByMutationId, $stagingOutByMutationId) {
                 $isIn = $row->qty_in > 0;
 
@@ -408,25 +501,40 @@ class ItemHistoryController extends Controller
                 $fromStagingIn = $isIn ? $movedToStockByMutationId->get($row->id) : null;
 
                 if ($fromStagingIn) {
-                    $poNumber = $fromStagingIn->history?->po_number;
-
-                    $label = 'Masuk ke Stok (dari Staging In)';
-                    $notes = trim(
-                        
-                        ($row->description ? ' - '.$row->description : '')
-                    );
+                    return [
+                        'date' => optional($row->transaction_date)->toDateString(),
+                        'date_label' => 'Tgl Pindah',
+                        'sort_key' => optional($row->created_at)->timestamp
+                            ?? optional($row->transaction_date)->timestamp
+                            ?? 0,
+                        'source' => 'mutation',
+                        'type' => 'staging_in_to_stock',
+                        'direction' => 'move',
+                        'label' => 'Masuk ke Stok (dari Staging In)',
+                        'qty' => (float) $row->qty_in,
+                        'location' => ($fromStagingIn->history?->location ?: 'Staging In')
+                            .' → '.($row->location->location_name ?? '-'),
+                        'lot' => $row->lot,
+                        'reference' => $fromStagingIn->history?->po_number ?: $row->transaction_number,
+                        'notes' => $row->description ?: null,
+                        'by' => $fromStagingIn->performed_by,
+                    ];
                 }
+
+                $reference = $row->transaction_number;
 
                 $fromStagingOut = ! $isIn ? ($stagingOutByMutationId[$row->id] ?? null) : null;
 
                 if ($fromStagingOut) {
                     $so = $fromStagingOut->history;
+                    $soNumber = $so?->so_number;
 
                     $label = 'Keluar dari Stok (ke Staging Out)';
-                    $notes = trim(
-                        ($so?->customer ? 'Customer: '.$so->customer : '').
-                        ($so?->do_number ? ' | DO: '.$so->do_number : '')
-                    );
+                    $notes = implode(' | ', array_filter([
+                        $so?->customer ? 'Customer: '.$so->customer : null,
+                        $so?->do_number ? 'DO: '.$so->do_number : null,
+                    ]));
+                    $reference = $soNumber ?: $row->transaction_number;
                 }
 
                 // Masuk: tgl masuk = transaction_date di stock_mutations.
@@ -456,12 +564,17 @@ class ItemHistoryController extends Controller
                     'qty' => (float) ($isIn ? $row->qty_in : $row->qty_out),
                     'location' => $row->location->location_name ?? '-',
                     'lot' => $row->lot,
-                    'reference' => $row->transaction_number,
+                    'reference' => $reference,
                     'notes' => $notes,
                     'by' => null,
                 ];
             })
-            ->concat($this->stagingInRows($stagingInDetails))
+            ->concat($moveRows)
+            ->concat($this->stagingInRows($stagingInDetails->reject(
+                fn ($d) => $d->event_type === 'moved_to_stock'
+                    && ! empty($d->meta['stock_mutation_id'])
+                    && isset($mutationIdSet[$d->meta['stock_mutation_id']])
+            )))
             ->concat($this->stagingOutRows($stagingOutDetails, $stagingOutByMutationId))
             // Urut berdasarkan tgl masuk/kirim (terlama di atas); kalau tanggal
             // sama, urut berdasarkan waktu data dibuat.
