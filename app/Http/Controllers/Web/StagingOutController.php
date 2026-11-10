@@ -8,10 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Imports\StagingOutImport;
 use App\Imports\StagingOutStockImport;
 use App\Models\Item;
+use App\Models\Location;
 use App\Models\LocationStock;
+use App\Models\StagingIn;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StockMutation;
+use App\Services\StagingInHistoryService;
 use App\Services\StagingOutHistoryService;
 use App\Services\StagingInReturnService;
 use App\Services\StagingOutStockService;
@@ -156,9 +159,20 @@ class StagingOutController extends Controller
                     return '-';
                 }
 
+                // Penanda sumber barang: Stok / Staging In / belum dipilih
+                // (baris hasil import biasanya masuk kategori terakhir).
+                if ($row->source_type === 'stock' && $row->location_id) {
+                    $sourceBadge = '<span class="badge bg-info-subtle text-info">Stok</span>';
+                } elseif ($row->staging_in_id) {
+                    $sourceBadge = '<span class="badge bg-primary-subtle text-primary">Staging In</span>';
+                } else {
+                    $sourceBadge = '<span class="badge bg-warning-subtle text-warning">Sumber belum dipilih</span>';
+                }
+
                 return '
                 <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
                 <div class="text-muted">'.e($row->item->name).'</div>
+                <div class="mt-1">'.$sourceBadge.'</div>
             ';
             })
             ->filterColumn('item_code', function ($query, $keyword) {
@@ -296,8 +310,28 @@ class StagingOutController extends Controller
 
             ->addColumn('action', function ($row) {
 
+                // Tombol sumber barang: "Pilih Sumber" kalau belum ada sumbernya,
+                // "Ubah Sumber" kalau sudah (bisa diganti / dikembalikan).
+                $assignBtn = '';
+
+                if ($row->item_id) {
+                    $hasSource = ($row->source_type === 'stock' && $row->location_id) || $row->staging_in_id;
+                    $btnClass = $hasSource ? 'bg-info text-info' : 'bg-success text-success';
+                    $btnTitle = $hasSource ? 'Ubah sumber barang' : 'Pilih sumber barang (Staging In / Stok)';
+
+                    $assignBtn = '
+                <button
+                    class="btn btn-sm '.$btnClass.' bg-opacity-10 rounded-3 border-0 btnAssignSource"
+                    type="button"
+                    title="'.$btnTitle.'"
+                    data-id="'.$row->id.'">
+                    <i class="bx '.($hasSource ? 'bx-git-compare' : 'bx-transfer').' fs-5"></i>
+                </button>';
+                }
+
                 return '
             <div class="d-flex align-items-center gap-1">
+'.$assignBtn.'
 
                 <button
                     class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
@@ -500,7 +534,7 @@ class StagingOutController extends Controller
 
                 return [
                     'id' => $first->location_id,
-                    'text' => optional($first->location)->location_name ?? ('Lokasi #'.$first->location_id),
+                    'text' => optional($first->location)->location_name ?? ('Lokasi tidak diketahui'),
                     'total_quantity' => $total,
                 ];
             })
@@ -511,8 +545,8 @@ class StagingOutController extends Controller
         if ($current && ! $locations->contains('id', $current->location_id)) {
             $locations->push([
                 'id' => $current->location_id,
-                'text' => app(StagingOutStockService::class)->locationName($current->location_id)
-                    ?? ('Lokasi #'.$current->location_id),
+                'text' => optional(Location::find($current->location_id))->location_name
+                    ?? ('Lokasi tidak diketahui'),
                 'total_quantity' => (float) $current->qty,
             ]);
         }
@@ -578,6 +612,364 @@ class StagingOutController extends Controller
         }
 
         return response()->json($lots->values());
+    }
+
+    /**
+     * Apakah baris ini sudah punya sumber (stok dengan lokasi, atau
+     * dipindah dari Staging In).
+     */
+    protected function hasSource(StagingOut $staging): bool
+    {
+        return ($staging->source_type === 'stock' && $staging->location_id) || (bool) $staging->staging_in_id;
+    }
+
+    /**
+     * Alasan baris tidak bisa diatur sumbernya (null = boleh).
+     */
+    protected function sourceIneligibleReason(StagingOut $staging): ?string
+    {
+        if (! $staging->item_id) {
+            return 'Kode barang kosong, tidak bisa memilih sumber.';
+        }
+
+        if ((int) $staging->qty < 1) {
+            return 'Qty 0, isi qty dulu.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Daftar pilihan sumber (Staging In & stok gudang per lokasi/lot) untuk
+     * satu atau banyak baris staging out sekaligus, plus sumber yang
+     * sedang dipakai baris itu (current) supaya bisa diubah/dikembalikan.
+     *
+     * Pilihan yang qty-nya kurang dari qty baris tetap dikirim, tapi
+     * ditandai enough=false. Untuk sumber yang sedang dipakai baris itu
+     * sendiri, qty baris dihitung sebagai tersedia lagi (karena akan
+     * dilepas dulu sebelum sumber baru diterapkan).
+     */
+    public function sourceOptions(Request $request)
+    {
+        $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $rows = StagingOut::with('item')->whereIn('id', $request->ids)->orderBy('id')->get();
+
+        $itemIds = $rows->pluck('item_id')->filter()->unique()->values();
+
+        $stockByItem = LocationStock::with('location')
+            ->whereIn('item_id', $itemIds)
+            ->where('quantity', '>', 0)
+            ->get()
+            ->groupBy('item_id');
+
+        $inByItem = StagingIn::whereIn('item_id', $itemIds)
+            ->where('qty', '>', 0)
+            ->orderBy('arrival_date')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('item_id');
+
+        $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+
+        $result = $rows->map(function (StagingOut $row) use ($stockByItem, $inByItem, $fmt) {
+            $reason = $this->sourceIneligibleReason($row);
+            $options = [];
+            $current = null;
+
+            $curStock = $row->source_type === 'stock' && $row->location_id;
+            $curLot = $row->lot ?: null;
+
+            if ($curStock) {
+                $locName = optional(Location::find($row->location_id))->location_name
+                    ?? ('Lokasi tidak diketahui');
+
+                $current = [
+                    'type' => 'stock',
+                    'label' => 'Stok · '.$locName.' · '.($curLot ? 'Lot '.$curLot : 'Tanpa Lot'),
+                ];
+            } elseif ($row->staging_in_id) {
+                $curIn = StagingIn::find($row->staging_in_id);
+
+                $current = [
+                    'type' => 'staging_in',
+                    'label' => 'Staging In'.($curIn && $curIn->location ? ' · '.$curIn->location : '')
+                        .($curIn && $curIn->po_number ? ' · PO '.$curIn->po_number : ''),
+                ];
+            }
+
+            if (! $reason) {
+                foreach ($inByItem->get($row->item_id, collect()) as $in) {
+                    $isCurrent = (int) $row->staging_in_id === (int) $in->id;
+                    $available = (float) $in->qty + ($isCurrent ? (float) $row->qty : 0);
+
+                    $chips = array_values(array_filter([
+                        $isCurrent ? 'Saat ini' : null,
+                        $in->po_number ? 'PO '.$in->po_number : null,
+                        $in->supplier_origin,
+                    ]));
+
+                    $options[] = [
+                        'group' => 'staging_in',
+                        'title' => $in->location ?: 'Staging In',
+                        'chips' => $chips,
+                        'value' => 'in|'.$in->id,
+                        'label' => ($in->location ?: 'Staging In').' — sisa '.$fmt($available),
+                        'available' => $available,
+                        'enough' => $available >= (float) $row->qty,
+                    ];
+                }
+
+                foreach ($stockByItem->get($row->item_id, collect()) as $stock) {
+                    $lot = $stock->lot ?: null;
+                    $isCurrent = $curStock
+                        && (int) $row->location_id === (int) $stock->location_id
+                        && $curLot === $lot;
+                    $available = (float) $stock->quantity + ($isCurrent ? (float) $row->qty : 0);
+                    $locName = optional($stock->location)->location_name ?? ('Lokasi tidak diketahui');
+
+                    $options[] = [
+                        'group' => 'stock',
+                        'title' => $locName,
+                        'chips' => array_values(array_filter([
+                            $isCurrent ? 'Saat ini' : null,
+                            $lot ? 'Lot '.$lot : 'Tanpa Lot',
+                        ])),
+                        'value' => 'stock|'.$stock->location_id.'|'.($lot ?? ''),
+                        'label' => $locName.' · '.($lot ? 'Lot '.$lot : 'Tanpa Lot').' — sisa '.$fmt($available),
+                        'available' => $available,
+                        'enough' => $available >= (float) $row->qty,
+                    ];
+                }
+            }
+
+            return [
+                'id' => $row->id,
+                'so_number' => $row->so_number,
+                'customer' => $row->customer,
+                'line_item' => $row->line_item,
+                'item_code' => optional($row->item)->item_code_internal,
+                'item_name' => optional($row->item)->name,
+                'qty' => (int) $row->qty,
+                'eligible' => $reason === null,
+                'reason' => $reason,
+                'current' => $current,
+                'options' => $options,
+            ];
+        })->values();
+
+        return response()->json(['rows' => $result]);
+    }
+
+    /**
+     * Tetapkan / ubah / kembalikan sumber barang untuk satu atau banyak
+     * baris staging out sekaligus (satu transaksi: kalau satu baris gagal,
+     * semuanya batal).
+     *
+     * Tiap assignment: { id, source } dengan source berformat
+     *   "in|<staging_in_id>"                       -> ambil dari Staging In
+     *   "stock|<location_id>|<lot (boleh kosong)>" -> ambil dari stok gudang
+     *   "none"                                     -> kembalikan ke "sumber belum dipilih"
+     *
+     * Kalau baris sudah punya sumber, sumber lamanya DILEPAS dulu (qty
+     * dikembalikan ke stok / Staging In), baru sumber baru diterapkan.
+     */
+    public function assignSource(Request $request)
+    {
+        $validated = $request->validate([
+            'assignments' => ['required', 'array', 'min:1'],
+            'assignments.*.id' => ['required', 'integer', 'distinct', 'exists:staging_outs,id'],
+            'assignments.*.source' => ['required', 'string', 'max:300'],
+        ], [
+            'assignments.required' => 'Belum ada perubahan yang dipilih.',
+            'assignments.min' => 'Belum ada perubahan yang dipilih.',
+            'assignments.*.id.exists' => 'Data staging out tidak ditemukan.',
+            'assignments.*.source.required' => 'Sumber belum dipilih.',
+        ]);
+
+        try {
+            $result = DB::transaction(function () use ($validated) {
+                $assigned = 0;
+                $reverted = 0;
+
+                foreach ($validated['assignments'] as $assignment) {
+                    $staging = StagingOut::with('item')->lockForUpdate()->findOrFail($assignment['id']);
+
+                    $label = 'No. SO '.($staging->so_number ?: '-')
+                        .' / '.(optional($staging->item)->item_code_internal ?: '-');
+
+                    try {
+                        if ($assignment['source'] === 'none') {
+                            if (! $this->hasSource($staging)) {
+                                throw new \RuntimeException('Sumber memang belum dipilih.');
+                            }
+
+                            $this->releaseSource($staging);
+                            $reverted++;
+
+                            continue;
+                        }
+
+                        if ($reason = $this->sourceIneligibleReason($staging)) {
+                            throw new \RuntimeException($reason);
+                        }
+
+                        // Ganti sumber: lepas sumber lama dulu.
+                        if ($this->hasSource($staging)) {
+                            $this->releaseSource($staging);
+                            $staging->refresh();
+                        }
+
+                        $parts = explode('|', $assignment['source'], 3);
+
+                        if (($parts[0] ?? null) === 'in') {
+                            $this->assignFromStagingIn($staging, (int) ($parts[1] ?? 0));
+                        } elseif (($parts[0] ?? null) === 'stock') {
+                            $this->assignFromStock($staging, (int) ($parts[1] ?? 0), ($parts[2] ?? '') ?: null);
+                        } else {
+                            throw new \RuntimeException('Sumber tidak valid.');
+                        }
+
+                        $assigned++;
+                    } catch (\RuntimeException $e) {
+                        throw new \RuntimeException("{$label}: ".$e->getMessage());
+                    }
+                }
+
+                return compact('assigned', 'reverted');
+            });
+
+            $messages = [];
+
+            if ($result['assigned']) {
+                $messages[] = $result['assigned'].' data berhasil ditetapkan sumbernya';
+            }
+
+            if ($result['reverted']) {
+                $messages[] = $result['reverted'].' data dikembalikan ke sumber belum dipilih';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => implode(', ', $messages).'.',
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Lepas sumber barang yang sedang dipakai: qty dikembalikan ke stok
+     * (dan mutasi keluarnya dihapus) atau ke Staging In, lalu baris
+     * kembali ke kondisi "sumber belum dipilih".
+     */
+    protected function releaseSource(StagingOut $staging): void
+    {
+        if ($staging->source_type === 'stock' && $staging->location_id) {
+            $changes = $this->history->diff($staging, [
+                'source_type' => 'external',
+                'location_id' => null,
+                'lot' => null,
+            ]);
+
+            $this->reverseStockOut($staging);
+
+            $staging->source_type = 'external';
+            $staging->location_id = null;
+            $staging->lot = null;
+            $staging->save();
+
+            $this->history->logUpdated($staging, $changes);
+
+            return;
+        }
+
+        if ($staging->staging_in_id) {
+            $this->returnToStagingIn($staging);
+
+            // Pastikan tautan ke Staging In benar-benar putus, supaya
+            // baris ini tidak dianggap masih dari Staging In (dan qty-nya
+            // tidak dikembalikan dua kali kalau nanti dihapus).
+            $staging->refresh();
+
+            if ($staging->staging_in_id) {
+                $staging->forceFill(['staging_in_id' => null])->save();
+            }
+        }
+    }
+
+    protected function assignFromStock(StagingOut $staging, int $locationId, ?string $lot): void
+    {
+        if (! $locationId) {
+            throw new \RuntimeException('Lokasi stok belum dipilih.');
+        }
+
+        $changes = $this->history->diff($staging, [
+            'source_type' => 'stock',
+            'location_id' => $locationId,
+            'lot' => $lot,
+        ]);
+
+        $staging->source_type = 'stock';
+        $staging->location_id = $locationId;
+        $staging->lot = $lot;
+        $staging->save();
+
+        // Melempar RuntimeException kalau stok lokasi/lot itu tidak cukup.
+        $this->applyStockOut($staging);
+
+        $this->history->logUpdated($staging, $changes);
+    }
+
+    protected function assignFromStagingIn(StagingOut $staging, int $stagingInId): void
+    {
+        $in = $stagingInId ? StagingIn::lockForUpdate()->find($stagingInId) : null;
+
+        if (! $in) {
+            throw new \RuntimeException('Data Staging In tidak ditemukan atau sudah habis.');
+        }
+
+        if ((int) $in->item_id !== (int) $staging->item_id) {
+            throw new \RuntimeException('Barang di Staging In berbeda dengan barang staging out.');
+        }
+
+        $qty = (int) $staging->qty;
+
+        if ($qty > (int) $in->qty) {
+            throw new \RuntimeException("Qty melebihi sisa di Staging In (sisa {$in->qty}).");
+        }
+
+        // Catat asalnya supaya qty bisa dikembalikan ke staging in kalau
+        // staging out ini dihapus / qty-nya diedit.
+        app(StagingInReturnService::class)->link($staging, $in);
+
+        $remaining = (int) $in->qty - $qty;
+
+        app(StagingInHistoryService::class)->logMovedToStagingOut($in, $qty, max($remaining, 0), [
+            'so_number' => $staging->so_number,
+            'customer' => $staging->customer,
+            'line_item' => $staging->line_item,
+            'delivery_instruction_date' => optional($staging->delivery_instruction_date)->format('Y-m-d'),
+            'staging_location' => $staging->staging_location,
+            'staging_out_id' => $staging->id,
+        ]);
+
+        if ($remaining > 0) {
+            $in->update(['qty' => $remaining]);
+        } else {
+            $in->delete();
+        }
     }
 
     public function template()

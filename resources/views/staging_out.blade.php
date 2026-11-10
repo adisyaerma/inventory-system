@@ -155,6 +155,11 @@
                 <small class="text-muted">Kelola data staging out</small>
             </div>
             <div class="float-end mt-3">
+                <button type="button" class="btn-sm btn btn-outline-success d-none me-1" id="btnBulkAssignSource">
+                    <i class="bx bx-transfer"></i>
+                    <span class="d-none d-md-inline ms-1">Atur Sumber (<span id="selectedAssignCount">0</span>)</span>
+                </button>
+
                 <button type="button" class="btn-sm btn btn-outline-danger d-none me-1" id="btnBulkDelete">
                     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                         <path d="M0 0h24v24H0z" fill="none" />
@@ -2180,6 +2185,572 @@
 
         </div>
 
+    </div>
+
+    {{-- ================= MODAL PILIH SUMBER BARANG (Staging In / Stok) ================= --}}
+    <div class="modal fade" id="assignSourceModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="assignSourceLabel" aria-hidden="true">
+
+        <style>
+            #assignSourceModal .modal-content {
+                border: 0;
+                border-radius: 1.5rem;
+                overflow: hidden;
+                box-shadow: 0 25px 60px -12px rgba(30, 41, 90, .35);
+            }
+
+            /* ---------- HERO ---------- */
+            #assignSourceModal .as-hero {
+                padding: 1.5rem 2rem 1.25rem;
+                background: #fff;
+                border-bottom: 1px solid #eceef5;
+            }
+
+            #assignSourceModal .as-hero-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 1rem;
+                display: grid;
+                place-items: center;
+                font-size: 1.5rem;
+                color: #059669;
+                background: #e7f8f0;
+            }
+
+            #assignSourceModal .as-hero h4 {
+                color: #2b3350;
+                letter-spacing: -.01em;
+            }
+
+            #assignSourceModal .as-hero small {
+                color: #8a93a8;
+            }
+
+            /* ---------- RINGKASAN ---------- */
+            #assignSourceModal .as-po-card {
+                margin: 1.25rem 2rem 0;
+                padding: .9rem 1.25rem;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: .75rem 1.5rem;
+                background: #fff;
+                border-radius: 1.1rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+            }
+
+            #assignSourceModal .sm-stat {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+            }
+
+            #assignSourceModal .sm-stat .n {
+                min-width: 2.2rem;
+                height: 2.2rem;
+                padding: 0 .55rem;
+                display: grid;
+                place-items: center;
+                border-radius: .7rem;
+                font-weight: 700;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
+
+            #assignSourceModal .sm-stat.ok .n {
+                color: #059669;
+                background: #e7f8f0;
+            }
+
+            #assignSourceModal .sm-stat .t {
+                font-size: .72rem;
+                font-weight: 700;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: #8a93a8;
+                line-height: 1.2;
+            }
+
+            #assignSourceModal .sm-tip {
+                margin-left: auto;
+                font-size: .76rem;
+                color: #7c3aed;
+            }
+
+            /* ---------- BODY ---------- */
+            #assignSourceModal .as-body {
+                padding: 1.5rem 2rem .5rem;
+                background: #f5f6fb;
+            }
+
+            #assignSourceModal .as-section-title {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+                font-weight: 700;
+                color: #2b3350;
+            }
+
+            #assignSourceModal .as-count {
+                min-width: 1.6rem;
+                height: 1.6rem;
+                padding: 0 .5rem;
+                display: inline-grid;
+                place-items: center;
+                border-radius: 50rem;
+                font-size: .75rem;
+                color: #fff;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            }
+
+            /* ---------- KARTU BARANG ---------- */
+            #assignSourceModal .sm-card {
+                position: relative;
+                background: #fff;
+                border-radius: 1.1rem;
+                padding: .85rem 1.1rem .85rem 1.5rem;
+                margin-bottom: .7rem;
+                box-shadow: 0 2px 10px -4px rgba(43, 51, 80, .12);
+                transition: box-shadow .2s;
+                animation: smRowIn .28s ease both;
+            }
+
+            #assignSourceModal .sm-card::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 1rem;
+                bottom: 1rem;
+                width: 5px;
+                border-radius: 0 6px 6px 0;
+                background: linear-gradient(180deg, #4f46e5, #db2777);
+                transition: background .2s;
+            }
+
+            #assignSourceModal .sm-card.is-set::before {
+                background: linear-gradient(180deg, #10b981, #059669);
+            }
+
+            #assignSourceModal .sm-card:hover {
+                box-shadow: 0 10px 28px -10px rgba(79, 70, 229, .3);
+            }
+
+            @keyframes smRowIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: none;
+                }
+            }
+
+            #assignSourceModal .row-number {
+                width: 1.8rem;
+                height: 1.8rem;
+                display: grid;
+                place-items: center;
+                border-radius: .6rem;
+                font-size: .8rem;
+                font-weight: 700;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
+
+            #assignSourceModal .sm-item-code {
+                font-weight: 700;
+                color: #2b3350;
+            }
+
+            #assignSourceModal .sm-meta {
+                font-size: .76rem;
+                color: #8a93a8;
+            }
+
+            #assignSourceModal .sm-meta i {
+                color: #a5adc2;
+            }
+
+            #assignSourceModal .sm-qty {
+                display: inline-flex;
+                align-items: center;
+                gap: .35rem;
+                padding: .3rem .8rem;
+                border-radius: 50rem;
+                font-size: .8rem;
+                font-weight: 700;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
+
+            #assignSourceModal .sm-status {
+                padding: .3rem .8rem;
+                border-radius: 50rem;
+                font-size: .72rem;
+                font-weight: 700;
+                color: #b45309;
+                background: #fff4e0;
+            }
+
+            #assignSourceModal .sm-card.is-set .sm-status {
+                color: #047857;
+                background: #e7f8f0;
+            }
+
+            /* ---------- BARIS KOMPAK: info | qty | select sumber ---------- */
+            #assignSourceModal .sm-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1.25fr) auto minmax(0, 1.6fr);
+                align-items: center;
+                gap: .75rem 1.25rem;
+            }
+
+            @media (max-width: 991.98px) {
+                #assignSourceModal .sm-row {
+                    grid-template-columns: minmax(0, 1fr) auto;
+                }
+
+                #assignSourceModal .sm-pick {
+                    grid-column: 1 / -1;
+                }
+            }
+
+            #assignSourceModal .sm-pick-wrap {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: .5rem;
+            }
+
+            #assignSourceModal .sm-sel-wrap {
+                flex: 1 1 220px;
+                min-width: 0;
+            }
+
+            #assignSourceModal .as-seg {
+                display: inline-flex;
+                gap: 2px;
+                padding: 3px;
+                border-radius: .8rem;
+                background: #eef0f7;
+            }
+
+            #assignSourceModal .sm-tab {
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem;
+                border: 0;
+                padding: .32rem .8rem;
+                border-radius: .6rem;
+                font-size: .78rem;
+                font-weight: 600;
+                white-space: nowrap;
+                color: #7a839c;
+                background: transparent;
+                transition: all .15s;
+            }
+
+            #assignSourceModal .sm-tab b {
+                min-width: 1.25rem;
+                padding: 0 .35rem;
+                border-radius: 50rem;
+                font-size: .68rem;
+                text-align: center;
+                color: #7a839c;
+                background: #e1e4f0;
+            }
+
+            #assignSourceModal .sm-tab.active {
+                color: #4f46e5;
+                background: #fff;
+                box-shadow: 0 2px 8px -2px rgba(43, 51, 80, .25);
+            }
+
+            #assignSourceModal .sm-tab.active b {
+                color: #fff;
+                background: #4f46e5;
+            }
+
+            #assignSourceModal .sm-tab:disabled {
+                opacity: .45;
+                cursor: not-allowed;
+            }
+
+            #assignSourceModal .sm-current {
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+                margin-top: .3rem;
+                padding: .1rem .6rem;
+                border-radius: 50rem;
+                font-size: .7rem;
+                font-weight: 600;
+                color: #047857;
+                background: #e7f8f0;
+            }
+
+            #assignSourceModal .sm-revert {
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+                border: 0;
+                padding: .4rem .75rem;
+                border-radius: .7rem;
+                font-size: .76rem;
+                font-weight: 600;
+                white-space: nowrap;
+                color: #b45309;
+                background: #fff4e0;
+                transition: all .15s;
+            }
+
+            #assignSourceModal .sm-revert:hover {
+                color: #fff;
+                background: #f59e0b;
+            }
+
+            #assignSourceModal .sm-card.is-revert::before {
+                background: linear-gradient(180deg, #f59e0b, #d97706);
+            }
+
+            #assignSourceModal .sm-card.is-revert .sm-revert {
+                color: #fff;
+                background: #f59e0b;
+            }
+
+            #assignSourceModal .sm-card.is-revert .as-seg,
+            #assignSourceModal .sm-card.is-revert .sm-sel-wrap {
+                opacity: .45;
+                pointer-events: none;
+            }
+
+            #assignSourceModal .sm-empty {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+                padding: .6rem .9rem;
+                border-radius: .75rem;
+                font-size: .8rem;
+                color: #b45309;
+                background: #fff8ec;
+                border: 1px dashed #f5d9a8;
+            }
+
+            /* ---------- TOM SELECT biar senada dengan modal tambah ---------- */
+            #assignSourceModal .ts-wrapper .ts-control {
+                min-height: 42px;
+                border: 1.5px solid #e6e9f2;
+                border-radius: .75rem;
+                background: #f8f9fd;
+                padding: .4rem .8rem;
+                box-shadow: none;
+                flex-wrap: nowrap;
+            }
+
+            #assignSourceModal .ts-wrapper.focus .ts-control {
+                background: #fff;
+                border-color: #7c3aed;
+                box-shadow: 0 0 0 4px rgba(124, 58, 237, .12);
+            }
+
+            #assignSourceModal .ts-wrapper.single .ts-control .item {
+                width: 100%;
+                overflow: hidden;
+            }
+
+            #assignSourceModal .sm-card.is-set .ts-wrapper .ts-control {
+                border-color: #34d399;
+                background: #f3fdf8;
+            }
+
+            #assignSourceModal .sm-sel-item {
+                display: flex;
+                align-items: center;
+                gap: .45rem;
+                font-size: .84rem;
+                white-space: nowrap;
+                overflow: hidden;
+            }
+
+            #assignSourceModal .sm-sel-item b {
+                color: #2b3350;
+            }
+
+            #assignSourceModal .sm-sel-left {
+                margin-left: auto;
+                font-size: .72rem;
+                font-weight: 600;
+                color: #059669;
+            }
+
+            .ts-dropdown.sm-ts-dropdown {
+                z-index: 2000;
+                border-radius: .75rem;
+                border: 0;
+                box-shadow: 0 16px 36px -10px rgba(43, 51, 80, .3);
+                overflow: hidden;
+            }
+
+            .ts-dropdown.sm-ts-dropdown .ts-dropdown-content {
+                max-height: 260px;
+            }
+
+            .ts-dropdown.sm-ts-dropdown .optgroup-header {
+                padding: .5rem .85rem .3rem;
+                font-size: .66rem;
+                font-weight: 700;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+                color: #8a93a8;
+                background: #f5f6fb;
+            }
+
+            .ts-dropdown.sm-ts-dropdown .option.active {
+                background: #eef0ff;
+                color: #4f46e5;
+            }
+
+            .ts-dropdown.sm-ts-dropdown .option.disabled {
+                opacity: .45;
+            }
+
+            .sm-ts-opt {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: .75rem;
+            }
+
+            .sm-ts-opt .t {
+                font-size: .84rem;
+                font-weight: 700;
+                color: #2b3350;
+            }
+
+            .sm-ts-opt .sm-chip {
+                display: inline-block;
+                margin: .2rem .25rem 0 0;
+                padding: .05rem .5rem;
+                border-radius: 50rem;
+                font-size: .66rem;
+                font-weight: 600;
+                color: #5a6482;
+                background: #eceef7;
+            }
+
+            .sm-ts-opt .q {
+                text-align: right;
+                line-height: 1.1;
+                white-space: nowrap;
+            }
+
+            .sm-ts-opt .q b {
+                display: block;
+                font-size: 1rem;
+                color: #059669;
+            }
+
+            .sm-ts-opt.is-short .q b {
+                color: #e11d48;
+            }
+
+            .sm-ts-opt .q small {
+                font-size: .64rem;
+                color: #8a93a8;
+            }
+
+            /* ---------- FOOTER ---------- */
+            #assignSourceModal .as-footer {
+                display: flex;
+                justify-content: flex-end;
+                gap: .6rem;
+                padding: 1rem 2rem 1.4rem;
+                background: #f5f6fb;
+            }
+
+            #assignSourceModal .as-btn-save {
+                border: 0;
+                border-radius: .8rem;
+                padding: .6rem 1.6rem;
+                font-weight: 600;
+                color: #fff;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65);
+            }
+
+            #assignSourceModal .as-btn-save:hover:not(:disabled) {
+                color: #fff;
+                filter: brightness(1.08);
+            }
+
+            #assignSourceModal .as-btn-save:disabled {
+                opacity: .5;
+                box-shadow: none;
+            }
+
+            #assignSourceModal .as-btn-cancel {
+                border: 0;
+                border-radius: .8rem;
+                padding: .6rem 1.3rem;
+                font-weight: 600;
+                color: #5a6482;
+                background: #e9ebf5;
+            }
+        </style>
+
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="d-flex flex-column overflow-hidden" style="background:#f5f6fb">
+
+                    {{-- HEADER --}}
+                    <div class="as-hero flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="as-hero-icon"><i class="bx bx-transfer"></i></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold" id="assignSourceLabel">Pilih Sumber Barang</h4>
+                                    <small>Tentukan barang diambil dari Staging In atau stok gudang.</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                    </div>
+
+                    {{-- RINGKASAN --}}
+                    <div class="as-po-card flex-shrink-0">
+                        <div class="sm-stat">
+                            <span class="n" id="assignTotal">0</span>
+                            <span class="t">Barang<br>dipilih</span>
+                        </div>
+                        <div class="sm-stat ok">
+                            <span class="n" id="assignChosen">0</span>
+                            <span class="t">Perubahan<br>dibuat</span>
+                        </div>
+                    </div>
+
+                    {{-- DAFTAR BARANG --}}
+                    <div class="as-body flex-grow-1 overflow-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="as-section-title">
+                                <span>Daftar Barang</span>
+                                <span class="as-count" id="assignRowCount">0</span>
+                            </div>
+                        </div>
+                        <div id="assignSourceBody"></div>
+                    </div>
+
+                    {{-- FOOTER --}}
+                    <div class="as-footer flex-shrink-0">
+                        <button type="button" class="as-btn-cancel" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="as-btn-save" id="btnSaveAssignSource" disabled>
+                            <i class="bx bx-check-circle me-1"></i> <span id="assignSaveLabel">Simpan Perubahan</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     @push('script')
@@ -4247,6 +4818,8 @@
             function toggleBulkActionBar() {
                 $('#selectedCount').text(selectedStagingOutIds.size);
                 $('#btnBulkDelete').toggleClass('d-none', selectedStagingOutIds.size === 0);
+                $('#selectedAssignCount').text(selectedStagingOutIds.size);
+                $('#btnBulkAssignSource').toggleClass('d-none', selectedStagingOutIds.size === 0);
             }
 
             function resetStagingOutSelection() {
@@ -4356,6 +4929,329 @@
                 });
 
             });
+        </script>
+
+        <script>
+            // ================= PILIH SUMBER BARANG (Staging In / Stok) =================
+            (function() {
+                const esc = (s) => $('<div>').text(s == null ? '' : s).html().replace(/"/g, '&quot;');
+                const num = (n) => Number.isInteger(+n) ? +n : +(+n).toFixed(2);
+
+                function toast(icon, title) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icon,
+                        title: title,
+                        showConfirmButton: false,
+                        timer: 3500,
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            document.querySelector('.swal2-container').style.zIndex = '9999999';
+                        }
+                    });
+                }
+
+                const chipsHtml = (chips, escFn) => (chips || []).map(c => `<span class="sm-chip">${escFn(c)}</span>`).join('');
+
+                function destroySelects() {
+                    $('#assignSourceBody .sm-select').each(function() {
+                        if (this.tomselect) this.tomselect.destroy();
+                    });
+                }
+
+                function cardHtml(r, idx) {
+                    let pick;
+
+                    const revertBtn = r.current ?
+                        '<button type="button" class="sm-revert" title="Kembalikan ke sumber belum dipilih"><i class="bx bx-undo"></i> <span>Kembalikan</span></button>' :
+                        '';
+
+                    if (!r.eligible) {
+                        pick = `<div class="sm-empty"><i class="bx bx-error-circle fs-5"></i> ${esc(r.reason)}</div>`;
+                    } else if (!r.options.length) {
+                        pick = `<div class="sm-pick-wrap"><div class="sm-empty flex-grow-1"><i class="bx bx-error-circle fs-5"></i> Tidak ada Staging In atau stok lain yang tersedia.</div>${revertBtn}</div>`;
+                    } else {
+                        const nIn = r.options.filter(o => o.group === 'staging_in').length;
+                        const nSt = r.options.filter(o => o.group === 'stock').length;
+                        const start = (r.current && r.current.type && r.options.some(o => o.group === r.current.type)) ? r.current.type : (nIn ? 'staging_in' : 'stock');
+
+                        pick = `<div class="sm-pick-wrap">
+                            <div class="as-seg">
+                                <button type="button" class="sm-tab ${start === 'staging_in' ? 'active' : ''}" data-tab="staging_in" ${nIn ? '' : 'disabled'}>
+                                    <i class="bx bx-package"></i> Staging In <b>${nIn}</b></button>
+                                <button type="button" class="sm-tab ${start === 'stock' ? 'active' : ''}" data-tab="stock" ${nSt ? '' : 'disabled'}>
+                                    <i class="bx bx-archive-in"></i> Stok <b>${nSt}</b></button>
+                            </div>
+                            <div class="sm-sel-wrap ${start === 'staging_in' ? '' : 'd-none'}" data-pane="staging_in">
+                                <select class="sm-select" data-id="${r.id}" data-group="staging_in"></select>
+                            </div>
+                            <div class="sm-sel-wrap ${start === 'stock' ? '' : 'd-none'}" data-pane="stock">
+                                <select class="sm-select" data-id="${r.id}" data-group="stock"></select>
+                            </div>
+                            ${revertBtn}
+                        </div>`;
+                    }
+
+                    return `<div class="sm-card" data-id="${r.id}" data-qty="${r.qty}" style="animation-delay:${Math.min(idx, 8) * 30}ms">
+                        <div class="sm-row">
+                            <div class="d-flex align-items-center gap-3" style="min-width:0">
+                                <span class="row-number">${idx + 1}</span>
+                                <div style="min-width:0">
+                                    <div class="sm-item-code">${esc(r.item_code || '-')}
+                                        <span class="text-muted fw-normal">${esc(r.item_name || '')}</span></div>
+                                    <div class="sm-meta">
+                                        <i class="bx bx-receipt"></i> ${esc(r.so_number || '-')}
+                                        &nbsp;·&nbsp; <i class="bx bx-buildings"></i> ${esc(r.customer || '-')}
+                                        ${r.line_item ? `&nbsp;·&nbsp; <i class="bx bx-hash"></i> Line ${esc(r.line_item)}` : ''}
+                                    </div>
+                                    ${r.current ? `<span class="sm-current"><i class="bx bx-check-circle"></i> Sumber saat ini: ${esc(r.current.label)}</span>` : ''}
+                                </div>
+                            </div>
+                            <span class="sm-qty"><i class="bx bx-cube-alt"></i> Qty ${r.qty}</span>
+                            <div class="sm-pick">${pick}</div>
+                        </div>
+                    </div>`;
+                }
+
+                function initSelect(el, r, group) {
+                    const config = {
+                        valueField: 'value',
+                        labelField: 'title',
+                        searchField: ['title', 'chipsText'],
+                        sortField: [{
+                            field: '$order'
+                        }],
+                        options: r.options.filter(o => o.group === group).map(o => ({
+                            value: o.value,
+                            title: o.title || o.label,
+                            chips: o.chips || [],
+                            chipsText: (o.chips || []).join(' '),
+                            available: o.available,
+                            enough: o.enough,
+                            disabled: !o.enough
+                        })),
+                        maxItems: 1,
+                        placeholder: (r.current ? 'Ganti ke ' : 'Pilih ') + (group === 'staging_in' ? 'Staging In...' : 'lokasi · lot...'),
+                        dropdownParent: 'body',
+                        dropdownClass: 'ts-dropdown sm-ts-dropdown',
+                        render: {
+                            option: function(d, escFn) {
+                                return `<div class="sm-ts-opt ${d.enough ? '' : 'is-short'}">
+                                    <div><div class="t">${escFn(d.title)}</div><div>${chipsHtml(d.chips, escFn)}</div></div>
+                                    <div class="q"><b>${num(d.available)}</b><small>${d.enough ? 'tersedia' : 'qty kurang'}</small></div>
+                                </div>`;
+                            },
+                            item: function(d, escFn) {
+                                return `<div class="sm-sel-item"><b>${escFn(d.title)}</b>${chipsHtml(d.chips, escFn)}
+                                    <span class="sm-sel-left">sisa ${num(d.available - r.qty)} setelah diambil</span></div>`;
+                            }
+                        },
+                        onChange: function(value) {
+                            const $card = $(el).closest('.sm-card');
+
+                            // Satu sumber per barang: kosongkan select jenis lainnya.
+                            if (value) {
+                                $card.find('.sm-select').not(el).each(function() {
+                                    if (this.tomselect) this.tomselect.clear(true);
+                                });
+                            }
+
+                            $card.toggleClass('is-set', !!value);
+                            updateSummary();
+                        }
+                    };
+
+                    try {
+                        new TomSelect(el, Object.assign({
+                            plugins: {
+                                clear_button: {
+                                    title: 'Hapus pilihan'
+                                }
+                            }
+                        }, config));
+                    } catch (err) {
+                        new TomSelect(el, config);
+                    }
+                }
+
+                function updateSummary() {
+                    let chosen = 0;
+
+                    $('#assignSourceBody .sm-select').each(function() {
+                        if (this.tomselect && this.tomselect.getValue()) chosen++;
+                    });
+
+                    chosen += $('#assignSourceBody .sm-card.is-revert').length;
+
+                    $('#assignChosen').text(chosen);
+                    $('#btnSaveAssignSource').prop('disabled', chosen === 0);
+                    $('#assignSaveLabel').text(chosen ? `Simpan Perubahan (${chosen})` : 'Simpan Perubahan');
+                }
+
+                function renderRows(rows) {
+                    destroySelects();
+                    $('#assignTotal, #assignRowCount').text(rows.length);
+                    $('#assignSourceBody').html(rows.map(cardHtml).join(''));
+
+                    rows.forEach(function(r) {
+                        ['staging_in', 'stock'].forEach(function(group) {
+                            const el = $(`#assignSourceBody .sm-select[data-id="${r.id}"][data-group="${group}"]`)[0];
+                            if (el) initSelect(el, r, group);
+                        });
+                    });
+
+                    updateSummary();
+                }
+
+                function openAssignSourceModal(ids) {
+                    destroySelects();
+                    $('#assignTotal, #assignRowCount, #assignChosen').text(0);
+                    $('#assignSourceBody').html(
+                        '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Memuat pilihan sumber...</div>'
+                    );
+                    updateSummary();
+                    $('#assignSourceModal').modal('show');
+
+                    $.get("{{ route('stagings-out.source-options') }}", {
+                            ids: ids
+                        })
+                        .done(function(res) {
+                            renderRows(res.rows || []);
+                        })
+                        .fail(function(xhr) {
+                            $('#assignSourceModal').modal('hide');
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal memuat pilihan sumber',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) || 'Terjadi kesalahan.'
+                            });
+                        });
+                }
+
+                // Ganti jenis sumber (Staging In <-> Stok): pilihan sebelumnya dikosongkan
+                $(document).on('click', '#assignSourceModal .sm-tab:not(:disabled):not(.active)', function() {
+                    const $card = $(this).closest('.sm-card');
+                    const tab = $(this).data('tab');
+
+                    $card.find('.sm-select').each(function() {
+                        if (this.tomselect) this.tomselect.clear(true);
+                    });
+                    $card.removeClass('is-set');
+
+                    $card.find('.sm-tab').removeClass('active');
+                    $(this).addClass('active');
+                    $card.find('.sm-sel-wrap').addClass('d-none')
+                        .filter(`[data-pane="${tab}"]`).removeClass('d-none');
+
+                    updateSummary();
+                });
+
+                // Kembalikan ke "sumber belum dipilih" (toggle per barang)
+                $(document).on('click', '#assignSourceModal .sm-revert', function() {
+                    const $card = $(this).closest('.sm-card');
+                    const on = !$card.hasClass('is-revert');
+
+                    $card.find('.sm-select').each(function() {
+                        if (this.tomselect) this.tomselect.clear(true);
+                    });
+
+                    $card.removeClass('is-set').toggleClass('is-revert', on);
+                    $(this).find('span').text(on ? 'Batal kembalikan' : 'Kembalikan');
+
+                    updateSummary();
+                });
+
+                // Aksi per baris
+                $(document).on('click', '.btnAssignSource', function() {
+                    openAssignSourceModal([$(this).data('id')]);
+                });
+
+                // Aksi massal (pakai checkbox yang sama dengan hapus massal)
+                $('#btnBulkAssignSource').on('click', function() {
+                    if (selectedStagingOutIds.size === 0) return;
+                    openAssignSourceModal(Array.from(selectedStagingOutIds));
+                });
+
+                $('#btnSaveAssignSource').on('click', function() {
+                    const assignments = [];
+                    let reverts = 0;
+
+                    $('#assignSourceBody .sm-card').each(function() {
+                        const id = $(this).data('id');
+
+                        if ($(this).hasClass('is-revert')) {
+                            assignments.push({
+                                id: id,
+                                source: 'none'
+                            });
+                            reverts++;
+                            return;
+                        }
+
+                        $(this).find('.sm-select').each(function() {
+                            const val = this.tomselect ? this.tomselect.getValue() : '';
+
+                            if (val) {
+                                assignments.push({
+                                    id: id,
+                                    source: val
+                                });
+                            }
+                        });
+                    });
+
+                    if (!assignments.length) return;
+
+                    const submit = function() {
+                        const $btn = $('#btnSaveAssignSource').prop('disabled', true);
+
+                        $.ajax({
+                            url: "{{ route('stagings-out.assign-source') }}",
+                            type: 'POST',
+                            data: {
+                                _token: '{{ csrf_token() }}',
+                                assignments: assignments
+                            },
+                            success: function(res) {
+                                $('#assignSourceModal').modal('hide');
+                                table.ajax.reload(null, false);
+                                resetStagingOutSelection();
+                                toast('success', res.message);
+                            },
+                            error: function(xhr) {
+                                $btn.prop('disabled', false);
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal menyimpan perubahan',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) || 'Terjadi kesalahan.'
+                                });
+                            }
+                        });
+                    };
+
+                    if (!reverts) {
+                        submit();
+                        return;
+                    }
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Kembalikan sumber?',
+                        html: `<b>${reverts}</b> barang akan dikembalikan ke <b>sumber belum dipilih</b>.<br><small class="text-muted">Qty dikembalikan ke stok / Staging In asalnya.</small>`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Lanjutkan',
+                        cancelButtonText: 'Batal'
+                    }).then((r) => {
+                        if (r.isConfirmed) submit();
+                    });
+                });
+
+                $('#assignSourceModal').on('hidden.bs.modal', function() {
+                    destroySelects();
+                    $('#assignSourceBody').empty();
+                });
+            })();
         </script>
 
         <script>

@@ -283,6 +283,9 @@ Route::patch('stagings-out/{stagingOut}/location', [StagingOutController::class,
 Route::post('stagings-out/import-stock', [StagingOutController::class, 'importStock'])
     ->name('stagings-out.import-stock');
 
+Route::get('stagings-out/source-options', [StagingOutController::class, 'sourceOptions'])->name('stagings-out.source-options');
+Route::post('stagings-out/assign-source', [StagingOutController::class, 'assignSource'])->name('stagings-out.assign-source');
+
 Route::post('stagings-in-history/bulk-destroy', [StagingInHistoryController::class, 'bulkDestroy'])
     ->name('stagings-in-history.bulk-destroy');
 
