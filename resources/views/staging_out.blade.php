@@ -999,6 +999,15 @@
                                                 name="items[__INDEX__][delivery_receipt_date]">
                                         </div>
 
+                                        <div class="col-12">
+                                            <label class="as-label">Catatan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-note"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][note]"
+                                                    placeholder="Opsional" maxlength="255">
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
                             </template>
@@ -1334,6 +1343,7 @@
                         <th>Lokasi</th>
                         <th>No. DO</th>
                         <th>Tgl Resi Pengiriman</th>
+                        <th>Catatan</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -1845,6 +1855,15 @@
                                             <label class="as-label">Tgl Resi Pengiriman</label>
                                             <input type="date" class="as-input" name="delivery_receipt_date"
                                                 id="editDeliveryReceiptDate">
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="as-label">Catatan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-note"></i>
+                                                <input type="text" class="as-input" name="note" id="editNote"
+                                                    placeholder="Opsional" maxlength="255">
+                                            </div>
                                         </div>
 
                                     </div>
@@ -2960,6 +2979,10 @@
                             name: 'staging_outs.delivery_receipt_date'
                         },
                         {
+                            data: 'note',
+                            name: 'staging_outs.note'
+                        },
+                        {
                             data: 'action',
                             name: 'action',
                             searchable: false,
@@ -2987,7 +3010,12 @@
                             className: "text-center"
                         },
                         {
-                            targets: [11, 12],
+                            targets: 12,
+                            className: "text-wrap",
+                            width: "200px"
+                        },
+                        {
+                            targets: [11, 13],
                             className: "text-center"
                         }
                     ],
@@ -4169,6 +4197,7 @@
                             $('#editPickingDate').val(res.picking_date);
                             $('#editDoNumber').val(res.do_number);
                             $('#editDeliveryReceiptDate').val(res.delivery_receipt_date);
+                            $('#editNote').val(res.note);
 
                             $('#editItemId').val(res.item_id);
 

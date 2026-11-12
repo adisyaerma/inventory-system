@@ -276,6 +276,10 @@ class StagingOutController extends Controller
                 return $row->do_number ?: '-';
             })
 
+            ->editColumn('note', function ($row) {
+                return $row->note ?: '-';
+            })
+
             // Tgl Resi Pengiriman: kalau sudah terisi tampil sebagai tanggal.
             // Kalau masih kosong DAN picking sudah dikonfirmasi, tampil
             // tombol "Konfirmasi Kirim" (mirip tombol Konfirmasi Picking).
@@ -1154,6 +1158,7 @@ class StagingOutController extends Controller
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
             'delivery_receipt_date' => ['nullable', 'date'],
+            'note' => ['nullable', 'max:255'],
         ];
     }
 
@@ -1523,6 +1528,7 @@ class StagingOutController extends Controller
             'picking_date' => optional($stagingOut->picking_date)->format('Y-m-d'),
             'do_number' => $stagingOut->do_number,
             'delivery_receipt_date' => optional($stagingOut->delivery_receipt_date)->format('Y-m-d'),
+            'note' => $stagingOut->note,
         ]);
     }
 
