@@ -23,6 +23,7 @@ class StagingOut extends Model
         'lot',
         'delivery_receipt_date',
         'staging_location',
+        'note'
     ];
 
     protected $casts = [

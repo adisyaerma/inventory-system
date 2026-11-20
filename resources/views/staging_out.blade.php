@@ -999,6 +999,15 @@
                                                 name="items[__INDEX__][delivery_receipt_date]">
                                         </div>
 
+                                        <div class="col-12">
+                                            <label class="as-label">Catatan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-note"></i>
+                                                <input type="text" class="as-input" name="items[__INDEX__][note]"
+                                                    placeholder="Opsional" maxlength="255">
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
                             </template>
@@ -1345,9 +1354,18 @@
                         <th>Barang</th>
                         <th>Total Qty</th>
                         <th>Tgl Instruksi Kirim</th>
+<<<<<<< HEAD
                         <th>Status Picking</th>
                         <th>Bill Packing</th>
                         <th>Line Item</th>
+=======
+                        <th>Tgl Picking</th>
+                        <th>Lokasi</th>
+                        <th>No. DO</th>
+                        <th>Tgl Resi Pengiriman</th>
+                        <th>Catatan</th>
+                        <th>Aksi</th>
+>>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -1858,6 +1876,15 @@
                                             <label class="as-label">Tgl Resi Pengiriman</label>
                                             <input type="date" class="as-input" name="delivery_receipt_date"
                                                 id="editDeliveryReceiptDate">
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="as-label">Catatan</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-note"></i>
+                                                <input type="text" class="as-input" name="note" id="editNote"
+                                                    placeholder="Opsional" maxlength="255">
+                                            </div>
                                         </div>
 
                                     </div>
@@ -2967,8 +2994,33 @@
                             searchable: false
                         },
                         {
+<<<<<<< HEAD
                             data: 'status_html',
                             name: 'status_html',
+=======
+                            data: 'picking_date',
+                            name: 'staging_outs.picking_date'
+                        },
+                        {
+                            data: 'staging_location',
+                            name: 'staging_location'
+                        },
+                        {
+                            data: 'do_number',
+                            name: 'do_number'
+                        },
+                        {
+                            data: 'delivery_receipt_date',
+                            name: 'staging_outs.delivery_receipt_date'
+                        },
+                        {
+                            data: 'note',
+                            name: 'staging_outs.note'
+                        },
+                        {
+                            data: 'action',
+                            name: 'action',
+>>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                             searchable: false,
                             orderable: false
                         },
@@ -3015,7 +3067,28 @@
                             width: "220px"
                         },
                         {
+<<<<<<< HEAD
                             targets: [6, 7, 8, 9],
+=======
+                            targets: 1,
+                            width: "80px"
+                        },
+                        {
+                            targets: 5,
+                            className: "text-center"
+                        },
+                        {
+                            targets: [8, 9],
+                            className: "text-center"
+                        },
+                        {
+                            targets: 12,
+                            className: "text-wrap",
+                            width: "200px"
+                        },
+                        {
+                            targets: [11, 13],
+>>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                             className: "text-center"
                         }
                     ],
@@ -4216,6 +4289,7 @@
                             $('#editPickingDate').val(res.picking_date);
                             $('#editDoNumber').val(res.do_number);
                             $('#editDeliveryReceiptDate').val(res.delivery_receipt_date);
+                            $('#editNote').val(res.note);
 
                             $('#editItemId').val(res.item_id);
 
