@@ -1022,8 +1022,6 @@ class StagingInController extends Controller
         DB::beginTransaction();
 
         try {
-            // Ambil datanya dulu SEBELUM dihapus — setelah delete, data
-            // ini sudah tidak bisa diambil lagi untuk disnapshot ke history.
             $stagings = StagingIn::whereIn('id', $request->ids)->get();
 
             $this->history->logBulkDeleted($stagings);

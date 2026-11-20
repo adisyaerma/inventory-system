@@ -21,6 +21,7 @@ use App\Services\StagingOutStockService;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -29,23 +30,128 @@ use Yajra\DataTables\Facades\DataTables;
 
 class StagingOutController extends Controller
 {
+    /**
+     * Cache per-request: id baris -> semua baris dalam "satu record".
+     */
+    protected array $groupCache = [];
+
+    protected ?array $locationNameCache = null;
+
     public function __construct(protected StagingOutHistoryService $history)
     {
     }
 
+    // =====================================================================
+    //  "SATU RECORD" = BEBERAPA BARIS DENGAN SO + BARANG + LINE ITEM SAMA
+    // =====================================================================
+    //
+    // Saat satu barang diambil dari lebih dari satu sumber (mis. 1 dari
+    // Staging In + 1 dari stok), datanya tetap disimpan sebagai beberapa
+    // baris di staging_outs (1 baris per sumber) -- tidak ada tabel/kolom
+    // baru. Di layar, baris-baris itu digabung dan tampil sebagai SATU
+    // record. Kunci penggabungnya: No. SO + barang + line item + customer
+    // (No. SO kosong tidak pernah digabung).
+
+    /**
+     * Semua baris yang termasuk satu record dengan $row (termasuk $row
+     * sendiri), urut id. Baris pertama = baris "utama" yang tampil di tabel.
+     */
+    protected function groupOf(StagingOut $row, bool $lock = false): Collection
+    {
+        if ($row->so_number === null || $row->so_number === '' || ! $row->item_id) {
+            return collect([$row]);
+        }
+
+        $query = StagingOut::query()
+            ->where('so_number', $row->so_number)
+            ->where('item_id', $row->item_id)
+            ->whereRaw("COALESCE(line_item, '') = ?", [(string) $row->line_item])
+            ->whereRaw("COALESCE(customer, '') = ?", [(string) $row->customer])
+            ->orderBy('id');
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        $rows = $query->get();
+
+        return $rows->isEmpty() ? collect([$row]) : $rows;
+    }
+
+    protected function groupFor(StagingOut $row): Collection
+    {
+        return $this->groupCache[$row->id] ??= $this->groupOf($row);
+    }
+
+    /**
+     * Gabungkan baris-baris yang diberikan dengan semua saudaranya (unik per id).
+     */
+    protected function expandGroups(Collection $rows): Collection
+    {
+        return $rows
+            ->flatMap(fn (StagingOut $row) => $this->groupOf($row))
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Batasi query ke baris "utama" tiap record (id terkecil di grupnya),
+     * supaya record dengan banyak sumber hanya muncul satu kali.
+     */
+    protected function onlyGroupRepresentatives($query)
+    {
+        return $query->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('staging_outs as sib')
+                ->whereColumn('sib.so_number', 'staging_outs.so_number')
+                ->whereColumn('sib.item_id', 'staging_outs.item_id')
+                ->whereRaw("COALESCE(sib.line_item, '') = COALESCE(staging_outs.line_item, '')")
+                ->whereRaw("COALESCE(sib.customer, '') = COALESCE(staging_outs.customer, '')")
+                ->whereRaw('sib.id < staging_outs.id')
+                ->where('sib.so_number', '!=', '');
+        });
+    }
+
+    protected function locationNames(): array
+    {
+        return $this->locationNameCache ??= Location::pluck('location_name', 'id')->all();
+    }
+
+    /**
+     * Daftar sumber (satu baris per sumber + qty-nya) untuk record yang
+     * dipecah ke lebih dari satu sumber.
+     */
+    protected function groupSourceLines(Collection $group): string
+    {
+        return $group->map(function (StagingOut $r) {
+            if ($r->source_type === 'stock' && $r->location_id) {
+                $badge = '<span class="badge bg-info-subtle text-info">Stok ('.(int) $r->qty.')</span>';
+            } elseif ($r->staging_in_id) {
+                $badge = '<span class="badge bg-primary-subtle text-primary">Staging In ('.(int) $r->qty.')</span>';
+            } else {
+                $badge = '<span class="badge bg-warning-subtle text-warning">Sumber belum dipilih ('.(int) $r->qty.')</span>';
+            }
+
+            return '<div>'.$badge.'</div>';
+        })->implode('');
+    }
+
     public function index(Request $request)
     {
-        $totalEntry = StagingOut::count();
+        // Satu record (walau dari beberapa sumber) dihitung satu.
+        $records = fn () => $this->onlyGroupRepresentatives(StagingOut::query());
+
+        $totalEntry = $records()->count();
 
         $totalQty = StagingOut::sum('qty');
         $customers = StagingOut::whereNotNull('customer')->where('customer', '!=', '')
             ->select('customer')->distinct()->orderBy('customer')->pluck('customer');
 
-        $sudahPicking = StagingOut::whereNotNull('picking_date')->count();
+        $sudahPicking = $records()->whereNotNull('picking_date')->count();
 
-        $belumPicking = StagingOut::whereNull('picking_date')->count();
+        $belumPicking = $records()->whereNull('picking_date')->count();
 
-        $belumDikirim = StagingOut::whereNull('delivery_receipt_date')->count();
+        $belumDikirim = $records()->whereNull('delivery_receipt_date')->count();
 
         return view('staging_out', compact(
             'totalEntry',
@@ -68,6 +174,19 @@ class StagingOutController extends Controller
             ->select('staging_outs.*')
             ->leftJoin('items', 'items.id', '=', 'staging_outs.item_id')
             ->with('item');
+
+        // Tampilkan satu record sekali saja (baris-baris dari beberapa
+        // sumber digabung), dan hitung total qty-nya untuk kolom Qty.
+        $this->onlyGroupRepresentatives($query);
+
+        $query->addSelect(DB::raw("COALESCE((
+            select sum(g.qty) from staging_outs g
+            where g.so_number = staging_outs.so_number
+              and g.so_number != ''
+              and g.item_id = staging_outs.item_id
+              and COALESCE(g.line_item, '') = COALESCE(staging_outs.line_item, '')
+              and COALESCE(g.customer, '') = COALESCE(staging_outs.customer, '')
+        ), staging_outs.qty) as group_qty"));
 
         // 1. Status
         //    Menerima dua "kosakata": yang lama (belum_picking / sudah_picking
@@ -159,6 +278,18 @@ class StagingOutController extends Controller
                     return '-';
                 }
 
+                // Record dengan lebih dari satu sumber: tampilkan semua
+                // sumbernya (beserta qty masing-masing) di dalam satu baris.
+                $group = $this->groupFor($row);
+
+                if ($group->count() > 1) {
+                    return '
+                <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
+                <div class="text-muted">'.e($row->item->name).'</div>
+                <div class="mt-1 d-flex flex-column gap-1">'.$this->groupSourceLines($group).'</div>
+            ';
+                }
+
                 // Penanda sumber barang: Stok / Staging In / belum dipilih
                 // (baris hasil import biasanya masuk kategori terakhir).
                 if ($row->source_type === 'stock' && $row->location_id) {
@@ -190,6 +321,13 @@ class StagingOutController extends Controller
             })
             ->orderColumn('line_item', 'staging_outs.line_item $1')
 
+            // Qty = total semua sumber dalam satu record. Kalau dipecah,
+            // rinciannya (mis. 1 + 1) tampil kecil di bawahnya.
+            ->editColumn('qty', function ($row) {
+                return e((string) (int) $this->groupFor($row)->sum('qty'));
+            })
+            ->orderColumn('qty', 'group_qty $1')
+
             ->editColumn('customer', function ($row) {
                 return $row->customer ?: '-';
             })
@@ -216,7 +354,9 @@ class StagingOutController extends Controller
 
             ->editColumn('picking_date', function ($row) {
 
-                if ($row->picking_date) {
+                // Record dengan banyak sumber dianggap sudah picking kalau
+                // SEMUA barisnya sudah (konfirmasi picking berlaku ke semuanya).
+                if ($this->groupFor($row)->every(fn ($r) => $r->picking_date)) {
                     return optional($row->picking_date)->format('d M Y');
                 }
 
@@ -246,7 +386,7 @@ class StagingOutController extends Controller
             // status yang dipilih (lihat class loc-* di CSS blade).
             ->editColumn('staging_location', function ($row) {
 
-                if (! $row->picking_date) {
+                if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
                     return '-';
                 }
 
@@ -291,7 +431,7 @@ class StagingOutController extends Controller
                     return optional($row->delivery_receipt_date)->format('d M Y');
                 }
 
-                if (! $row->picking_date) {
+                if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
                     return '-';
                 }
 
@@ -319,7 +459,7 @@ class StagingOutController extends Controller
                 $assignBtn = '';
 
                 if ($row->item_id) {
-                    $hasSource = ($row->source_type === 'stock' && $row->location_id) || $row->staging_in_id;
+                    $hasSource = $this->groupFor($row)->contains(fn ($r) => $this->hasSource($r));
                     $btnClass = $hasSource ? 'bg-info text-info' : 'bg-success text-success';
                     $btnTitle = $hasSource ? 'Ubah sumber barang' : 'Pilih sumber barang (Staging In / Stok)';
 
@@ -378,6 +518,7 @@ class StagingOutController extends Controller
             ->rawColumns([
                 'checkbox',
                 'item_code',
+                'qty',
                 'source_type',
                 'picking_date',
                 'staging_location',
@@ -401,23 +542,28 @@ class StagingOutController extends Controller
             'staging_location.in' => 'Lokasi tidak valid.',
         ]);
 
-        if (! $stagingOut->picking_date) {
+        $group = $this->groupOf($stagingOut);
+
+        if ($group->contains(fn ($r) => ! $r->picking_date)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lokasi hanya bisa diubah setelah tanggal picking diisi.',
             ], 422);
         }
 
-        DB::transaction(function () use ($stagingOut, $validated) {
-            $changes = $this->history->diff($stagingOut, [
-                'staging_location' => $validated['staging_location'] ?? null,
-            ]);
+        // Lokasi berlaku untuk seluruh sumber dalam satu record.
+        DB::transaction(function () use ($group, $validated) {
+            foreach ($group as $row) {
+                $changes = $this->history->diff($row, [
+                    'staging_location' => $validated['staging_location'] ?? null,
+                ]);
 
-            $stagingOut->update([
-                'staging_location' => $validated['staging_location'] ?? null,
-            ]);
+                $row->update([
+                    'staging_location' => $validated['staging_location'] ?? null,
+                ]);
 
-            $this->history->logUpdated($stagingOut, $changes);
+                $this->history->logUpdated($row, $changes);
+            }
         });
 
         return response()->json([
@@ -644,6 +790,23 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Sama seperti sourceIneligibleReason(), tapi untuk satu record yang
+     * qty-nya adalah total semua sumbernya.
+     */
+    protected function groupIneligibleReason(StagingOut $row, int $totalQty): ?string
+    {
+        if (! $row->item_id) {
+            return 'Kode barang kosong, tidak bisa memilih sumber.';
+        }
+
+        if ($totalQty < 1) {
+            return 'Qty 0, isi qty dulu.';
+        }
+
+        return null;
+    }
+
+    /**
      * Daftar pilihan sumber (Staging In & stok gudang per lokasi/lot) untuk
      * satu atau banyak baris staging out sekaligus, plus sumber yang
      * sedang dipakai baris itu (current) supaya bisa diubah/dikembalikan.
@@ -660,9 +823,17 @@ class StagingOutController extends Controller
             'ids.*' => ['integer'],
         ]);
 
-        $rows = StagingOut::with('item')->whereIn('id', $request->ids)->orderBy('id')->get();
+        // Satu record = semua baris dengan SO + barang + line item yang sama,
+        // jadi tiap record cukup muncul sekali walau beberapa id-nya terpilih.
+        $groups = StagingOut::with('item')
+            ->whereIn('id', $request->ids)
+            ->orderBy('id')
+            ->get()
+            ->map(fn (StagingOut $row) => $this->groupOf($row))
+            ->unique(fn (Collection $group) => $group->first()->id)
+            ->values();
 
-        $itemIds = $rows->pluck('item_id')->filter()->unique()->values();
+        $itemIds = $groups->map(fn (Collection $g) => $g->first()->item_id)->filter()->unique()->values();
 
         $stockByItem = LocationStock::with('location')
             ->whereIn('item_id', $itemIds)
@@ -677,38 +848,48 @@ class StagingOutController extends Controller
             ->get()
             ->groupBy('item_id');
 
+        $locations = $this->locationNames();
+
         $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
 
-        $result = $rows->map(function (StagingOut $row) use ($stockByItem, $inByItem, $fmt) {
-            $reason = $this->sourceIneligibleReason($row);
+        $result = $groups->map(function (Collection $group) use ($stockByItem, $inByItem, $fmt, $locations) {
+            $row = $group->first();
+            $row->loadMissing('item');
+
+            $totalQty = (int) $group->sum('qty');
+
+            $reason = $this->groupIneligibleReason($row, $totalQty);
             $options = [];
-            $current = null;
 
-            $curStock = $row->source_type === 'stock' && $row->location_id;
-            $curLot = $row->lot ?: null;
+            // Sumber yang sedang dipakai (bisa lebih dari satu).
+            $currentLabels = [];
 
-            if ($curStock) {
-                $locName = optional(Location::find($row->location_id))->location_name
-                    ?? ('Lokasi tidak diketahui');
+            foreach ($group as $r) {
+                if ($r->source_type === 'stock' && $r->location_id) {
+                    $currentLabels[] = 'Stok · '.($locations[$r->location_id] ?? 'Lokasi tidak diketahui')
+                        .' · '.($r->lot ? 'Lot '.$r->lot : 'Tanpa Lot')
+                        .($group->count() > 1 ? ' ('.(int) $r->qty.')' : '');
+                } elseif ($r->staging_in_id) {
+                    $curIn = StagingIn::find($r->staging_in_id);
 
-                $current = [
-                    'type' => 'stock',
-                    'label' => 'Stok · '.$locName.' · '.($curLot ? 'Lot '.$curLot : 'Tanpa Lot'),
-                ];
-            } elseif ($row->staging_in_id) {
-                $curIn = StagingIn::find($row->staging_in_id);
-
-                $current = [
-                    'type' => 'staging_in',
-                    'label' => 'Staging In'.($curIn && $curIn->location ? ' · '.$curIn->location : '')
-                        .($curIn && $curIn->po_number ? ' · PO '.$curIn->po_number : ''),
-                ];
+                    $currentLabels[] = 'Staging In'.($curIn && $curIn->location ? ' · '.$curIn->location : '')
+                        .($curIn && $curIn->po_number ? ' · PO '.$curIn->po_number : '')
+                        .($group->count() > 1 ? ' ('.(int) $r->qty.')' : '');
+                }
             }
+
+            $current = $currentLabels
+                ? ['type' => count($currentLabels) > 1 ? 'mixed' : ($group->first(fn ($r) => $this->hasSource($r))->staging_in_id ? 'staging_in' : 'stock'),
+                    'label' => implode(' + ', $currentLabels)]
+                : null;
 
             if (! $reason) {
                 foreach ($inByItem->get($row->item_id, collect()) as $in) {
-                    $isCurrent = (int) $row->staging_in_id === (int) $in->id;
-                    $available = (float) $in->qty + ($isCurrent ? (float) $row->qty : 0);
+                    // Qty yang sedang dipakai record ini dari Staging In tsb
+                    // dihitung tersedia lagi (dilepas dulu sebelum diterapkan ulang).
+                    $heldHere = (float) $group->where('staging_in_id', $in->id)->sum('qty');
+                    $isCurrent = $heldHere > 0;
+                    $available = (float) $in->qty + $heldHere;
 
                     $chips = array_values(array_filter([
                         $isCurrent ? 'Saat ini' : null,
@@ -723,16 +904,24 @@ class StagingOutController extends Controller
                         'value' => 'in|'.$in->id,
                         'label' => ($in->location ?: 'Staging In').' — sisa '.$fmt($available),
                         'available' => $available,
-                        'enough' => $available >= (float) $row->qty,
+                        // Boleh dipakai walau kurang dari qty baris: sisanya
+                        // bisa diambil dari sumber lain (multi-sumber).
+                        'enough' => $available > 0,
                     ];
                 }
 
                 foreach ($stockByItem->get($row->item_id, collect()) as $stock) {
                     $lot = $stock->lot ?: null;
-                    $isCurrent = $curStock
-                        && (int) $row->location_id === (int) $stock->location_id
-                        && $curLot === $lot;
-                    $available = (float) $stock->quantity + ($isCurrent ? (float) $row->qty : 0);
+
+                    $heldHere = (float) $group
+                        ->filter(fn ($r) => $r->source_type === 'stock'
+                            && $r->location_id
+                            && (int) $r->location_id === (int) $stock->location_id
+                            && ($r->lot ?: null) === $lot)
+                        ->sum('qty');
+
+                    $isCurrent = $heldHere > 0;
+                    $available = (float) $stock->quantity + $heldHere;
                     $locName = optional($stock->location)->location_name ?? ('Lokasi tidak diketahui');
 
                     $options[] = [
@@ -745,7 +934,9 @@ class StagingOutController extends Controller
                         'value' => 'stock|'.$stock->location_id.'|'.($lot ?? ''),
                         'label' => $locName.' · '.($lot ? 'Lot '.$lot : 'Tanpa Lot').' — sisa '.$fmt($available),
                         'available' => $available,
-                        'enough' => $available >= (float) $row->qty,
+                        // Boleh dipakai walau kurang dari qty baris: sisanya
+                        // bisa diambil dari sumber lain (multi-sumber).
+                        'enough' => $available > 0,
                     ];
                 }
             }
@@ -757,7 +948,7 @@ class StagingOutController extends Controller
                 'line_item' => $row->line_item,
                 'item_code' => optional($row->item)->item_code_internal,
                 'item_name' => optional($row->item)->name,
-                'qty' => (int) $row->qty,
+                'qty' => $totalQty,
                 'eligible' => $reason === null,
                 'reason' => $reason,
                 'current' => $current,
@@ -786,12 +977,19 @@ class StagingOutController extends Controller
         $validated = $request->validate([
             'assignments' => ['required', 'array', 'min:1'],
             'assignments.*.id' => ['required', 'integer', 'distinct', 'exists:staging_outs,id'],
-            'assignments.*.source' => ['required', 'string', 'max:300'],
+            // Format lama: 1 sumber (source). Format baru: banyak sumber (allocations).
+            'assignments.*.source' => ['nullable', 'string', 'max:300'],
+            'assignments.*.allocations' => ['nullable', 'array', 'min:1'],
+            'assignments.*.allocations.*.source' => ['required', 'string', 'max:300'],
+            'assignments.*.allocations.*.qty' => ['required', 'integer', 'min:1'],
         ], [
             'assignments.required' => 'Belum ada perubahan yang dipilih.',
             'assignments.min' => 'Belum ada perubahan yang dipilih.',
             'assignments.*.id.exists' => 'Data staging out tidak ditemukan.',
-            'assignments.*.source.required' => 'Sumber belum dipilih.',
+            'assignments.*.allocations.*.source.required' => 'Sumber belum dipilih.',
+            'assignments.*.allocations.*.qty.required' => 'Qty tiap sumber wajib diisi.',
+            'assignments.*.allocations.*.qty.integer' => 'Qty tiap sumber harus angka bulat.',
+            'assignments.*.allocations.*.qty.min' => 'Qty tiap sumber minimal 1.',
         ]);
 
         try {
@@ -802,40 +1000,55 @@ class StagingOutController extends Controller
                 foreach ($validated['assignments'] as $assignment) {
                     $staging = StagingOut::with('item')->lockForUpdate()->findOrFail($assignment['id']);
 
+                    // Satu record bisa terdiri dari beberapa baris (1 per sumber).
+                    $group = $this->groupOf($staging, true);
+                    $staging = $group->first();
+
                     $label = 'No. SO '.($staging->so_number ?: '-')
                         .' / '.(optional($staging->item)->item_code_internal ?: '-');
 
                     try {
-                        if ($assignment['source'] === 'none') {
-                            if (! $this->hasSource($staging)) {
+                        if (($assignment['source'] ?? null) === 'none') {
+                            if (! $group->contains(fn ($r) => $this->hasSource($r))) {
                                 throw new \RuntimeException('Sumber memang belum dipilih.');
                             }
 
-                            $this->releaseSource($staging);
+                            foreach ($group as $r) {
+                                if ($this->hasSource($r)) {
+                                    $this->releaseSource($r);
+                                }
+                            }
+
                             $reverted++;
 
                             continue;
                         }
 
-                        if ($reason = $this->sourceIneligibleReason($staging)) {
+                        if ($reason = $this->groupIneligibleReason($staging, (int) $group->sum('qty'))) {
                             throw new \RuntimeException($reason);
                         }
 
-                        // Ganti sumber: lepas sumber lama dulu.
-                        if ($this->hasSource($staging)) {
-                            $this->releaseSource($staging);
-                            $staging->refresh();
+                        // Ganti sumber: lepas semua sumber lama dulu.
+                        foreach ($group as $r) {
+                            if ($this->hasSource($r)) {
+                                $this->releaseSource($r);
+                            }
+
+                            $r->refresh();
                         }
 
-                        $parts = explode('|', $assignment['source'], 3);
+                        $allocations = $assignment['allocations'] ?? [];
 
-                        if (($parts[0] ?? null) === 'in') {
-                            $this->assignFromStagingIn($staging, (int) ($parts[1] ?? 0));
-                        } elseif (($parts[0] ?? null) === 'stock') {
-                            $this->assignFromStock($staging, (int) ($parts[1] ?? 0), ($parts[2] ?? '') ?: null);
-                        } else {
-                            throw new \RuntimeException('Sumber tidak valid.');
+                        // Format lama (1 sumber, qty penuh).
+                        if (! $allocations && ! empty($assignment['source'])) {
+                            $allocations = [['source' => $assignment['source'], 'qty' => null]];
                         }
+
+                        if (! $allocations) {
+                            throw new \RuntimeException('Sumber belum dipilih.');
+                        }
+
+                        $this->assignAllocations($group, $allocations);
 
                         $assigned++;
                     } catch (\RuntimeException $e) {
@@ -870,6 +1083,97 @@ class StagingOutController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Terapkan satu atau lebih sumber ke satu record staging out.
+     *
+     * Satu record = $rows (semua baris dengan SO + barang + line item yang
+     * sama, sudah dilepas sumbernya). Tiap sumber memakai satu baris:
+     * baris yang sudah ada dipakai ulang lebih dulu, kekurangannya dibuatkan
+     * baris baru (salinan data SO), dan baris yang tidak terpakai lagi
+     * dihapus. Total qty semua sumber harus sama dengan total qty record.
+     * Sumber yang sama dijumlahkan dulu.
+     */
+    protected function assignAllocations(Collection $rows, array $allocations): void
+    {
+        $rows = $rows->values();
+        $total = (int) $rows->sum('qty');
+        $merged = [];
+
+        foreach ($allocations as $allocation) {
+            $source = trim((string) ($allocation['source'] ?? ''));
+
+            if ($source === '') {
+                throw new \RuntimeException('Sumber belum dipilih.');
+            }
+
+            $qty = isset($allocation['qty']) ? (int) $allocation['qty'] : $total;
+
+            $merged[$source] = ($merged[$source] ?? 0) + $qty;
+        }
+
+        $sum = array_sum($merged);
+
+        if ($sum !== $total) {
+            throw new \RuntimeException("Total qty semua sumber ({$sum}) harus sama dengan qty barang ({$total}).");
+        }
+
+        $template = $rows->first()->replicate();
+        $index = 0;
+
+        foreach ($merged as $source => $qty) {
+            $existing = $rows->get($index++);
+
+            if ($existing) {
+                $target = $existing;
+
+                if ((int) $target->qty !== $qty) {
+                    $changes = $this->history->diff($target, ['qty' => $qty]);
+
+                    $target->qty = $qty;
+                    $target->save();
+
+                    $this->history->logUpdated($target, $changes);
+                }
+            } else {
+                $target = $template->replicate();
+                $target->forceFill([
+                    'qty' => $qty,
+                    'source_type' => 'external',
+                    'location_id' => null,
+                    'lot' => null,
+                    'staging_in_id' => null,
+                ])->save();
+
+                $this->history->logCreated($target);
+            }
+
+            $this->assignBySourceString($target, (string) $source);
+        }
+
+        // Baris lama yang tidak kebagian sumber (sumber baru lebih sedikit
+        // dari sebelumnya) dihapus; sumbernya sudah dilepas di atas.
+        foreach ($rows->slice(count($merged)) as $unused) {
+            $this->history->logDeleted($unused);
+            $unused->delete();
+        }
+    }
+
+    /**
+     * Terapkan satu sumber berformat "in|<id>" atau "stock|<lokasi>|<lot>".
+     */
+    protected function assignBySourceString(StagingOut $staging, string $source): void
+    {
+        $parts = explode('|', $source, 3);
+
+        if (($parts[0] ?? null) === 'in') {
+            $this->assignFromStagingIn($staging, (int) ($parts[1] ?? 0));
+        } elseif (($parts[0] ?? null) === 'stock') {
+            $this->assignFromStock($staging, (int) ($parts[1] ?? 0), ($parts[2] ?? '') ?: null);
+        } else {
+            throw new \RuntimeException('Sumber tidak valid.');
         }
     }
 
@@ -1229,6 +1533,44 @@ class StagingOutController extends Controller
     }
 
     /**
+     * Validasi qty saat EDIT untuk baris yang sumbernya stok: qty baru tidak
+     * boleh melebihi sisa stok di lokasi/lot sumbernya ditambah qty baris ini
+     * sendiri (karena mutasi lamanya di-reverse dulu di update()).
+     * Sumber Staging In dicek oleh StagingInReturnService::syncQty().
+     */
+    protected function validateEditStockQty(ValidatorContract $validator, Request $request, StagingOut $current): void
+    {
+        $validator->after(function ($validator) use ($request, $current) {
+            if ($current->source_type !== 'stock' || ! $current->location_id || ! $current->item_id) {
+                return;
+            }
+
+            if ($validator->errors()->has('qty') || ! $request->filled('qty')) {
+                return;
+            }
+
+            // Barang diganti -> sumber dilepas di update(), tidak perlu dicek.
+            if ((int) $request->input('item_id') !== (int) $current->item_id) {
+                return;
+            }
+
+            $stock = LocationStock::where('item_id', $current->item_id)
+                ->where('location_id', $current->location_id)
+                ->where('lot', $current->lot ?: null)
+                ->first();
+
+            $available = (float) optional($stock)->quantity + (float) $current->qty;
+
+            if ((float) $request->qty > $available) {
+                $validator->errors()->add(
+                    'qty',
+                    'Qty melebihi stok di sumber saat ini. Maksimal: '.rtrim(rtrim(number_format($available, 2, '.', ''), '0'), '.')
+                );
+            }
+        });
+    }
+
+    /**
      * Ambil baris location_stock untuk kombinasi item/lokasi/lot, dikunci
      * (lockForUpdate) supaya aman dari race condition saat dua staging out
      * dibuat/diubah bersamaan untuk stok yang sama.
@@ -1512,6 +1854,8 @@ class StagingOutController extends Controller
     {
         $stagingOut->loadMissing('item');
 
+        $group = $this->groupOf($stagingOut);
+
         return response()->json([
             'id' => $stagingOut->id,
             'so_number' => $stagingOut->so_number,
@@ -1523,7 +1867,10 @@ class StagingOutController extends Controller
             'location_id' => $stagingOut->location_id,
             'lot' => $stagingOut->lot,
             'line_item' => $stagingOut->line_item,
-            'qty' => $stagingOut->qty,
+            // Total semua sumber dalam satu record. Kalau dipecah ke beberapa
+            // sumber, qty dibagi lewat "Ubah Sumber", bukan lewat form edit.
+            'qty' => (int) $group->sum('qty'),
+            'qty_locked' => $group->count() > 1,
             'delivery_instruction_date' => optional($stagingOut->delivery_instruction_date)->format('Y-m-d'),
             'picking_date' => optional($stagingOut->picking_date)->format('Y-m-d'),
             'do_number' => $stagingOut->do_number,
@@ -1537,93 +1884,52 @@ class StagingOutController extends Controller
      */
     public function update(Request $request, StagingOut $stagingOut)
     {
-        $rules = $this->baseValidationRules();
+        // Edit TIDAK mengubah sumber barang (itu lewat "Pilih Sumber"),
+        // jadi source_type / lokasi / lot tidak diterima di sini.
+        $rules = Arr::except($this->baseValidationRules(), ['source_type', 'location_id', 'lot']);
 
         // Saat edit, qty wajib diisi dan minimal 1 (sama seperti form tambah).
         // Qty kosong/0 sebelumnya lolos untuk barang eksternal dan, kalau barisnya
         // berasal dari Staging In, seluruh qty-nya ikut "dikembalikan" diam-diam.
         $rules['qty'] = ['required', 'integer', 'min:1'];
 
+        // Record dengan beberapa sumber: qty tiap sumber tidak diubah dari
+        // sini (form hanya menampilkan totalnya). Pakai qty baris ini sendiri
+        // supaya validasi stok tetap benar.
+        if ($this->groupOf($stagingOut)->count() > 1) {
+            $request->merge(['qty' => $stagingOut->qty]);
+        }
+
         $validator = Validator::make($request->all(), $rules, [
             'item_id.exists' => 'Barang tidak ditemukan',
-            'location_id.exists' => 'Lokasi tidak ditemukan',
-            'source_type.required' => 'Sumber barang wajib dipilih',
-            'source_type.in' => 'Sumber barang tidak valid',
             'qty.required' => 'Qty wajib diisi.',
             'qty.integer' => 'Qty harus berupa angka bulat (tanpa koma).',
             'qty.min' => 'Qty minimal 1.',
         ]);
 
-        $this->validateStockAvailability($validator, $request, $stagingOut);
+        $this->validateEditStockQty($validator, $request, $stagingOut);
 
         $validated = $validator->validate();
 
-        if ($validated['source_type'] === 'external') {
-            $validated['location_id'] = null;
-            $validated['lot'] = null;
-        }
-
         try {
             $justDelivered = DB::transaction(function () use ($validated, $stagingOut) {
-                // Hitung perubahan SEBELUM update() — setelah update(),
-                // getOriginal() sudah ikut ter-sync ke nilai baru.
-                $changes = $this->history->diff($stagingOut, $validated);
+                // Perubahan berlaku ke SEMUA baris dalam satu record
+                // (no. SO, customer, tanggal, picking, resi, dst).
+                $rows = $this->groupOf($stagingOut, true);
+                $delivered = false;
 
-                // Tangkap kondisi "baru saja dikirim": tgl resi pengiriman
-                // yang tadinya kosong, sekarang diisi lewat update ini —
-                // juga harus dicek SEBELUM update() menimpa nilai aslinya.
-                $justDelivered = is_null($stagingOut->delivery_receipt_date)
-                    && array_key_exists('delivery_receipt_date', $validated)
-                    && ! is_null($validated['delivery_receipt_date']);
+                foreach ($rows as $row) {
+                    $data = $validated;
 
-                // Jika baris ini SEBELUMNYA memotong stok, kembalikan dulu
-                // qty-nya sebelum diupdate — supaya perubahan qty/lokasi/lot
-                // (atau ganti jadi "external") tidak meninggalkan stok yang
-                // sudah telanjur terpotong tapi tidak lagi tercatat di sini.
-                $wasStock = $stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id;
-
-                if ($wasStock) {
-                    $this->reverseStockOut($stagingOut);
-                }
-
-                // Barang yang dipindah dari Staging In: samakan qty di Staging In
-                // dengan qty baru (naik = ambil lagi dari sisa, turun = kembalikan).
-                if ($stagingOut->staging_in_id && array_key_exists('qty', $validated)) {
-                    app(StagingInReturnService::class)->syncQty(
-                        $stagingOut,
-                        (int) $stagingOut->qty,
-                        (int) ($validated['qty'] ?? 0)
-                    );
-                }
-
-                $stagingOut->update($validated);
-
-                // Terapkan lagi pemotongan stok dengan data yang baru, kalau
-                // baris ini (masih/menjadi) bersumber dari stok.
-                if ($stagingOut->source_type === 'stock') {
-                    $this->applyStockOut($stagingOut);
-                }
-
-                $this->history->logUpdated($stagingOut, $changes);
-
-                if ($justDelivered) {
-                    $this->history->logAutoDelivered(
-                        $stagingOut,
-                        $stagingOut->do_number,
-                        $stagingOut->delivery_receipt_date
-                    );
-
-                    // Sama seperti store(): pastikan tgl picking ikut tercatat di
-                    // header history sebelum barisnya dipindahkan ke history.
-                    if ($stagingOut->picking_date) {
-                        StagingOutHistory::firstOrCreateForStaging($stagingOut)
-                            ->update(['picking_date' => $stagingOut->picking_date]);
+                    // Tiap sumber mempertahankan qty-nya sendiri.
+                    if ($rows->count() > 1) {
+                        $data['qty'] = $row->qty;
                     }
 
-                    $stagingOut->delete();
+                    $delivered = $this->applyUpdate($row, $data) || $delivered;
                 }
 
-                return $justDelivered;
+                return $delivered;
             });
 
             return response()->json([
@@ -1639,7 +1945,84 @@ class StagingOutController extends Controller
             ], 500);
         }
     }
-    
+
+    /**
+     * Terapkan hasil validasi update() ke SATU baris staging out.
+     *
+     * @return bool true kalau baris ini baru saja dikirim (dipindah ke history)
+     */
+    protected function applyUpdate(StagingOut $stagingOut, array $validated): bool
+    {
+        // Barang diganti: sumber lama (stok / Staging In) tidak berlaku
+        // lagi, jadi dilepas dulu dan baris kembali ke "sumber belum dipilih".
+        if (array_key_exists('item_id', $validated)
+            && (int) $validated['item_id'] !== (int) $stagingOut->item_id
+            && $this->hasSource($stagingOut)) {
+            $this->releaseSource($stagingOut);
+            $stagingOut->refresh();
+        }
+
+        // Hitung perubahan SEBELUM update() — setelah update(),
+        // getOriginal() sudah ikut ter-sync ke nilai baru.
+        $changes = $this->history->diff($stagingOut, $validated);
+
+        // Tangkap kondisi "baru saja dikirim": tgl resi pengiriman
+        // yang tadinya kosong, sekarang diisi lewat update ini —
+        // juga harus dicek SEBELUM update() menimpa nilai aslinya.
+        $justDelivered = is_null($stagingOut->delivery_receipt_date)
+            && array_key_exists('delivery_receipt_date', $validated)
+            && ! is_null($validated['delivery_receipt_date']);
+
+        // Jika baris ini SEBELUMNYA memotong stok, kembalikan dulu
+        // qty-nya sebelum diupdate — supaya perubahan qty/lokasi/lot
+        // (atau ganti jadi "external") tidak meninggalkan stok yang
+        // sudah telanjur terpotong tapi tidak lagi tercatat di sini.
+        $wasStock = $stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id;
+
+        if ($wasStock) {
+            $this->reverseStockOut($stagingOut);
+        }
+
+        // Barang yang dipindah dari Staging In: samakan qty di Staging In
+        // dengan qty baru (naik = ambil lagi dari sisa, turun = kembalikan).
+        if ($stagingOut->staging_in_id && array_key_exists('qty', $validated)) {
+            app(StagingInReturnService::class)->syncQty(
+                $stagingOut,
+                (int) $stagingOut->qty,
+                (int) ($validated['qty'] ?? 0)
+            );
+        }
+
+        $stagingOut->update($validated);
+
+        // Terapkan lagi pemotongan stok dengan data yang baru, kalau
+        // baris ini (masih/menjadi) bersumber dari stok.
+        if ($stagingOut->source_type === 'stock') {
+            $this->applyStockOut($stagingOut);
+        }
+
+        $this->history->logUpdated($stagingOut, $changes);
+
+        if ($justDelivered) {
+            $this->history->logAutoDelivered(
+                $stagingOut,
+                $stagingOut->do_number,
+                $stagingOut->delivery_receipt_date
+            );
+
+            // Sama seperti store(): pastikan tgl picking ikut tercatat di
+            // header history sebelum barisnya dipindahkan ke history.
+            if ($stagingOut->picking_date) {
+                StagingOutHistory::firstOrCreateForStaging($stagingOut)
+                    ->update(['picking_date' => $stagingOut->picking_date]);
+            }
+
+            $stagingOut->delete();
+        }
+
+        return $justDelivered;
+    }
+
     /**
      * Remove the specified resource from storage.
      */
@@ -1647,20 +2030,24 @@ class StagingOutController extends Controller
     {
         try {
             DB::transaction(function () use ($stagingOut) {
-                // Batalkan staging out yang sumbernya stok berarti barangnya
-                // batal keluar — kembalikan qty ke location_stock dulu
-                // sebelum baris ini dihapus.
-                if ($stagingOut->source_type === 'stock' && $stagingOut->item_id && $stagingOut->location_id) {
-                    $this->reverseStockOut($stagingOut);
+                // Satu record bisa terdiri dari beberapa baris (1 per sumber):
+                // hapus semuanya.
+                foreach ($this->groupOf($stagingOut, true) as $row) {
+                    // Batalkan staging out yang sumbernya stok berarti barangnya
+                    // batal keluar — kembalikan qty ke location_stock dulu
+                    // sebelum baris ini dihapus.
+                    if ($row->source_type === 'stock' && $row->item_id && $row->location_id) {
+                        $this->reverseStockOut($row);
+                    }
+
+                    // Dipindah dari Staging In? Qty-nya kembali ke Staging In.
+                    $this->returnToStagingIn($row);
+
+                    // Catat history SEBELUM baris aslinya benar-benar hilang.
+                    $this->history->logDeleted($row);
+
+                    $row->delete();
                 }
-
-                // Dipindah dari Staging In? Qty-nya kembali ke Staging In.
-                $this->returnToStagingIn($stagingOut);
-
-                // Catat history SEBELUM baris aslinya benar-benar hilang.
-                $this->history->logDeleted($stagingOut);
-
-                $stagingOut->delete();
             });
 
             return response()->json([
@@ -1689,7 +2076,7 @@ class StagingOutController extends Controller
             $count = DB::transaction(function () use ($request) {
                 // Load dulu baris-barisnya SEBELUM dihapus — logBulkDeleted()
                 // butuh data aslinya (qty, dst), bukan cuma ID.
-                $stagings = StagingOut::whereIn('id', $request->ids)->get();
+                $stagings = $this->expandGroups(StagingOut::whereIn('id', $request->ids)->get());
 
                 foreach ($stagings as $staging) {
                     if ($staging->source_type === 'stock' && $staging->item_id && $staging->location_id) {
@@ -1701,9 +2088,10 @@ class StagingOutController extends Controller
 
                 $this->history->logBulkDeleted($stagings);
 
-                StagingOut::whereIn('id', $request->ids)->delete();
+                StagingOut::whereIn('id', $stagings->pluck('id'))->delete();
 
-                return $stagings->count();
+                // Yang dihitung = jumlah record yang dipilih, bukan jumlah baris sumber.
+                return count(array_unique($request->ids));
             });
 
             return response()->json([

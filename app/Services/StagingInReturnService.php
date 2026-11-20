@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StagingIn;
 use App\Models\StagingInHistory;
 use App\Models\StagingOut;
+use App\Models\StagingOutHistory;
 
 /**
  * Menjaga qty Staging In tetap sinkron dengan baris Staging Out yang
@@ -38,6 +39,36 @@ class StagingInReturnService
             'notes' => $in->notes,
         ]);
         $out->save();
+
+        $this->recordOnHistory($out);
+    }
+
+    /**
+     * Catat asal Staging In di meta event "created" history staging out,
+     * supaya sambungan ini bisa dipulihkan setelah baris staging out-nya
+     * selesai/terhapus. (Kalau history baru dibuat SETELAH link(), meta-nya
+     * sudah terisi oleh StagingOutHistoryService::sourceMeta().)
+     */
+    protected function recordOnHistory(StagingOut $out): void
+    {
+        $history = StagingOutHistory::where('staging_out_id', $out->id)->first();
+
+        $created = $history
+            ? $history->details()->reorder()->where('event_type', 'created')->orderBy('id')->first()
+            : null;
+
+        if (! $created) {
+            return;
+        }
+
+        $meta = is_string($created->meta) ? json_decode($created->meta, true) : $created->meta;
+        $meta = is_array($meta) ? $meta : [];
+
+        $meta['staging_in_id'] = (int) $out->staging_in_id;
+        $meta['staging_in_snapshot'] = json_decode((string) $out->staging_in_snapshot, true);
+
+        $created->meta = $meta;
+        $created->save();
     }
 
     /** Kembalikan $qty ke staging in asal. */

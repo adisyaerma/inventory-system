@@ -127,107 +127,82 @@
                 <div class="table-responsive text-nowrap">
                     <div class="px-3 pt-3">
 
-                        <div class="filter-toolbar-card">
+                        <div class="fx" id="filterBar">
 
-                            <div class="filter-toolbar-eyebrow">
-                                <div class="filter-toolbar-eyebrow-label">
-                                    <i class="bi bi-sliders"></i>
-                                    <span>Filter Data</span>
+                            <div class="fx-top">
+
+                                <!-- Pencarian -->
+                                <div class="fx-search">
+                                    <i class="bi bi-search fx-search-icon"></i>
+                                    <input type="text" id="historySearch" autocomplete="off" placeholder="Cari No. SO, item, atau customer" aria-label="Cari">
+                                    <button type="button" class="fx-search-clear" id="customSearchClear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
                                 </div>
 
-                                <button type="button" class="btn-sm btn border-secondary bg-white border"
-                                    id="resetHistoryFilter" title="Reset Filter">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-                                        <path d="M0 0h21v21H0z" fill="none" />
-                                        <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                            <path d="M7.5 6.5h-4v-4" />
-                                        </g>
-                                    </svg>
-                                </button>
+                                <div class="fx-actions">
+                                    <span class="fx-count" id="filterCount" aria-live="polite"></span>
+                                    <button type="button" class="fx-reset" id="resetHistoryFilter" title="Kembalikan semua filter">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        <span>Reset</span>
+                                    </button>
+                                </div>
+
                             </div>
 
-                            <div class="filter-toolbar filter-toolbar-history">
+                            <div class="fx-chips">
 
-                                <!-- Search -->
-                                <div class="filter-group filter-group-search">
-                                    <label class="filter-label" for="historySearch">Cari</label>
-                                    <div class="input-group input-group-sm shadow-sm">
-                                        <span class="input-group-text bg-white border-end-0">
-                                            <i class="bi bi-search text-muted"></i>
-                                        </span>
-                                        <input type="text" id="historySearch" class="form-control border-start-0"
-                                            placeholder="Cari SO Number, item, customer...">
-                                    </div>
+                                <div class="fx-chip">
+                                    <i class="bi bi-flag"></i>
+                                    <label for="historyStatus">Status</label>
+                                    <select id="historyStatus">
+                                        <option value="">Semua</option>
+                                        @foreach ($statusOptions as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
 
-                                <!-- Status -->
-                                <div class="filter-group">
-                                    <label class="filter-label" for="historyStatus">Status</label>
-                                    <div class="input-group input-group-sm shadow-sm">
-                                        <span class="input-group-text bg-white border-end-0">
-                                            <i class="bi bi-flag text-muted"></i>
-                                        </span>
-                                        <select class="form-select border-start-0" id="historyStatus">
-                                            <option value="">Semua Status</option>
-                                            @foreach ($statusOptions as $value => $label)
-                                                <option value="{{ $value }}">{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                <div class="fx-chip">
+                                    <i class="bi bi-activity"></i>
+                                    <label for="historyEvent">Event</label>
+                                    <select id="historyEvent">
+                                        <option value="">Semua</option>
+                                        @foreach ($eventOptions as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
 
-                                <!-- Event Terakhir -->
-                                <div class="filter-group">
-                                    <label class="filter-label" for="historyEvent">Event Terakhir</label>
-                                    <div class="input-group input-group-sm shadow-sm">
-                                        <span class="input-group-text bg-white border-end-0">
-                                            <i class="bi bi-activity text-muted"></i>
-                                        </span>
-                                        <select class="form-select border-start-0" id="historyEvent">
-                                            <option value="">Semua Event</option>
-                                            @foreach ($eventOptions as $value => $label)
-                                                <option value="{{ $value }}">{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
+                                <div class="fx-chip fx-chip-date">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <label for="historyDateRange">Periode</label>
 
-                                <!-- Periode -->
-                                <div class="filter-group">
-                                    <label class="filter-label" for="historyDateRange">Periode</label>
                                     <div class="date-range-wrapper">
-                                        <div class="input-group input-group-sm shadow-sm">
-                                            <span class="input-group-text bg-white border-end-0">
-                                                <i class="bi bi-calendar-range text-muted"></i>
-                                            </span>
-                                            <input type="text" class="form-control border-start-0" id="historyDateRange"
-                                                placeholder="Pilih periode" readonly autocomplete="off">
-                                        </div>
+                                        <input type="text" id="historyDateRange" placeholder="Semua tanggal" title="Rentang tanggal" aria-label="Rentang tanggal" readonly autocomplete="off">
 
                                         <div class="date-range-panel" id="historyDateRangePanel">
+                                            <div class="fx-presets">
+                                                <button type="button" class="fx-preset" data-preset="today">Hari ini</button>
+                                                <button type="button" class="fx-preset" data-preset="7d">7 hari terakhir</button>
+                                                <button type="button" class="fx-preset" data-preset="month">Bulan ini</button>
+                                            </div>
                                             <div class="mb-2">
                                                 <label class="form-label small mb-1 text-muted">Dari</label>
-                                                <input type="date" class="form-control form-control-sm"
-                                                    id="historyStartDate">
+                                                <input type="date" class="form-control form-control-sm" id="historyStartDate">
                                             </div>
                                             <div class="mb-2">
                                                 <label class="form-label small mb-1 text-muted">Sampai</label>
-                                                <input type="date" class="form-control form-control-sm"
-                                                    id="historyEndDate">
+                                                <input type="date" class="form-control form-control-sm" id="historyEndDate">
                                             </div>
-                                            <div class="d-flex justify-content-end gap-2 mt-2">
-                                                <button type="button" class="btn btn-sm btn-primary w-100"
-                                                    id="historyDateRangeApply">
-                                                    Terapkan
-                                                </button>
+                                            <div class="d-flex gap-2 mt-3">
+                                                <button type="button" class="btn btn-sm btn-light flex-shrink-0" id="historyDateRangeClear">Hapus</button>
+                                                <button type="button" class="btn btn-sm btn-primary w-100" id="historyDateRangeApply">Terapkan</button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
+
                         </div>
 
                         <table class="table table-bordered" id="historyTable">
@@ -316,6 +291,9 @@
                             </tbody>
                         </table>
 
+                        {{-- Rincian sumber barang (hanya muncul kalau sumbernya lebih dari satu) --}}
+                        <div id="detailSumber" class="mb-3 d-none"></div>
+
                         <h6 class="fw-bold small text-uppercase text-muted mb-2">Status Pengiriman</h6>
                         <table class="table table-sm table-borderless mb-4">
                             <tbody id="detailPengiriman">
@@ -371,111 +349,388 @@
                 flex-shrink: 0;
             }
 
-            .filter-toolbar-card {
-                background: #f8f9fb;
-                border: 1px solid #eceef2;
-                border-radius: 1rem;
-                padding: 1rem 1.1rem;
+            /* ===== Filter bar ===== */
+            .fx {
+                --fx-accent: var(--bs-primary, #0d6efd);
+                --fx-accent-rgb: var(--bs-primary-rgb, 13, 110, 253);
+                --fx-line: var(--bs-border-color, #dee2e6);
+                --fx-muted: var(--bs-secondary-color, #6c757d);
+                --fx-surface: var(--bs-body-bg, #fff);
                 margin-bottom: 1rem;
             }
 
-            .filter-toolbar-eyebrow {
+            .fx-top {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: .6rem;
+            }
+
+            /* Pencarian */
+            .fx-search {
+                position: relative;
+                flex: 1 1 320px;
+                min-width: 0;
+            }
+
+            .fx-search-icon {
+                position: absolute;
+                left: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--fx-muted);
+                pointer-events: none;
+            }
+
+            .fx-search input {
+                width: 100%;
+                height: 2.6rem;
+                padding: 0 2.6rem 0 2.6rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                font-size: .9rem;
+                transition: border-color .15s ease, box-shadow .15s ease;
+            }
+
+            .fx-search input::placeholder {
+                color: var(--fx-muted);
+                opacity: .85;
+            }
+
+            .fx-search input:focus {
+                outline: 0;
+                border-color: rgba(var(--fx-accent-rgb), .55);
+                box-shadow: 0 0 0 .25rem rgba(var(--fx-accent-rgb), .12);
+            }
+
+            .fx-search.has-value input {
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-search-clear {
+                position: absolute;
+                right: .45rem;
+                top: 50%;
+                transform: translateY(-50%);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                width: 1.8rem;
+                height: 1.8rem;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--fx-muted);
+                font-size: .75rem;
+            }
+
+            .fx-search.has-value .fx-search-clear {
+                display: inline-flex;
+            }
+
+            .fx-search-clear:hover {
+                background: rgba(var(--fx-accent-rgb), .1);
+                color: var(--fx-accent);
+            }
+
+            /* Ringkasan + reset */
+            .fx-actions {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                gap: .5rem;
-                margin-bottom: .75rem;
-                color: #6c757d;
+                gap: .6rem;
+            }
+
+            .fx-count {
+                display: none;
                 font-size: .8rem;
                 font-weight: 600;
-                letter-spacing: .02em;
-                text-transform: uppercase;
+                color: var(--fx-accent);
+                white-space: nowrap;
             }
 
-            .filter-toolbar-eyebrow .filter-toolbar-eyebrow-label {
+            .fx.has-active .fx-count {
+                display: inline;
+            }
+
+            .fx-reset {
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem;
+                height: 2.6rem;
+                padding: 0 1.05rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--fx-muted);
+                font-size: .85rem;
+                font-weight: 500;
+                transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+            }
+
+            .fx-reset:hover,
+            .fx.has-active .fx-reset {
+                color: var(--fx-accent);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-reset:hover {
+                background: rgba(var(--fx-accent-rgb), .06);
+            }
+
+            .fx-reset:focus-visible,
+            .fx-search-clear:focus-visible,
+            .fx-preset:focus-visible {
+                outline: 2px solid rgba(var(--fx-accent-rgb), .6);
+                outline-offset: 2px;
+            }
+
+            /* Chip filter */
+            .fx-chips {
                 display: flex;
+                flex-wrap: wrap;
+                gap: .5rem;
+                margin-top: .7rem;
+            }
+
+            .fx-chip {
+                position: relative;
+                display: inline-flex;
                 align-items: center;
                 gap: .5rem;
+                height: 2.3rem;
+                padding: 0 .4rem 0 .85rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
             }
 
-            .filter-toolbar-eyebrow i {
-                color: var(--bs-primary);
+            .fx-chip:hover {
+                border-color: rgba(var(--fx-accent-rgb), .4);
             }
 
-            .filter-toolbar {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: .75rem 1rem;
-                align-items: end;
+            .fx-chip:focus-within {
+                border-color: rgba(var(--fx-accent-rgb), .6);
+                box-shadow: 0 0 0 .22rem rgba(var(--fx-accent-rgb), .12);
             }
 
-            .filter-label {
-                display: block;
-                font-size: .72rem;
-                font-weight: 600;
-                color: #8a93a3;
-                text-transform: uppercase;
-                letter-spacing: .02em;
-                margin-bottom: .3rem;
+            .fx-chip>i {
+                color: var(--fx-muted);
+                font-size: .95rem;
+                line-height: 1;
             }
 
-            .filter-toolbar .input-group {
-                border-radius: .5rem;
-                overflow: hidden;
-                transition: box-shadow .15s ease;
+            .fx-chip label {
+                margin: 0;
+                font-size: .8rem;
+                color: var(--fx-muted);
+                white-space: nowrap;
+                cursor: pointer;
             }
 
-            .filter-toolbar .input-group:focus-within {
-                box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
-            }
-
-            .filter-toolbar .input-group-text,
-            .filter-toolbar .form-control,
-            .filter-toolbar .form-select {
-                border-color: #dfe3e9;
-            }
-
-            .filter-toolbar .form-select,
-            .filter-toolbar .form-control {
+            .fx-chip select,
+            .fx-chip input[type="text"] {
+                height: 100%;
+                max-width: 11.5rem;
+                padding: 0 1.4rem 0 .1rem;
+                border: 0;
+                outline: 0;
+                box-shadow: none;
+                background-color: transparent;
+                color: var(--bs-body-color);
                 font-size: .85rem;
+                font-weight: 600;
+                text-overflow: ellipsis;
+                cursor: pointer;
             }
 
+            .fx-chip select {
+                -webkit-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%238a93a3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .3rem center;
+                background-size: .8rem;
+            }
+
+            .fx-chip select option {
+                color: var(--bs-body-color);
+                background: var(--fx-surface);
+                font-weight: 400;
+            }
+
+            .fx-chip input[type="text"]::placeholder {
+                color: var(--fx-muted);
+                font-weight: 400;
+            }
+
+            .fx-chip.is-active {
+                background: rgba(var(--fx-accent-rgb), .08);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-chip.is-active>i,
+            .fx-chip.is-active label {
+                color: var(--fx-accent);
+            }
+
+            .fx-sep {
+                align-self: center;
+                width: 1px;
+                height: 1.1rem;
+                background: var(--fx-line);
+            }
+
+            .fx-chip.is-active .fx-sep {
+                background: rgba(var(--fx-accent-rgb), .3);
+            }
+
+            /* Rentang tanggal */
             .date-range-wrapper {
                 position: relative;
+                display: flex;
+                align-items: center;
+                height: 100%;
+            }
+
+            .fx-chip-date input[type="text"] {
+                width: 10.5rem;
+                padding-right: .6rem;
             }
 
             .date-range-panel {
                 display: none;
                 position: absolute;
-                top: calc(100% + 6px);
+                top: calc(100% + 10px);
                 left: 0;
                 z-index: 1050;
-                background: #fff;
-                border: 1px solid #e5e7eb;
-                border-radius: .75rem;
-                box-shadow: 0 .5rem 1.5rem rgba(20, 20, 43, .12);
+                width: 270px;
                 padding: 14px;
-                width: 240px;
-                opacity: 0;
-                transform: translateY(-4px);
-                transition: opacity .12s ease, transform .12s ease;
+                background: var(--fx-surface);
+                border: 1px solid var(--fx-line);
+                border-radius: 1rem;
+                box-shadow: 0 .75rem 2rem rgba(20, 20, 43, .14);
             }
 
             .date-range-panel.show {
                 display: block;
-                opacity: 1;
-                transform: translateY(0);
+                animation: fxPop .14s ease-out;
             }
 
-            @media (max-width: 1199.98px) {
-                .filter-toolbar-history {
-                    grid-template-columns: repeat(2, 1fr);
+            @keyframes fxPop {
+                from {
+                    opacity: 0;
+                    transform: translateY(-4px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
                 }
             }
 
+            .fx-presets {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .35rem;
+                margin-bottom: .75rem;
+            }
+
+            .fx-preset {
+                padding: .25rem .65rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: transparent;
+                color: var(--bs-body-color);
+                font-size: .76rem;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .fx-preset:hover {
+                border-color: rgba(var(--fx-accent-rgb), .5);
+                background: rgba(var(--fx-accent-rgb), .08);
+                color: var(--fx-accent);
+            }
+
+            /* Banner filter dari dashboard */
+            .fx-banner {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+                margin-bottom: .9rem;
+                padding: .6rem .6rem .6rem .9rem;
+                border: 1px solid rgba(var(--fx-accent-rgb), .3);
+                border-radius: .85rem;
+                background: rgba(var(--fx-accent-rgb), .07);
+                color: var(--bs-body-color);
+                font-size: .86rem;
+                white-space: normal;
+            }
+
+            .fx-banner>i {
+                color: var(--fx-accent);
+                font-size: 1.05rem;
+            }
+
+            .fx-banner>span {
+                flex: 1;
+            }
+
+            .fx-banner-close {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.7rem;
+                height: 1.7rem;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--fx-muted);
+                font-size: .72rem;
+            }
+
+            .fx-banner-close:hover {
+                background: rgba(var(--fx-accent-rgb), .14);
+                color: var(--fx-accent);
+            }
+
             @media (max-width: 575.98px) {
-                .filter-toolbar-history {
-                    grid-template-columns: 1fr;
+                .fx-actions {
+                    width: 100%;
+                    justify-content: space-between;
+                }
+
+                .fx-chip-date {
+                    flex: 1 1 100%;
+                }
+
+                .fx-chip-date .date-range-wrapper {
+                    flex: 1;
+                }
+
+                .fx-chip-date input[type="text"] {
+                    width: 100%;
+                }
+
+                .date-range-panel {
+                    left: -3rem;
+                    right: 0;
+                    width: auto;
+                    min-width: 260px;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+
+                .fx *,
+                .date-range-panel.show {
+                    transition: none !important;
+                    animation: none !important;
                 }
             }
 
@@ -838,25 +1093,19 @@
                         return;
                     }
 
+                    // Hapus = murni hapus record. Stok, stock mutations, dan Staging In
+                    // tidak berubah; baris di Staging Out (kalau masih ada) juga tetap.
                     const activeCount = $('.historyCheckbox[data-active="1"]:checked').length;
-                    const stockCount = $('.historyCheckbox[data-cancel-stock="1"]:checked').length;
-                    const stockActiveCount = $('.historyCheckbox[data-active="1"][data-cancel-stock="1"]:checked').length;
-                    const otherActiveCount = activeCount - stockActiveCount;
-
                     let activeNote = '';
 
-                    if (stockCount > 0) {
-                        activeNote += `<br><small class="text-danger">${stockCount} di antaranya barangnya diambil dari stok. Transaksinya akan dibatalkan: qty dikembalikan ke stok dan mutasi keluar di stock mutations dihapus (baris di Staging Out ikut dihapus kalau masih ada).</small>`;
-                    }
-
-                    if (otherActiveCount > 0) {
-                        activeNote += `<br><small class="text-danger">${otherActiveCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>`;
+                    if (activeCount > 0) {
+                        activeNote = `<br><small class="text-danger">${activeCount} di antaranya masih aktif (datanya masih ada di Staging Out). Hanya history-nya yang dihapus, datanya tetap ada.</small>`;
                     }
 
                     Swal.fire({
                         icon: 'warning',
                         title: 'Hapus History?',
-                        html: `Yakin mau menghapus <b>${ids.length}</b> history terpilih beserta seluruh timeline-nya?<br><small class="text-muted">Tindakan ini permanen dan tidak bisa dibatalkan.</small>${activeNote}`,
+                        html: `Yakin mau menghapus <b>${ids.length}</b> history terpilih beserta seluruh timeline-nya?<br><small class="text-muted">Hanya menghapus record history. Stok tidak berubah. Tindakan ini permanen dan tidak bisa dibatalkan.</small>${activeNote}`,
                         showCancelButton: true,
                         confirmButtonText: 'Ya, Hapus',
                         cancelButtonText: 'Batal',
@@ -1041,6 +1290,10 @@
                         color: 'info',
                         icon: 'bi-arrow-counterclockwise'
                     },
+                    sources_set: {
+                        color: 'primary',
+                        icon: 'bi-diagram-3'
+                    },
                 };
 
                 function escapeHtml(value) {
@@ -1049,6 +1302,18 @@
 
                 function metaDescription(item) {
                     const meta = item.meta || {};
+
+                    // Barang diambil dari beberapa sumber: satu penjelasan sederhana.
+                    if (item.event_type === 'sources_set') {
+                        const sum = item.source_summary;
+
+                        if (!sum) return '';
+
+                        return `<div class="small mt-2">
+                            <div>Total <span class="fw-semibold">${sum.total} PCS</span> diambil dari <span class="fw-semibold">${sum.count} sumber</span>:</div>
+                            ${sum.items.map(i => `<div>&bull; <span class="fw-semibold">${i.qty} PCS</span> dari ${escapeHtml(i.text)}</div>`).join('')}
+                        </div>`;
+                    }
 
                     if (item.event_type === 'restored') {
                         return meta.cleared_delivery_receipt_date ?
@@ -1068,6 +1333,17 @@
                                 ${meta.do_number ? `<div>DO Number: <span class="text-primary">${meta.do_number}</span></div>` : ''}
                                 ${meta.delivery_date ? `<div>Tanggal kirim: ${formatDateOnly(meta.delivery_date)}</div>` : ''}
                             </div>`;
+                    }
+
+                    if (item.event_type === 'updated' && Array.isArray(item.changes) && item.changes.length) {
+                        const dash = '<span class="text-muted">kosong</span>';
+                        const rows = item.changes.map(function(c) {
+                            const oldVal = c.old === null || c.old === undefined ? dash : escapeHtml(formatDateOnly(c.old));
+                            const newVal = c.new === null || c.new === undefined ? dash : escapeHtml(formatDateOnly(c.new));
+                            return `<div>${escapeHtml(c.label)}: <span class="text-muted">${oldVal}</span> &rarr; <span class="fw-semibold">${newVal}</span></div>`;
+                        }).join('');
+
+                        return `<div class="small mt-2">${rows}${item.split_note ? `<div class="text-muted fst-italic mt-1">${escapeHtml(item.split_note)}</div>` : ''}</div>`;
                     }
 
                     if (item.event_type === 'updated') {
@@ -1094,6 +1370,52 @@
                     }
 
                     return '';
+                }
+
+                // Warna per jenis sumber: Stok = biru muda, Staging In = biru tua, lainnya = abu-abu.
+                const sourceColor = {
+                    stock: 'info',
+                    staging_in: 'primary'
+                };
+
+                // Tabel rincian sumber barang di bawah "Informasi Awal".
+                function renderSources(sources) {
+                    const $box = $('#detailSumber');
+
+                    if (!sources || sources.length < 2) {
+                        $box.addClass('d-none').empty();
+                        return;
+                    }
+
+                    const total = sources.reduce((sum, s) => sum + Number(s.qty || 0), 0);
+
+                    const rows = sources.map(function(src) {
+                        const color = sourceColor[src.type] || 'secondary';
+
+                        return `<tr>
+                            <td class="text-muted small">${src.no}</td>
+                            <td>
+                                <span class="badge bg-${color}-subtle text-${color}">${escapeHtml(src.type_label)}</span>
+                                ${src.detail ? `<div class="small text-muted mt-1">${escapeHtml(src.detail)}</div>` : ''}
+                            </td>
+                            <td class="text-end fw-semibold">${src.qty} PCS</td>
+                        </tr>`;
+                    }).join('');
+
+                    $box.html(`
+                        <h6 class="fw-bold small text-uppercase text-muted mb-2">Rincian Sumber Barang
+                            <span class="badge bg-warning-subtle text-warning ms-1">${sources.length} sumber</span></h6>
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th style="width:32px;">No</th><th>Diambil dari</th><th class="text-end">Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                            <tfoot>
+                                <tr class="fw-bold"><td></td><td>Total</td><td class="text-end">${total} PCS</td></tr>
+                            </tfoot>
+                        </table>`).removeClass('d-none');
                 }
 
                 function renderTimeline(timeline) {
@@ -1154,15 +1476,28 @@
                             .text(res.status.label);
 
                         const info = res.informasi_awal;
+
+                        // Sumber lebih dari satu: ringkasan satu kalimat di sini, rinciannya
+                        // ada di tabel "Rincian Sumber Barang" di bawahnya.
+                        const sources = info.sumber_list || [];
+                        const sumberRow = sources.length > 1 ?
+                            `<tr>
+                                <td class="text-muted small align-top">Sumber Barang</td>
+                                <td class="text-end small">${escapeHtml(info.sumber_ringkas || info.sumber_barang)}</td>
+                            </tr>` :
+                            `<tr><td class="text-muted small">Sumber Barang</td><td class="text-end small">${escapeHtml(info.sumber_barang)}</td></tr>`;
+
                         $('#detailInfoAwal').html(`
                             <tr><td class="text-muted small">Customer</td><td class="text-end small">${info.customer}</td></tr>
                             <tr><td class="text-muted small">Line Item</td><td class="text-end small">${info.line_item}</td></tr>
-                            <tr><td class="text-muted small">Sumber Barang</td><td class="text-end small">${escapeHtml(info.sumber_barang)}</td></tr>
+                            ${sumberRow}
                             <tr><td class="text-muted small">Tgl Instruksi Kirim</td><td class="text-end small">${formatDateOnly(info.delivery_instruction_date)}</td></tr>
                             <tr><td class="text-muted small">Initial Qty</td><td class="text-end small">${info.initial_qty}</td></tr>
                             <tr><td class="text-muted small">Qty Saat Ini</td><td class="text-end small">${info.current_qty}</td></tr>
                             <tr><td class="text-muted small">Created At</td><td class="text-end small">${formatDateTime(info.created_at)}</td></tr>
                         `);
+
+                        renderSources(sources);
 
                         const pengiriman = res.status_pengiriman;
                         $('#detailPengiriman').html(`
@@ -1196,6 +1531,78 @@
                 });
 
             });
+        </script>
+        <script>
+            // ============ TAMPILAN FILTER (penanda aktif, hapus pencarian, preset tanggal) ============
+            (function() {
+                const $bar = $('#filterBar');
+                const chipFilters = ['#historyStatus', '#historyEvent'];
+
+                function filled($el) {
+                    return String($el.val() || '').trim() !== '';
+                }
+
+                function refreshFilterState() {
+                    let count = 0;
+
+                    const searchFilled = filled($('#historySearch'));
+                    $('.fx-search').toggleClass('has-value', searchFilled);
+                    if (searchFilled) count++;
+
+                    chipFilters.forEach(function(sel) {
+                        const on = filled($(sel));
+                        $(sel).closest('.fx-chip').toggleClass('is-active', on);
+                        if (on) count++;
+                    });
+
+                    const dateOn = filled($('#historyDateRange'));
+                    $('#historyDateRange').closest('.fx-chip').toggleClass('is-active', dateOn);
+                    if (dateOn) count++;
+
+                    $bar.toggleClass('has-active', count > 0);
+                    $('#filterCount').text(count > 0 ? count + ' filter aktif' : '');
+                }
+
+                $('#historySearch, ' + chipFilters.join(', ')).on('input change', refreshFilterState);
+
+                // Handler lama mengisi nilai lewat .val() (tanpa event), jadi cek ulang sesudahnya.
+                $('#historyDateRangeApply, #resetHistoryFilter').on('click', function() {
+                    setTimeout(refreshFilterState, 0);
+                });
+
+                $('#customSearchClear').on('click', function() {
+                    $('#historySearch').val('').trigger('input').trigger('focus');
+                });
+
+                function ymd(d) {
+                    const p = (n) => String(n).padStart(2, '0');
+                    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+                }
+
+                $('.fx-preset').on('click', function() {
+                    const now = new Date();
+                    let from = new Date(now);
+                    const preset = $(this).data('preset');
+
+                    if (preset === '7d') {
+                        from.setDate(now.getDate() - 6);
+                    } else if (preset === 'month') {
+                        from = new Date(now.getFullYear(), now.getMonth(), 1);
+                    }
+
+                    $('#historyStartDate').val(ymd(from));
+                    $('#historyEndDate').val(ymd(now));
+                    $('#historyDateRangeApply').trigger('click');
+                });
+
+                $('#historyDateRangeClear').on('click', function() {
+                    $('#historyStartDate').val('');
+                    $('#historyEndDate').val('');
+                    $('#historyDateRangeApply').trigger('click');
+                });
+
+                refreshFilterState();
+            })();
         </script>
     @endpush
 

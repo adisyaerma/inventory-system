@@ -11,6 +11,7 @@ use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StockMutation;
 use App\Models\Vendor;
+use App\Support\CurrentUser;
 use App\Support\StockBaseline;
 use App\Support\StockTotalBalance;
 use Carbon\Carbon;
@@ -627,22 +628,8 @@ class StockMutationController extends Controller
 
             $lot = $request->filled('lot') ? trim($request->lot) : null;
 
-            // Kalau barang ini punya lebih dari satu baris stok (lot) di
-            // lokasi tersebut, user wajib memilih salah satu lot-nya
-            // terlebih dahulu supaya saldo tidak tercampur antar lot.
-            $lotRowCount = LocationStock::where('item_id', $request->item_id)
-                ->where('location_id', $location->id)
-                ->count();
-
-            if ($lotRowCount > 1 && ! $lot) {
-
-                DB::rollBack();
-
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
-                ], 422);
-            }
+            // Lot boleh kosong: kosong = baris stok "Tanpa Lot" yang terpisah dari
+            // lot lain (saldo tetap tidak tercampur karena per item + lokasi + lot).
 
             $locationStock = LocationStock::firstOrCreate(
                 [
@@ -681,6 +668,7 @@ class StockMutationController extends Controller
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
                 'qty_balance' => 0,
+                'performed_by' => CurrentUser::email(),
             ]);
 
             $this->recalculateLocationStock(
@@ -783,20 +771,6 @@ class StockMutationController extends Controller
 
             $lot = $request->filled('lot') ? trim($request->lot) : null;
 
-            $lotRowCount = LocationStock::where('item_id', $request->item_id)
-                ->where('location_id', $location->id)
-                ->count();
-
-            if ($lotRowCount > 1 && ! $lot) {
-
-                DB::rollBack();
-
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Barang ini memiliki beberapa lot di lokasi tersebut. Silakan pilih lot terlebih dahulu.',
-                ], 422);
-            }
-
             $locationStock = LocationStock::firstOrCreate(
                 [
                     'item_id' => $request->item_id,
@@ -845,6 +819,8 @@ class StockMutationController extends Controller
                 'description' => $request->description,
                 'qty_in' => $request->qty_in,
                 'qty_out' => $request->qty_out,
+                // Yang terakhir mengubah mutasi ini.
+                'performed_by' => CurrentUser::email(),
             ]);
 
             $this->recalculateLocationStock(

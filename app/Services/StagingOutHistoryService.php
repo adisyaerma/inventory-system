@@ -73,7 +73,20 @@ class StagingOutHistoryService
     public function sourceMeta(StagingOut $staging): array
     {
         if ($staging->source_type !== 'stock') {
-            return ['source_type' => 'external'];
+            $meta = ['source_type' => 'external'];
+
+            // Barang yang asalnya dari Staging In ("Pindahkan ke Staging Out")
+            // membawa staging_in_id + snapshot staging in-nya. Dicatat di sini
+            // supaya saat history dipulihkan, sambungan ke Staging In asal
+            // bisa dibuat lagi (dan qty bisa dikembalikan ke sana).
+            if ($staging->staging_in_id) {
+                $snapshot = json_decode((string) $staging->staging_in_snapshot, true);
+
+                $meta['staging_in_id'] = (int) $staging->staging_in_id;
+                $meta['staging_in_snapshot'] = is_array($snapshot) ? $snapshot : null;
+            }
+
+            return $meta;
         }
 
         return [
@@ -232,6 +245,13 @@ class StagingOutHistoryService
             'meta' => [
                 'do_number' => $doNumber,
                 'delivery_date' => $this->toDateString($deliveryDate),
+                // Kondisi TERAKHIR baris sebelum diarsipkan (sumber stok /
+                // lokasi / lot / Staging In asal + qty). Dipakai
+                // StagingOutHistoryController::bulkRestore() supaya hasil
+                // pemulihan persis sama dengan kondisi terakhir, walau
+                // barisnya pernah diedit / sumbernya diganti.
+                'final_source' => $this->sourceMeta($staging),
+                'final_qty' => (int) $staging->qty,
             ],
             'performed_by' => CurrentUser::email(),
         ]);

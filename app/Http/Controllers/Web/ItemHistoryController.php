@@ -375,7 +375,7 @@ class ItemHistoryController extends Controller
                 'lot' => $in->lot,
                 'reference' => null,
                 'notes' => null,
-                'by' => null,
+                'by' => $in->performed_by ?: $out->performed_by,
             ];
         }
 
@@ -517,7 +517,7 @@ class ItemHistoryController extends Controller
                         'lot' => $row->lot,
                         'reference' => $fromStagingIn->history?->po_number ?: $row->transaction_number,
                         'notes' => $row->description ?: null,
-                        'by' => $fromStagingIn->performed_by,
+                        'by' => $row->performed_by ?: $fromStagingIn->performed_by,
                     ];
                 }
 
@@ -566,7 +566,7 @@ class ItemHistoryController extends Controller
                     'lot' => $row->lot,
                     'reference' => $reference,
                     'notes' => $notes,
-                    'by' => null,
+                    'by' => $row->performed_by ?: ($fromStagingOut->performed_by ?? null),
                 ];
             })
             ->concat($moveRows)

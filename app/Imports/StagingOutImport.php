@@ -82,12 +82,16 @@ class StagingOutImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Resolve the Item that a row's kode_barang cell refers to, creating
-     * it on the fly when it doesn't exist yet in the items table — the
-     * id is always returned so the row can still be saved, never
-     * blocking the import. The sheet only carries a code (no separate
-     * item name column), so a newly created item's name falls back to
-     * the code itself.
+     * Resolve the Item that a row's kode_barang cell refers to.
+     *
+     * Urutan pencarian:
+     *  1. cocokkan ke kolom item_code_internal
+     *  2. kalau tidak ketemu, cocokkan ke kolom item_code_supplier
+     *  3. kalau tidak ada di keduanya, baru buat item baru
+     *     (item_code_internal diisi dengan kode dari Excel)
+     *
+     * Id selalu dikembalikan supaya baris tetap bisa disimpan dan
+     * import tidak terblokir.
      */
     private function resolveItemId(?string $itemCode): ?int
     {
@@ -95,12 +99,17 @@ class StagingOutImport implements ToCollection, WithHeadingRow
             return null;
         }
 
-        return Item::firstOrCreate(
-            ['item_code_internal' => $itemCode],
-            [
-                'name' => null,
-            ]
-        )->id;
+        $item = Item::where('item_code_internal', $itemCode)->first()
+            ?? Item::where('item_code_supplier', $itemCode)->first();
+
+        if ($item !== null) {
+            return $item->id;
+        }
+
+        return Item::create([
+            'item_code_internal' => $itemCode,
+            'name' => null,
+        ])->id;
     }
 
     public function collection(Collection $rows)

@@ -1024,158 +1024,396 @@
             <div class="px-3 pt-3">
 
                 <style>
-                    .filter-toolbar-card {
-                        background: #f8f9fb;
-                        border: 1px solid #eceef2;
-                        border-radius: 1rem;
-                        padding: 1rem 1.1rem;
+                    /* ===== Filter bar ===== */
+                    .fx {
+                        --fx-accent: var(--bs-primary, #0d6efd);
+                        --fx-accent-rgb: var(--bs-primary-rgb, 13, 110, 253);
+                        --fx-line: var(--bs-border-color, #dee2e6);
+                        --fx-muted: var(--bs-secondary-color, #6c757d);
+                        --fx-surface: var(--bs-body-bg, #fff);
                         margin-bottom: 1rem;
                     }
 
-                    .filter-toolbar-eyebrow {
+                    .fx-top {
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        gap: .6rem;
+                    }
+
+                    /* Pencarian */
+                    .fx-search {
+                        position: relative;
+                        flex: 1 1 320px;
+                        min-width: 0;
+                    }
+
+                    .fx-search-icon {
+                        position: absolute;
+                        left: 1rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: var(--fx-muted);
+                        pointer-events: none;
+                    }
+
+                    .fx-search input {
+                        width: 100%;
+                        height: 2.6rem;
+                        padding: 0 2.6rem 0 2.6rem;
+                        border: 1px solid var(--fx-line);
+                        border-radius: 999px;
+                        background: var(--fx-surface);
+                        color: var(--bs-body-color);
+                        font-size: .9rem;
+                        transition: border-color .15s ease, box-shadow .15s ease;
+                    }
+
+                    .fx-search input::placeholder {
+                        color: var(--fx-muted);
+                        opacity: .85;
+                    }
+
+                    .fx-search input:focus {
+                        outline: 0;
+                        border-color: rgba(var(--fx-accent-rgb), .55);
+                        box-shadow: 0 0 0 .25rem rgba(var(--fx-accent-rgb), .12);
+                    }
+
+                    .fx-search.has-value input {
+                        border-color: rgba(var(--fx-accent-rgb), .45);
+                    }
+
+                    .fx-search-clear {
+                        position: absolute;
+                        right: .45rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        display: none;
+                        align-items: center;
+                        justify-content: center;
+                        width: 1.8rem;
+                        height: 1.8rem;
+                        padding: 0;
+                        border: 0;
+                        border-radius: 50%;
+                        background: transparent;
+                        color: var(--fx-muted);
+                        font-size: .75rem;
+                    }
+
+                    .fx-search.has-value .fx-search-clear {
+                        display: inline-flex;
+                    }
+
+                    .fx-search-clear:hover {
+                        background: rgba(var(--fx-accent-rgb), .1);
+                        color: var(--fx-accent);
+                    }
+
+                    /* Ringkasan + reset */
+                    .fx-actions {
                         display: flex;
                         align-items: center;
-                        justify-content: space-between;
-                        gap: .5rem;
-                        margin-bottom: .75rem;
-                        color: #6c757d;
+                        gap: .6rem;
+                    }
+
+                    .fx-count {
+                        display: none;
                         font-size: .8rem;
                         font-weight: 600;
-                        letter-spacing: .02em;
-                        text-transform: uppercase;
+                        color: var(--fx-accent);
+                        white-space: nowrap;
                     }
 
-                    .filter-toolbar-eyebrow .filter-toolbar-eyebrow-label {
+                    .fx.has-active .fx-count {
+                        display: inline;
+                    }
+
+                    .fx-reset {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: .4rem;
+                        height: 2.6rem;
+                        padding: 0 1.05rem;
+                        border: 1px solid var(--fx-line);
+                        border-radius: 999px;
+                        background: var(--fx-surface);
+                        color: var(--fx-muted);
+                        font-size: .85rem;
+                        font-weight: 500;
+                        transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+                    }
+
+                    .fx-reset:hover,
+                    .fx.has-active .fx-reset {
+                        color: var(--fx-accent);
+                        border-color: rgba(var(--fx-accent-rgb), .45);
+                    }
+
+                    .fx-reset:hover {
+                        background: rgba(var(--fx-accent-rgb), .06);
+                    }
+
+                    .fx-reset:focus-visible,
+                    .fx-search-clear:focus-visible,
+                    .fx-preset:focus-visible {
+                        outline: 2px solid rgba(var(--fx-accent-rgb), .6);
+                        outline-offset: 2px;
+                    }
+
+                    /* Chip filter */
+                    .fx-chips {
                         display: flex;
+                        flex-wrap: wrap;
+                        gap: .5rem;
+                        margin-top: .7rem;
+                    }
+
+                    .fx-chip {
+                        position: relative;
+                        display: inline-flex;
                         align-items: center;
                         gap: .5rem;
+                        height: 2.3rem;
+                        padding: 0 .4rem 0 .85rem;
+                        border: 1px solid var(--fx-line);
+                        border-radius: 999px;
+                        background: var(--fx-surface);
+                        color: var(--bs-body-color);
+                        transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
                     }
 
-                    .filter-toolbar-eyebrow i {
-                        color: var(--bs-primary);
+                    .fx-chip:hover {
+                        border-color: rgba(var(--fx-accent-rgb), .4);
                     }
 
-                    .filter-toolbar {
-                        display: grid;
-                        grid-template-columns: repeat(4, 1fr);
-                        gap: .75rem 1rem;
-                        align-items: end;
+                    .fx-chip:focus-within {
+                        border-color: rgba(var(--fx-accent-rgb), .6);
+                        box-shadow: 0 0 0 .22rem rgba(var(--fx-accent-rgb), .12);
                     }
 
-
-                    .filter-label {
-                        display: block;
-                        font-size: .72rem;
-                        font-weight: 600;
-                        color: #8a93a3;
-                        text-transform: uppercase;
-                        letter-spacing: .02em;
-                        margin-bottom: .3rem;
+                    .fx-chip>i {
+                        color: var(--fx-muted);
+                        font-size: .95rem;
+                        line-height: 1;
                     }
 
-                    .filter-toolbar .input-group {
-                        border-radius: .5rem;
-                        overflow: hidden;
-                        transition: box-shadow .15s ease;
+                    .fx-chip label {
+                        margin: 0;
+                        font-size: .8rem;
+                        color: var(--fx-muted);
+                        white-space: nowrap;
+                        cursor: pointer;
                     }
 
-                    .filter-toolbar .input-group:focus-within {
-                        box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
-                    }
-
-                    .filter-toolbar .input-group-text,
-                    .filter-toolbar .form-control,
-                    .filter-toolbar .form-select {
-                        border-color: #dfe3e9;
-                    }
-
-                    .filter-toolbar .form-select,
-                    .filter-toolbar .form-control {
+                    .fx-chip select,
+                    .fx-chip input[type="text"] {
+                        height: 100%;
+                        max-width: 11.5rem;
+                        padding: 0 1.4rem 0 .1rem;
+                        border: 0;
+                        outline: 0;
+                        box-shadow: none;
+                        background-color: transparent;
+                        color: var(--bs-body-color);
                         font-size: .85rem;
+                        font-weight: 600;
+                        text-overflow: ellipsis;
+                        cursor: pointer;
                     }
 
-                    /* ===== Rentang tanggal ===== */
+                    .fx-chip select {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%238a93a3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+                        background-repeat: no-repeat;
+                        background-position: right .3rem center;
+                        background-size: .8rem;
+                    }
+
+                    .fx-chip select option {
+                        color: var(--bs-body-color);
+                        background: var(--fx-surface);
+                        font-weight: 400;
+                    }
+
+                    .fx-chip input[type="text"]::placeholder {
+                        color: var(--fx-muted);
+                        font-weight: 400;
+                    }
+
+                    .fx-chip.is-active {
+                        background: rgba(var(--fx-accent-rgb), .08);
+                        border-color: rgba(var(--fx-accent-rgb), .45);
+                    }
+
+                    .fx-chip.is-active>i,
+                    .fx-chip.is-active label {
+                        color: var(--fx-accent);
+                    }
+
+                    .fx-sep {
+                        align-self: center;
+                        width: 1px;
+                        height: 1.1rem;
+                        background: var(--fx-line);
+                    }
+
+                    .fx-chip.is-active .fx-sep {
+                        background: rgba(var(--fx-accent-rgb), .3);
+                    }
+
+                    /* Rentang tanggal */
                     .date-range-wrapper {
                         position: relative;
+                        display: flex;
+                        align-items: center;
+                        height: 100%;
+                    }
+
+                    .fx-chip-date input[type="text"] {
+                        width: 10.5rem;
+                        padding-right: .6rem;
                     }
 
                     .date-range-panel {
                         display: none;
                         position: absolute;
-                        top: calc(100% + 6px);
+                        top: calc(100% + 10px);
                         left: 0;
                         z-index: 1050;
-                        background: #fff;
-                        border: 1px solid #e5e7eb;
-                        border-radius: .75rem;
-                        box-shadow: 0 .5rem 1.5rem rgba(20, 20, 43, .12);
+                        width: 270px;
                         padding: 14px;
-                        width: 240px;
-                        opacity: 0;
-                        transform: translateY(-4px);
-                        transition: opacity .12s ease, transform .12s ease;
+                        background: var(--fx-surface);
+                        border: 1px solid var(--fx-line);
+                        border-radius: 1rem;
+                        box-shadow: 0 .75rem 2rem rgba(20, 20, 43, .14);
                     }
 
                     .date-range-panel.show {
                         display: block;
-                        opacity: 1;
-                        transform: translateY(0);
+                        animation: fxPop .14s ease-out;
                     }
 
-                    /* ===== Toggle "hanya yang telat" ===== */
-                    .overdue-toggle {
+                    @keyframes fxPop {
+                        from {
+                            opacity: 0;
+                            transform: translateY(-4px);
+                        }
+
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+
+                    .fx-presets {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: .35rem;
+                        margin-bottom: .75rem;
+                    }
+
+                    .fx-preset {
+                        padding: .25rem .65rem;
+                        border: 1px solid var(--fx-line);
+                        border-radius: 999px;
+                        background: transparent;
+                        color: var(--bs-body-color);
+                        font-size: .76rem;
+                        transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+                    }
+
+                    .fx-preset:hover {
+                        border-color: rgba(var(--fx-accent-rgb), .5);
+                        background: rgba(var(--fx-accent-rgb), .08);
+                        color: var(--fx-accent);
+                    }
+
+                    /* Banner filter dari dashboard */
+                    .fx-banner {
                         display: flex;
                         align-items: center;
-                        height: calc(1.5em + .5rem + 2px);
-                        padding: 0 .75rem;
-                        background: #fff;
-                        border: 1px solid #dfe3e9;
-                        border-radius: .5rem;
-                        transition: background-color .15s ease, border-color .15s ease;
+                        gap: .6rem;
+                        margin-bottom: .9rem;
+                        padding: .6rem .6rem .6rem .9rem;
+                        border: 1px solid rgba(var(--fx-accent-rgb), .3);
+                        border-radius: .85rem;
+                        background: rgba(var(--fx-accent-rgb), .07);
+                        color: var(--bs-body-color);
+                        font-size: .86rem;
+                        white-space: normal;
                     }
 
-                    .overdue-toggle:has(#filterOverdue:checked) {
-                        background: var(--bs-danger-bg-subtle, #f8d7da);
-                        border-color: var(--bs-danger-border-subtle, #f1aeb5);
+                    .fx-banner>i {
+                        color: var(--fx-accent);
+                        font-size: 1.05rem;
                     }
 
-                    .overdue-toggle .form-check {
-                        margin: 0;
+                    .fx-banner>span {
+                        flex: 1;
                     }
 
-                    .overdue-toggle .form-check-label {
-                        color: #6c757d;
-                        font-weight: 500;
-                        white-space: nowrap;
+                    .fx-banner-close {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 1.7rem;
+                        height: 1.7rem;
+                        padding: 0;
+                        border: 0;
+                        border-radius: 50%;
+                        background: transparent;
+                        color: var(--fx-muted);
+                        font-size: .72rem;
                     }
 
-                    .overdue-toggle:has(#filterOverdue:checked) .form-check-label {
-                        color: var(--bs-danger);
-                    }
-
-                    @media (max-width: 1199.98px) {
-                        .filter-toolbar {
-                            grid-template-columns: repeat(3, 1fr);
-                        }
-                    }
-
-                    @media (max-width: 991.98px) {
-                        .filter-toolbar {
-                            grid-template-columns: repeat(2, 1fr);
-                        }
+                    .fx-banner-close:hover {
+                        background: rgba(var(--fx-accent-rgb), .14);
+                        color: var(--fx-accent);
                     }
 
                     @media (max-width: 575.98px) {
-                        .filter-toolbar {
-                            grid-template-columns: 1fr;
+                        .fx-actions {
+                            width: 100%;
+                            justify-content: space-between;
+                        }
+
+                        .fx-chip-date {
+                            flex: 1 1 100%;
+                        }
+
+                        .fx-chip-date .date-range-wrapper {
+                            flex: 1;
+                        }
+
+                        .fx-chip-date input[type="text"] {
+                            width: 100%;
+                        }
+
+                        .date-range-panel {
+                            left: -3rem;
+                            right: 0;
+                            width: auto;
+                            min-width: 260px;
+                        }
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+
+                        .fx *,
+                        .date-range-panel.show {
+                            transition: none !important;
+                            animation: none !important;
                         }
                     }
                 </style>
 
                 @if ($activeFilter === 'today' || in_array($activeStatus, ['terlambat', 'menunggu_picking', 'siap_kirim', 'selesai']))
-                    <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3" id="activeFilterBanner">
+                    <div class="fx-banner" id="activeFilterBanner" role="status">
+                        <i class="bx bx-filter-alt"></i>
                         <span>
-                            <i class="bx bx-error me-1"></i>
                             @if ($activeFilter === 'today')
                                 Menampilkan pengirimaan yang dijadwalkan hari ini.
                             @elseif ($activeStatus === 'terlambat')
@@ -1188,123 +1426,95 @@
                                 Menampilkan staging out yang sudah selesai dikirim.
                             @endif
                         </span>
-                        <button type="button" class="btn-close" id="clearActiveFilterBtn" aria-label="Hapus filter"></button>
+                        <button type="button" class="fx-banner-close" id="clearActiveFilterBtn"
+                            aria-label="Hapus filter"><i class="bi bi-x-lg"></i></button>
                     </div>
                 @endif
 
-                <div class="filter-toolbar-card">
+                <div class="fx" id="filterBar">
 
-                    <div class="filter-toolbar-eyebrow">
-                        <div class="filter-toolbar-eyebrow-label">
-                            <i class="bi bi-sliders"></i>
-                            <span>Filter Data</span>
+                    <div class="fx-top">
+
+                        <!-- Pencarian -->
+                        <div class="fx-search">
+                            <i class="bi bi-search fx-search-icon"></i>
+                            <input type="text" id="customSearch" autocomplete="off"
+                                placeholder="Cari No. SO, customer, atau kode barang" aria-label="Cari">
+                            <button type="button" class="fx-search-clear" id="customSearchClear"
+                                aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
                         </div>
 
-                        <button type="button" class="btn-sm btn border-secondary bg-white border" id="resetFilterInline"
-                            title="Reset Filter">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-                                <path d="M0 0h21v21H0z" fill="none" />
-                                <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                    stroke-linejoin="round">
-                                    <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                    <path d="M7.5 6.5h-4v-4" />
-                                </g>
-                            </svg>
-                        </button>
+                        <div class="fx-actions">
+                            <span class="fx-count" id="filterCount" aria-live="polite"></span>
+                            <button type="button" class="fx-reset" id="resetFilterInline" title="Kembalikan semua filter">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                                <span>Reset</span>
+                            </button>
+                        </div>
+
                     </div>
 
-                    <div class="filter-toolbar">
+                    <div class="fx-chips">
 
-                        <!-- Search -->
-                        <div class="filter-group filter-group-search">
-                            <label class="filter-label" for="customSearch">Cari</label>
-                            <div class="input-group input-group-sm shadow-sm">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="bi bi-search text-muted"></i>
-                                </span>
-                                <input type="text" id="customSearch" class="form-control border-start-0"
-                                    placeholder="No. SO, customer, kode barang...">
-                            </div>
+                        <!-- Status pengiriman -->
+                        <div class="fx-chip">
+                            <i class="bi bi-truck"></i>
+                            <label for="filterStatus">Status</label>
+                            <select id="filterStatus">
+                                <option value="">Semua</option>
+                                <option value="belum_picking">Belum Picking</option>
+                                <option value="sudah_picking">Sudah Picking</option>
+                                <option value="belum_dikirim">Belum Dikirim</option>
+                            </select>
                         </div>
 
-                        <!-- Filter Status Pengiriman -->
-                        <div class="filter-group">
-                            <label class="filter-label" for="filterStatus">Status</label>
-                            <div class="input-group input-group-sm shadow-sm">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="bi bi-truck text-muted"></i>
-                                </span>
-                                <select class="form-select border-start-0" id="filterStatus">
-                                    <option value="">Semua Status</option>
-                                    <option value="belum_picking">Belum Picking</option>
-                                    <option value="sudah_picking">Sudah Picking</option>
-                                    <option value="belum_dikirim">Belum Dikirim</option>
-                                </select>
-                            </div>
+                        <!-- Customer -->
+                        <div class="fx-chip">
+                            <i class="bi bi-building"></i>
+                            <label for="filterCustomer">Customer</label>
+                            <select id="filterCustomer">
+                                <option value="">Semua</option>
+                                @foreach ($customers as $customer)
+                                    <option value="{{ $customer }}">{{ $customer }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
-                        <!-- Filter Customer -->
-                        <div class="filter-group">
-                            <label class="filter-label" for="filterCustomer">Customer</label>
-                            <div class="input-group input-group-sm shadow-sm">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="bi bi-building text-muted"></i>
-                                </span>
-                                <select class="form-select border-start-0" id="filterCustomer">
-                                    <option value="">Semua Customer</option>
-                                    @foreach ($customers as $customer)
-                                        <option value="{{ $customer }}">{{ $customer }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <!-- Lokasi -->
+                        <div class="fx-chip">
+                            <i class="bi bi-geo-alt"></i>
+                            <label for="filterLocation">Lokasi</label>
+                            <select id="filterLocation">
+                                <option value="">Semua</option>
+                                <option value="staging">Staging</option>
+                                <option value="packing">Packing</option>
+                                <option value="outbound">Outbound</option>
+                                <option value="belum_diisi">Belum Diisi</option>
+                            </select>
                         </div>
 
-                        <!-- Filter Lokasi -->
-                        <div class="filter-group">
-                            <label class="filter-label" for="filterLocation">Lokasi</label>
-                            <div class="input-group input-group-sm shadow-sm">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="bi bi-geo-alt text-muted"></i>
-                                </span>
-                                <select class="form-select border-start-0" id="filterLocation">
-                                    <option value="">Semua Lokasi</option>
-                                    <option value="staging">Staging</option>
-                                    <option value="packing">Packing</option>
-                                    <option value="outbound">Outbound</option>
-                                    <option value="belum_diisi">Belum Diisi</option>
-                                </select>
-                            </div>
-                        </div>
+                        <!-- Tanggal: jenis tanggal + rentangnya dalam satu chip -->
+                        <div class="fx-chip fx-chip-date">
+                            <i class="bi bi-calendar-event"></i>
+                            <label for="filterDateType">Tanggal</label>
+                            <select id="filterDateType">
+                                <option value="delivery_instruction_date">Instruksi Kirim</option>
+                                <option value="picking_date">Picking</option>
+                                <option value="delivery_receipt_date">Resi Pengiriman</option>
+                            </select>
 
-                        <!-- Pilihan jenis tanggal yang mau difilter -->
-                        <div class="filter-group">
-                            <label class="filter-label" for="filterDateType">Jenis Tanggal</label>
-                            <div class="input-group input-group-sm shadow-sm">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="bi bi-calendar-event text-muted"></i>
-                                </span>
-                                <select class="form-select border-start-0" id="filterDateType">
-                                    <option value="delivery_instruction_date">Tgl Instruksi Kirim</option>
-                                    <option value="picking_date">Tgl Picking</option>
-                                    <option value="delivery_receipt_date">Tgl Resi Pengiriman</option>
-                                </select>
-                            </div>
-                        </div>
+                            <span class="fx-sep"></span>
 
-                        <!-- Rentang Tanggal (mengikuti jenis tanggal yang dipilih) -->
-                        <div class="filter-group">
-                            <label class="filter-label" for="filterDateRange">Rentang Tanggal</label>
                             <div class="date-range-wrapper">
-                                <div class="input-group input-group-sm shadow-sm">
-                                    <span class="input-group-text bg-white border-end-0">
-                                        <i class="bi bi-calendar-range text-muted"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0" id="filterDateRange"
-                                        placeholder="Pilih rentang tanggal" title="Rentang Tanggal" readonly
-                                        autocomplete="off">
-                                </div>
+                                <input type="text" id="filterDateRange" placeholder="Semua tanggal"
+                                    title="Rentang tanggal" aria-label="Rentang tanggal" readonly autocomplete="off">
 
                                 <div class="date-range-panel" id="dateRangePanel">
+                                    <div class="fx-presets">
+                                        <button type="button" class="fx-preset" data-preset="today">Hari ini</button>
+                                        <button type="button" class="fx-preset" data-preset="7d">7 hari terakhir</button>
+                                        <button type="button" class="fx-preset" data-preset="month">Bulan ini</button>
+                                    </div>
                                     <div class="mb-2">
                                         <label class="form-label small mb-1 text-muted">Dari</label>
                                         <input type="date" class="form-control form-control-sm" id="filterStartDate">
@@ -1313,10 +1523,11 @@
                                         <label class="form-label small mb-1 text-muted">Sampai</label>
                                         <input type="date" class="form-control form-control-sm" id="filterEndDate">
                                     </div>
-                                    <div class="d-flex justify-content-end gap-2 mt-2">
-                                        <button type="button" class="btn btn-sm btn-primary w-100" id="dateRangeApply">
-                                            Terapkan
-                                        </button>
+                                    <div class="d-flex gap-2 mt-3">
+                                        <button type="button" class="btn btn-sm btn-light flex-shrink-0"
+                                            id="dateRangeClear">Hapus</button>
+                                        <button type="button" class="btn btn-sm btn-primary w-100"
+                                            id="dateRangeApply">Terapkan</button>
                                     </div>
                                 </div>
                             </div>
@@ -1702,35 +1913,6 @@
 
                     <div class="as-body flex-grow-1 overflow-auto">
 
-                        {{-- ================= SUMBER BARANG ================= --}}
-                        <label class="as-label">Sumber Barang</label>
-
-                        <div class="as-source">
-                            <div>
-                                <input type="radio" name="source_type" id="editSourceExternal" value="external"
-                                    autocomplete="off" checked>
-                                <label for="editSourceExternal">
-                                    <span class="as-source-icon"><i class="bx bx-package"></i></span>
-                                    <span>
-                                        <strong>Barang Eksternal</strong>
-                                        <small>Bukan dari stok gudang</small>
-                                    </span>
-                                </label>
-                            </div>
-
-                            <div>
-                                <input type="radio" name="source_type" id="editSourceStock" value="stock"
-                                    autocomplete="off">
-                                <label for="editSourceStock">
-                                    <span class="as-source-icon"><i class="bx bx-archive-in"></i></span>
-                                    <span>
-                                        <strong>Dari Stok</strong>
-                                        <small>Ambil dari lokasi stok</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
                         <div class="row g-4 mb-3">
 
                             {{-- ================= LEFT ================= --}}
@@ -1771,29 +1953,6 @@
                                             <input type="hidden" name="item_id" id="editItemId">
                                         </div>
 
-                                        <div class="col-12 d-none" id="editStockFields">
-                                            <div class="as-stock-box">
-                                                <div class="row g-3">
-                                                    <div class="col-12">
-                                                        <label class="as-label">Lokasi</label>
-                                                        <select class="as-select" name="location_id"
-                                                            id="editLocationSelect" disabled>
-                                                            <option value="">-- Pilih Lokasi --</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <label class="as-label">Lot</label>
-                                                        <select class="as-select" name="lot" id="editLotSelect"
-                                                            disabled>
-                                                            <option value="">-- Pilih Lot --</option>
-                                                        </select>
-                                                        <small class="text-success d-block mt-1"
-                                                            id="editQtyMaxHint"></small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
                                         <div class="col-md-6">
                                             <label class="as-label">Line Item</label>
                                             <div class="as-field">
@@ -1807,8 +1966,11 @@
                                             <label class="as-label">Qty</label>
                                             <div class="as-field">
                                                 <i class="bx bx-cube-alt"></i>
-                                                <input type="number" class="as-input" name="qty" min="0"
+                                                <input type="number" class="as-input" name="qty" min="1"
                                                     id="editQty">
+                                            </div>
+                                            <div class="form-text d-none" id="editQtyHint">
+                                                Total dari beberapa sumber. Untuk membagi qty, pakai tombol "Ubah Sumber".
                                             </div>
                                         </div>
 
@@ -2557,6 +2719,130 @@
                 border: 1px dashed #f5d9a8;
             }
 
+            /* ---------- MULTI SUMBER: beberapa baris sumber per barang ---------- */
+            #assignSourceModal .sm-row {
+                grid-template-columns: minmax(0, 1fr) auto;
+            }
+
+            #assignSourceModal .sm-pick {
+                grid-column: 1 / -1;
+            }
+
+            #assignSourceModal .sm-allocs {
+                display: flex;
+                flex-direction: column;
+                gap: .5rem;
+            }
+
+            #assignSourceModal .sm-alloc {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: .5rem;
+                padding: .45rem;
+                border-radius: .85rem;
+                background: #f7f8fd;
+            }
+
+            #assignSourceModal .sm-alloc-qty {
+                width: 84px;
+                padding: .4rem .6rem;
+                border: 1px solid #e1e4f0;
+                border-radius: .7rem;
+                font-size: .85rem;
+                font-weight: 700;
+                text-align: center;
+                color: #2b3350;
+                background: #fff;
+            }
+
+            #assignSourceModal .sm-alloc-qty:focus {
+                outline: 0;
+                border-color: #4f46e5;
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, .12);
+            }
+
+            #assignSourceModal .sm-alloc-qty:disabled {
+                opacity: .6;
+                background: #f1f2f8;
+            }
+
+            #assignSourceModal .sm-alloc-del {
+                display: grid;
+                place-items: center;
+                width: 2rem;
+                height: 2rem;
+                border: 0;
+                border-radius: .6rem;
+                color: #dc2626;
+                background: #fdecec;
+            }
+
+            #assignSourceModal .sm-alloc-del:hover {
+                color: #fff;
+                background: #dc2626;
+            }
+
+            #assignSourceModal .sm-foot {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: .5rem;
+                margin-top: .5rem;
+            }
+
+            #assignSourceModal .sm-foot-left {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: .6rem;
+            }
+
+            #assignSourceModal .sm-add {
+                border: 0;
+                padding: .4rem .75rem;
+                border-radius: .7rem;
+                font-size: .76rem;
+                font-weight: 600;
+                color: #4f46e5;
+                background: #eef0ff;
+                transition: all .15s;
+            }
+
+            #assignSourceModal .sm-add:hover:not(:disabled) {
+                color: #fff;
+                background: #4f46e5;
+            }
+
+            #assignSourceModal .sm-add:disabled {
+                opacity: .45;
+                cursor: not-allowed;
+            }
+
+            #assignSourceModal .sm-total {
+                font-size: .76rem;
+                font-weight: 700;
+            }
+
+            #assignSourceModal .sm-total.is-ok {
+                color: #047857;
+            }
+
+            #assignSourceModal .sm-total.is-short {
+                color: #b45309;
+            }
+
+            #assignSourceModal .sm-total.is-bad {
+                color: #dc2626;
+            }
+
+            #assignSourceModal .sm-card.is-revert .sm-allocs,
+            #assignSourceModal .sm-card.is-revert .sm-foot-left {
+                opacity: .45;
+                pointer-events: none;
+            }
+
             /* ---------- TOM SELECT biar senada dengan modal tambah ---------- */
             #assignSourceModal .ts-wrapper .ts-control {
                 min-height: 42px;
@@ -3183,206 +3469,6 @@
                     syncImportModeVisibility();
                 });
 
-                // ================= SUMBER BARANG: Eksternal vs Stok =================
-                // Mengatur toggle radio "Eksternal"/"Stok", menampilkan field
-                // Lokasi & Lot ketika "Stok" dipilih, mengisi keduanya secara
-                // berjenjang (item -> lokasi -> lot), dan membatasi input Qty
-                // supaya tidak melebihi sisa stok pada lot yang dipilih.
-                function setupSourceType(cfg) {
-
-                    let $stockFields = $(cfg.stockFieldsSel);
-                    let $extRadio = $(cfg.extRadioSel);
-                    let $stockRadio = $(cfg.stockRadioSel);
-                    let $locationSelect = $(cfg.locationSelectSel);
-                    let $lotSelect = $(cfg.lotSelectSel);
-                    let $qtyInput = $(cfg.qtyInputSel);
-                    let $qtyHint = $(cfg.qtyHintSel);
-
-                    // Penanda permintaan terbaru: respon AJAX yang sudah basi (modal sudah
-                    // ditutup / dibuka ulang / item diganti) tidak boleh mengisi select lagi,
-                    // kalau tidak opsi lokasi/lot bisa dobel atau nyasar ke data lain.
-                    let locReq = 0;
-                    let lotReq = 0;
-
-                    function resetLot() {
-                        lotReq++;
-                        $lotSelect.html('<option value="">-- Pilih Lot --</option>').prop('disabled', true);
-                        $qtyHint.text('');
-                        $qtyInput.removeAttr('max');
-                    }
-
-                    function resetLocationLot() {
-                        locReq++;
-                        $locationSelect.html('<option value="">-- Pilih Lokasi --</option>').prop(
-                            'disabled', true);
-                        resetLot();
-                    }
-
-                    function toggleVisibility(e) {
-                        let isStock = $stockRadio.is(':checked');
-                        $stockFields.toggleClass('d-none', !isStock);
-
-                        if (!isStock) {
-                            resetLocationLot();
-                            return;
-                        }
-
-                        // User pindah dari Eksternal ke Stok padahal barang sudah dipilih:
-                        // daftar lokasi belum pernah dimuat, jadi muat sekarang.
-                        // (Hanya untuk klik user, bukan .trigger('change') dari kode.)
-                        if (e && e.originalEvent && cfg.getItemId() && $locationSelect.prop('disabled')) {
-                            loadLocations(cfg.getItemId());
-                        }
-                    }
-
-                    $extRadio.add($stockRadio).on('change', toggleVisibility);
-
-                    // Pilih opsi lot berdasarkan nilainya. Opsi "(Tanpa Lot)" dan placeholder
-                    // "-- Pilih Lot --" sama-sama bernilai '', jadi yang dicari hanya opsi
-                    // lot asli (punya data-qty) supaya hint & batas qty ikut terisi.
-                    function selectLot(value) {
-                        let wanted = (value === null || value === undefined) ? '' : String(value);
-
-                        let $opt = $lotSelect.find('option').filter(function() {
-                            return this.getAttribute('data-qty') !== null && this.value === wanted;
-                        }).first();
-
-                        if ($opt.length) {
-                            $opt.prop('selected', true);
-                        }
-
-                        $lotSelect.trigger('change');
-                    }
-
-                    // true = ada pilihan lot, tapi belum ada yang dipilih.
-                    function needsLot() {
-                        let hasLots = $lotSelect.find('option[data-qty]').length > 0;
-                        let chosen = $lotSelect.find('option:selected')[0];
-
-                        return hasLots && (!chosen || chosen.getAttribute('data-qty') === null);
-                    }
-
-                    function loadLocations(itemId) {
-                        resetLocationLot();
-
-                        if (!itemId) {
-                            return $.Deferred().resolve([]).promise();
-                        }
-
-                        let token = locReq;
-
-                        return $.getJSON("{{ route('stagings-out.search-location-for-item') }}", {
-                            item_id: itemId,
-                            staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
-                        }).then(function(res) {
-                            if (token !== locReq) return res;
-
-                            $locationSelect.prop('disabled', false);
-
-                            res.forEach(function(loc) {
-                                $locationSelect.append($('<option>', {
-                                    value: loc.id,
-                                    text: loc.text + ' (stok: ' + loc.total_quantity + ')'
-                                }));
-                            });
-
-                            return res;
-                        }, function(xhr) {
-                            if (token === locReq) {
-                                showToast('error', 'Gagal memuat daftar lokasi. Coba pilih barang lagi.');
-                            }
-
-                            return xhr;
-                        });
-                    }
-
-                    function loadLots(itemId, locationId) {
-                        resetLot();
-
-                        if (!itemId || !locationId) {
-                            return $.Deferred().resolve([]).promise();
-                        }
-
-                        let token = lotReq;
-
-                        return $.getJSON("{{ route('stagings-out.search-lot-for-item-location') }}", {
-                            item_id: itemId,
-                            location_id: locationId,
-                            staging_out_id: cfg.getStagingOutId ? cfg.getStagingOutId() : ''
-                        }).then(function(res) {
-                            if (token !== lotReq) return res;
-
-                            $lotSelect.prop('disabled', false);
-
-                            res.forEach(function(lotRow) {
-                                $lotSelect.append($('<option>', {
-                                    value: lotRow.id,
-                                    text: lotRow.text + ' (stok: ' + lotRow.quantity + ')',
-                                    'data-qty': lotRow.quantity
-                                }));
-                            });
-
-                            // Kalau cuma ada 1 lot, langsung pilihkan biar user
-                            // ga perlu klik lagi (banyak item tidak pakai lot).
-                            if (res.length === 1) {
-                                selectLot(res[0].id);
-                            }
-
-                            return res;
-                        }, function(xhr) {
-                            if (token === lotReq) {
-                                showToast('error', 'Gagal memuat daftar lot. Coba pilih lokasi lagi.');
-                            }
-
-                            return xhr;
-                        });
-                    }
-
-                    $locationSelect.on('change', function() {
-                        loadLots(cfg.getItemId(), $(this).val());
-                    });
-
-                    $lotSelect.on('change', function() {
-                        let qty = $(this).find(':selected').data('qty');
-
-                        if (qty !== undefined && qty !== '' && qty !== null) {
-                            $qtyInput.attr('max', qty);
-                            $qtyHint.text('Stok tersedia: ' + qty);
-                        } else {
-                            $qtyInput.removeAttr('max');
-                            $qtyHint.text('');
-                        }
-                    });
-
-                    return {
-                        loadLocations: loadLocations,
-                        loadLots: loadLots,
-                        selectLot: selectLot,
-                        needsLot: needsLot,
-                        reset: function() {
-                            $extRadio.prop('checked', true);
-                            resetLocationLot();
-                            $stockFields.addClass('d-none');
-                        }
-                    };
-                }
-
-                let editSourceType = setupSourceType({
-                    stockFieldsSel: '#editStockFields',
-                    extRadioSel: '#editSourceExternal',
-                    stockRadioSel: '#editSourceStock',
-                    locationSelectSel: '#editLocationSelect',
-                    lotSelectSel: '#editLotSelect',
-                    qtyInputSel: '#editQty',
-                    qtyHintSel: '#editQtyMaxHint',
-                    getItemId: function() {
-                        return $('#editItemId').val();
-                    },
-                    getStagingOutId: function() {
-                        return $('#editId').val();
-                    }
-                });
-
                 // ================= BARANG (TomSelect dari tabel items) =================
                 function initItemSelect(selectId, idFieldId, onItemChange) {
 
@@ -3423,13 +3509,7 @@
                     });
                 }
 
-                let editItemSelect = initItemSelect('#editItemSelect', '#editItemId', function(itemId) {
-                    // Untuk barang eksternal daftar lokasi tidak dipakai; kalau nanti user
-                    // pindah ke "Dari Stok", daftarnya dimuat saat itu (lihat toggleVisibility).
-                    if ($('#editSourceStock').is(':checked')) {
-                        editSourceType.loadLocations(itemId);
-                    }
-                });
+                let editItemSelect = initItemSelect('#editItemSelect', '#editItemId');
 
                 // ================= ALERT HELPER (SweetAlert) =================
                 // Satu pintu untuk semua notifikasi form: selalu tampil di atas modal,
@@ -4192,7 +4272,9 @@
                             $('#editSoNumber').val(res.so_number);
                             $('#editCustomer').val(res.customer);
                             $('#editLineItem').val(res.line_item);
-                            $('#editQty').val(res.qty);
+                            // Record dari beberapa sumber: tampil sebagai total, tidak bisa diubah di sini.
+                            $('#editQty').val(res.qty).prop('readonly', !!res.qty_locked);
+                            $('#editQtyHint').toggleClass('d-none', !res.qty_locked);
                             $('#editDeliveryInstructionDate').val(res.delivery_instruction_date);
                             $('#editPickingDate').val(res.picking_date);
                             $('#editDoNumber').val(res.do_number);
@@ -4222,30 +4304,6 @@
                                 editItemSelect.setValue(res.item_id, true);
                             }
 
-                            // ---- Sumber Barang: Eksternal vs Stok ----
-                            let isStock = res.source_type === 'stock';
-
-                            $('#editSourceExternal').prop('checked', !isStock);
-                            $('#editSourceStock').prop('checked', isStock).trigger('change');
-
-                            if (isStock && res.item_id && res.location_id) {
-
-                                editSourceType.loadLocations(res.item_id).then(function() {
-
-                                    $('#editLocationSelect').val(String(res.location_id));
-
-                                    return editSourceType.loadLots(res.item_id, res.location_id);
-
-                                }).then(function() {
-
-                                    // "(Tanpa Lot)" & placeholder sama-sama bernilai '' —
-                                    // selectLot() memilih opsi lot yang asli supaya hint
-                                    // stok dan batas qty ikut terisi.
-                                    editSourceType.selectLot(res.lot);
-
-                                });
-                            }
-
                         },
 
                         error: function(xhr) {
@@ -4268,35 +4326,10 @@
 
                     let id = $('#editId').val();
 
-                    const editIsStock = function() {
-                        return $('#editSourceStock').is(':checked');
-                    };
-
                     if (reportChecks(collectChecks([{
-                            el: '#editItemId',
-                            target: '#editItemSelect',
-                            when: editIsStock,
-                            validate: requiredCheck('Barang belum dipilih. Pilih barang terlebih dahulu untuk sumber stok.')
-                        },
-                        {
-                            el: '#editLocationSelect',
-                            when: editIsStock,
-                            validate: requiredCheck('Lokasi belum dipilih. Pilih lokasi yang memiliki stok barang ini.')
-                        },
-                        {
-                            el: '#editLotSelect',
-                            when: function() {
-                                return editIsStock() && editSourceType.needsLot();
-                            },
-                            validate: function() {
-                                return 'Lot belum dipilih. Pilih lot barang yang akan diambil dari stok.';
-                            }
-                        },
-                        {
                             el: '#editQty',
-                            validate: qtyCheck('Qty', 'sisa stok pada lot ini')
-                        }
-                    ]))) return;
+                            validate: qtyCheck('Qty')
+                        }]))) return;
 
                     $.ajax({
 
@@ -4345,11 +4378,12 @@
 
                 $('#editStagingOutModal').on('hidden.bs.modal', function() {
                     this.querySelector('form').reset();
+                    $('#editQty').prop('readonly', false);
+                    $('#editQtyHint').addClass('d-none');
                     editItemSelect.clear();
                     editItemSelect.clearOptions();
                     editItemSelect.loadedSearches = {};
                     $('#editItemId').val('');
-                    editSourceType.reset();
                 });
 
                 // ================= KONFIRMASI TANGGAL PICKING: buka modal =================
@@ -4610,6 +4644,87 @@
             }
 
             updateExportUrl();
+        </script>
+
+        <script>
+            // ============ TAMPILAN FILTER (penanda aktif, hapus pencarian, preset tanggal) ============
+            (function() {
+                const $bar = $('#filterBar');
+
+                function filled($el) {
+                    return String($el.val() || '').trim() !== '';
+                }
+
+                function refreshFilterState() {
+                    let count = 0;
+
+                    const searchFilled = filled($('#customSearch'));
+                    $('.fx-search').toggleClass('has-value', searchFilled);
+                    if (searchFilled) count++;
+
+                    ['#filterStatus', '#filterCustomer', '#filterLocation'].forEach(function(sel) {
+                        const on = filled($(sel));
+                        $(sel).closest('.fx-chip').toggleClass('is-active', on);
+                        if (on) count++;
+                    });
+
+                    // Status/filter yang datang dari link dashboard tidak punya opsi di dropdown,
+                    // tapi tetap dihitung sebagai filter aktif.
+                    if (!filled($('#filterStatus')) && (activeUrlStatus || activeUrlFilter)) {
+                        count++;
+                    }
+
+                    const dateOn = filled($('#filterDateRange'));
+                    $('#filterDateRange').closest('.fx-chip').toggleClass('is-active', dateOn);
+                    if (dateOn) count++;
+
+                    $bar.toggleClass('has-active', count > 0);
+                    $('#filterCount').text(count > 0 ? count + ' filter aktif' : '');
+                }
+
+                $('#customSearch, #filterStatus, #filterCustomer, #filterLocation, #filterDateType')
+                    .on('input change', refreshFilterState);
+
+                // Handler lama mengisi nilai lewat .val() (tanpa event), jadi cek ulang sesudahnya.
+                $('#dateRangeApply, #resetFilterInline, #clearActiveFilterBtn, .stat-card-clickable')
+                    .on('click', function() {
+                        setTimeout(refreshFilterState, 0);
+                    });
+
+                $('#customSearchClear').on('click', function() {
+                    $('#customSearch').val('').trigger('input').trigger('focus');
+                });
+
+                // Preset rentang tanggal: isi Dari/Sampai lalu pakai tombol Terapkan yang sudah ada.
+                function ymd(d) {
+                    const p = (n) => String(n).padStart(2, '0');
+                    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+                }
+
+                $('.fx-preset').on('click', function() {
+                    const now = new Date();
+                    let from = new Date(now);
+                    const preset = $(this).data('preset');
+
+                    if (preset === '7d') {
+                        from.setDate(now.getDate() - 6);
+                    } else if (preset === 'month') {
+                        from = new Date(now.getFullYear(), now.getMonth(), 1);
+                    }
+
+                    $('#filterStartDate').val(ymd(from));
+                    $('#filterEndDate').val(ymd(now));
+                    $('#dateRangeApply').trigger('click');
+                });
+
+                $('#dateRangeClear').on('click', function() {
+                    $('#filterStartDate').val('');
+                    $('#filterEndDate').val('');
+                    $('#dateRangeApply').trigger('click');
+                });
+
+                refreshFilterState();
+            })();
         </script>
 
         <style>
@@ -4989,6 +5104,23 @@
                     });
                 }
 
+                // Data tiap barang (hasil sourceOptions), dicari lewat id baris.
+                const rowsById = {};
+                const MAX_LINES = 6;
+
+                function lineHtml() {
+                    return `<div class="sm-alloc">
+                        <div class="as-seg">
+                            <button type="button" class="sm-tab" data-tab="staging_in"><i class="bx bx-package"></i> Staging In <b class="sm-n">0</b></button>
+                            <button type="button" class="sm-tab" data-tab="stock"><i class="bx bx-archive-in"></i> Stok <b class="sm-n">0</b></button>
+                        </div>
+                        <div class="sm-sel-wrap" data-pane="staging_in"><select class="sm-select" data-group="staging_in"></select></div>
+                        <div class="sm-sel-wrap d-none" data-pane="stock"><select class="sm-select" data-group="stock"></select></div>
+                        <input type="number" class="sm-alloc-qty" min="1" step="1" placeholder="Qty" title="Qty yang diambil dari sumber ini" disabled>
+                        <button type="button" class="sm-alloc-del d-none" title="Hapus sumber ini"><i class="bx bx-x"></i></button>
+                    </div>`;
+                }
+
                 function cardHtml(r, idx) {
                     let pick;
 
@@ -5001,28 +5133,17 @@
                     } else if (!r.options.length) {
                         pick = `<div class="sm-pick-wrap"><div class="sm-empty flex-grow-1"><i class="bx bx-error-circle fs-5"></i> Tidak ada Staging In atau stok lain yang tersedia.</div>${revertBtn}</div>`;
                     } else {
-                        const nIn = r.options.filter(o => o.group === 'staging_in').length;
-                        const nSt = r.options.filter(o => o.group === 'stock').length;
-                        const start = (r.current && r.current.type && r.options.some(o => o.group === r.current.type)) ? r.current.type : (nIn ? 'staging_in' : 'stock');
-
-                        pick = `<div class="sm-pick-wrap">
-                            <div class="as-seg">
-                                <button type="button" class="sm-tab ${start === 'staging_in' ? 'active' : ''}" data-tab="staging_in" ${nIn ? '' : 'disabled'}>
-                                    <i class="bx bx-package"></i> Staging In <b>${nIn}</b></button>
-                                <button type="button" class="sm-tab ${start === 'stock' ? 'active' : ''}" data-tab="stock" ${nSt ? '' : 'disabled'}>
-                                    <i class="bx bx-archive-in"></i> Stok <b>${nSt}</b></button>
-                            </div>
-                            <div class="sm-sel-wrap ${start === 'staging_in' ? '' : 'd-none'}" data-pane="staging_in">
-                                <select class="sm-select" data-id="${r.id}" data-group="staging_in"></select>
-                            </div>
-                            <div class="sm-sel-wrap ${start === 'stock' ? '' : 'd-none'}" data-pane="stock">
-                                <select class="sm-select" data-id="${r.id}" data-group="stock"></select>
-                            </div>
-                            ${revertBtn}
-                        </div>`;
+                        pick = `<div class="sm-allocs"></div>
+                            <div class="sm-foot">
+                                <div class="sm-foot-left">
+                                    <button type="button" class="sm-add"><i class="bx bx-plus"></i> Tambah sumber lain</button>
+                                    <span class="sm-total"></span>
+                                </div>
+                                ${revertBtn}
+                            </div>`;
                     }
 
-                    return `<div class="sm-card" data-id="${r.id}" data-qty="${r.qty}" style="animation-delay:${Math.min(idx, 8) * 30}ms">
+                    return `<div class="sm-card" data-id="${r.id}" data-qty="${r.qty}" data-state="idle" style="animation-delay:${Math.min(idx, 8) * 30}ms">
                         <div class="sm-row">
                             <div class="d-flex align-items-center gap-3" style="min-width:0">
                                 <span class="row-number">${idx + 1}</span>
@@ -5043,6 +5164,67 @@
                     </div>`;
                 }
 
+                // Sumber yang dipilih pada satu baris sumber (kosong = belum dipilih).
+                function lineInfo($line) {
+                    let source = '';
+                    let available = 0;
+
+                    $line.find('.sm-select').each(function() {
+                        if (!this.tomselect) return;
+
+                        const v = this.tomselect.getValue();
+
+                        if (v) {
+                            source = v;
+                            const o = this.tomselect.options[v];
+                            available = o ? +o.available : 0;
+                        }
+                    });
+
+                    return {
+                        source: source,
+                        available: available,
+                        qty: $line.find('.sm-alloc-qty').val()
+                    };
+                }
+
+                function sumOtherLines($card, $line) {
+                    let total = 0;
+
+                    $card.find('.sm-alloc').not($line).each(function() {
+                        const info = lineInfo($(this));
+                        const q = parseInt(info.qty, 10);
+
+                        if (info.source && q > 0) total += q;
+                    });
+
+                    return total;
+                }
+
+                function addLine($card) {
+                    const r = rowsById[$card.data('id')];
+
+                    if (!r || $card.find('.sm-alloc').length >= MAX_LINES) return;
+
+                    const $line = $(lineHtml());
+                    const nIn = r.options.filter(o => o.group === 'staging_in').length;
+                    const nSt = r.options.filter(o => o.group === 'stock').length;
+                    const start = nIn ? 'staging_in' : 'stock';
+
+                    $line.find('[data-tab="staging_in"]').prop('disabled', !nIn).find('.sm-n').text(nIn);
+                    $line.find('[data-tab="stock"]').prop('disabled', !nSt).find('.sm-n').text(nSt);
+                    $line.find(`[data-tab="${start}"]`).addClass('active');
+                    $line.find('.sm-sel-wrap').addClass('d-none').filter(`[data-pane="${start}"]`).removeClass('d-none');
+
+                    $card.find('.sm-allocs').append($line);
+
+                    $line.find('.sm-select').each(function() {
+                        initSelect(this, r, $(this).data('group'));
+                    });
+
+                    refreshCard($card);
+                }
+
                 function initSelect(el, r, group) {
                     const config = {
                         valueField: 'value',
@@ -5061,33 +5243,49 @@
                             disabled: !o.enough
                         })),
                         maxItems: 1,
-                        placeholder: (r.current ? 'Ganti ke ' : 'Pilih ') + (group === 'staging_in' ? 'Staging In...' : 'lokasi · lot...'),
+                        placeholder: 'Pilih ' + (group === 'staging_in' ? 'Staging In...' : 'lokasi · lot...'),
                         dropdownParent: 'body',
                         dropdownClass: 'ts-dropdown sm-ts-dropdown',
                         render: {
                             option: function(d, escFn) {
-                                return `<div class="sm-ts-opt ${d.enough ? '' : 'is-short'}">
+                                return `<div class="sm-ts-opt">
                                     <div><div class="t">${escFn(d.title)}</div><div>${chipsHtml(d.chips, escFn)}</div></div>
-                                    <div class="q"><b>${num(d.available)}</b><small>${d.enough ? 'tersedia' : 'qty kurang'}</small></div>
+                                    <div class="q"><b>${num(d.available)}</b><small>tersedia</small></div>
                                 </div>`;
                             },
                             item: function(d, escFn) {
                                 return `<div class="sm-sel-item"><b>${escFn(d.title)}</b>${chipsHtml(d.chips, escFn)}
-                                    <span class="sm-sel-left">sisa ${num(d.available - r.qty)} setelah diambil</span></div>`;
+                                    <span class="sm-sel-left">tersedia ${num(d.available)}</span></div>`;
                             }
                         },
                         onChange: function(value) {
-                            const $card = $(el).closest('.sm-card');
+                            const $line = $(el).closest('.sm-alloc');
+                            const $card = $line.closest('.sm-card');
+                            const $qty = $line.find('.sm-alloc-qty');
 
-                            // Satu sumber per barang: kosongkan select jenis lainnya.
+                            // Satu jenis sumber per baris: kosongkan select jenis lainnya.
                             if (value) {
-                                $card.find('.sm-select').not(el).each(function() {
+                                $line.find('.sm-select').not(el).each(function() {
                                     if (this.tomselect) this.tomselect.clear(true);
                                 });
                             }
 
-                            $card.toggleClass('is-set', !!value);
-                            updateSummary();
+                            const opt = value ? this.options[value] : null;
+
+                            if (opt) {
+                                $qty.prop('disabled', false).attr('max', opt.available);
+
+                                // Isi otomatis dengan sisa kebutuhan (maks. sebesar yang tersedia),
+                                // kecuali qty sudah diketik manual.
+                                if (!$qty.data('manual')) {
+                                    const remaining = r.qty - sumOtherLines($card, $line);
+                                    $qty.val(Math.max(1, Math.min(+opt.available, remaining)));
+                                }
+                            } else {
+                                $qty.prop('disabled', true).val('').removeAttr('max').removeData('manual');
+                            }
+
+                            refreshCard($card);
                         }
                     };
 
@@ -5104,30 +5302,115 @@
                     }
                 }
 
-                function updateSummary() {
-                    let chosen = 0;
+                // Hitung ulang status satu kartu: total qty yang dialokasikan vs qty barang.
+                //   idle  = belum ada sumber dipilih
+                //   short = total kurang dari qty   (belum bisa disimpan)
+                //   bad   = lebih / melebihi tersedia / qty kosong (belum bisa disimpan)
+                //   ok    = total pas, siap disimpan
+                function refreshCard($card) {
+                    const r = rowsById[$card.data('id')];
 
-                    $('#assignSourceBody .sm-select').each(function() {
-                        if (this.tomselect && this.tomselect.getValue()) chosen++;
+                    if (!r) return;
+
+                    const $lines = $card.find('.sm-alloc');
+
+                    $lines.find('.sm-alloc-del').toggleClass('d-none', $lines.length < 2);
+
+                    if ($card.hasClass('is-revert')) {
+                        $card.attr('data-state', 'idle').removeClass('is-set');
+                        $card.find('.sm-total').attr('class', 'sm-total').text('');
+                        updateSummary();
+                        return;
+                    }
+
+                    let total = 0;
+                    let picked = 0;
+                    let bad = '';
+                    const perSource = {};
+
+                    $lines.each(function() {
+                        const info = lineInfo($(this));
+
+                        if (!info.source) return;
+
+                        picked++;
+
+                        const q = parseInt(info.qty, 10);
+
+                        if (!(q >= 1)) {
+                            bad = 'Qty sumber belum diisi';
+                            return;
+                        }
+
+                        total += q;
+                        perSource[info.source] = (perSource[info.source] || 0) + q;
+
+                        if (perSource[info.source] > info.available) {
+                            bad = `Qty melebihi yang tersedia (${num(info.available)})`;
+                        }
                     });
 
-                    chosen += $('#assignSourceBody .sm-card.is-revert').length;
+                    let state = 'idle';
+                    let msg = '';
+
+                    if (picked) {
+                        if (bad) {
+                            state = 'bad';
+                            msg = bad;
+                        } else if (total > r.qty) {
+                            state = 'bad';
+                            msg = `Dialokasikan ${total} / ${r.qty} — lebih ${total - r.qty}`;
+                        } else if (total < r.qty) {
+                            state = 'short';
+                            msg = `Dialokasikan ${total} / ${r.qty} — kurang ${r.qty - total}`;
+                        } else {
+                            state = 'ok';
+                            msg = `Dialokasikan ${total} / ${r.qty} ✓`;
+                        }
+                    }
+
+                    $card.attr('data-state', state).toggleClass('is-set', state === 'ok');
+                    $card.find('.sm-total').attr('class', 'sm-total is-' + state).text(msg);
+                    $card.find('.sm-add').prop('disabled', $lines.length >= MAX_LINES || (picked > 0 && total >= r.qty));
+
+                    updateSummary();
+                }
+
+                function updateSummary() {
+                    let chosen = 0;
+                    let invalid = 0;
+
+                    $('#assignSourceBody .sm-card').each(function() {
+                        const st = $(this).attr('data-state');
+
+                        if ($(this).hasClass('is-revert') || st === 'ok') {
+                            chosen++;
+                        } else if (st === 'short' || st === 'bad') {
+                            invalid++;
+                        }
+                    });
 
                     $('#assignChosen').text(chosen);
-                    $('#btnSaveAssignSource').prop('disabled', chosen === 0);
-                    $('#assignSaveLabel').text(chosen ? `Simpan Perubahan (${chosen})` : 'Simpan Perubahan');
+                    $('#btnSaveAssignSource').prop('disabled', chosen === 0 || invalid > 0);
+                    $('#assignSaveLabel').text(
+                        invalid ? `Lengkapi ${invalid} barang dulu` :
+                        (chosen ? `Simpan Perubahan (${chosen})` : 'Simpan Perubahan')
+                    );
                 }
 
                 function renderRows(rows) {
                     destroySelects();
+
+                    Object.keys(rowsById).forEach(k => delete rowsById[k]);
+                    rows.forEach(r => {
+                        rowsById[r.id] = r;
+                    });
+
                     $('#assignTotal, #assignRowCount').text(rows.length);
                     $('#assignSourceBody').html(rows.map(cardHtml).join(''));
 
-                    rows.forEach(function(r) {
-                        ['staging_in', 'stock'].forEach(function(group) {
-                            const el = $(`#assignSourceBody .sm-select[data-id="${r.id}"][data-group="${group}"]`)[0];
-                            if (el) initSelect(el, r, group);
-                        });
+                    $('#assignSourceBody .sm-card').each(function() {
+                        if ($(this).find('.sm-allocs').length) addLine($(this));
                     });
 
                     updateSummary();
@@ -5158,22 +5441,47 @@
                         });
                 }
 
-                // Ganti jenis sumber (Staging In <-> Stok): pilihan sebelumnya dikosongkan
+                // Ganti jenis sumber pada satu baris (Staging In <-> Stok): pilihan baris itu dikosongkan
                 $(document).on('click', '#assignSourceModal .sm-tab:not(:disabled):not(.active)', function() {
-                    const $card = $(this).closest('.sm-card');
+                    const $line = $(this).closest('.sm-alloc');
+                    const $card = $line.closest('.sm-card');
                     const tab = $(this).data('tab');
 
-                    $card.find('.sm-select').each(function() {
+                    $line.find('.sm-select').each(function() {
                         if (this.tomselect) this.tomselect.clear(true);
                     });
-                    $card.removeClass('is-set');
+                    $line.find('.sm-alloc-qty').prop('disabled', true).val('').removeAttr('max').removeData('manual');
 
-                    $card.find('.sm-tab').removeClass('active');
+                    $line.find('.sm-tab').removeClass('active');
                     $(this).addClass('active');
-                    $card.find('.sm-sel-wrap').addClass('d-none')
+                    $line.find('.sm-sel-wrap').addClass('d-none')
                         .filter(`[data-pane="${tab}"]`).removeClass('d-none');
 
-                    updateSummary();
+                    refreshCard($card);
+                });
+
+                // Tambah baris sumber (ambil sebagian dari sumber lain)
+                $(document).on('click', '#assignSourceModal .sm-add', function() {
+                    addLine($(this).closest('.sm-card'));
+                });
+
+                // Hapus satu baris sumber
+                $(document).on('click', '#assignSourceModal .sm-alloc-del', function() {
+                    const $line = $(this).closest('.sm-alloc');
+                    const $card = $line.closest('.sm-card');
+
+                    $line.find('.sm-select').each(function() {
+                        if (this.tomselect) this.tomselect.destroy();
+                    });
+                    $line.remove();
+
+                    refreshCard($card);
+                });
+
+                // Qty diketik manual: jangan ditimpa isi otomatis lagi
+                $(document).on('input', '#assignSourceModal .sm-alloc-qty', function() {
+                    $(this).data('manual', true);
+                    refreshCard($(this).closest('.sm-card'));
                 });
 
                 // Kembalikan ke "sumber belum dipilih" (toggle per barang)
@@ -5184,11 +5492,12 @@
                     $card.find('.sm-select').each(function() {
                         if (this.tomselect) this.tomselect.clear(true);
                     });
+                    $card.find('.sm-alloc-qty').prop('disabled', true).val('').removeAttr('max').removeData('manual');
 
-                    $card.removeClass('is-set').toggleClass('is-revert', on);
+                    $card.toggleClass('is-revert', on);
                     $(this).find('span').text(on ? 'Batal kembalikan' : 'Kembalikan');
 
-                    updateSummary();
+                    refreshCard($card);
                 });
 
                 // Aksi per baris
@@ -5218,16 +5527,28 @@
                             return;
                         }
 
-                        $(this).find('.sm-select').each(function() {
-                            const val = this.tomselect ? this.tomselect.getValue() : '';
+                        if ($(this).attr('data-state') !== 'ok') return;
 
-                            if (val) {
-                                assignments.push({
-                                    id: id,
-                                    source: val
+                        // Banyak sumber per barang: tiap sumber punya qty sendiri.
+                        const allocations = [];
+
+                        $(this).find('.sm-alloc').each(function() {
+                            const info = lineInfo($(this));
+
+                            if (info.source) {
+                                allocations.push({
+                                    source: info.source,
+                                    qty: parseInt(info.qty, 10)
                                 });
                             }
                         });
+
+                        if (allocations.length) {
+                            assignments.push({
+                                id: id,
+                                allocations: allocations
+                            });
+                        }
                     });
 
                     if (!assignments.length) return;

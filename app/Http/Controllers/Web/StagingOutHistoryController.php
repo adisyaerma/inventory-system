@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Web;
 use App\Exports\StagingOutHistoryDetailExport;
 use App\Exports\StagingOutHistoryExport;
 use App\Http\Controllers\Controller;
+use App\Models\StagingIn;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
+use App\Services\StagingInReturnService;
 use App\Services\StagingOutHistoryService;
-use App\Services\StagingOutStockService;
 use App\Support\CurrentUser;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -56,24 +58,123 @@ class StagingOutHistoryController extends Controller
 
     private const EXTRA_EVENT_COLORS = ['restored' => 'info'];
 
+    // =====================================================================
+    //  "SATU RECORD" = BEBERAPA HISTORY DARI SO + BARANG + LINE ITEM SAMA
+    // =====================================================================
+    //
+    // Kalau satu barang diambil dari lebih dari satu sumber, staging out
+    // tersimpan sebagai beberapa baris -- dan tiap barisnya punya history
+    // sendiri. Di layar, history-history itu digabung jadi SATU baris
+    // (tidak ada tabel/kolom baru). Kunci penggabung: No. SO + barang +
+    // line item + customer + status yang sama (aktif / selesai / dihapus).
+    // No. SO kosong tidak pernah digabung.
+
+    /** @var array<int, EloquentCollection> */
+    protected array $groupCache = [];
+
+    /**
+     * Semua history dalam satu record (urut id; yang pertama = yang tampil di tabel).
+     */
+    private function groupOf(StagingOutHistory $history): EloquentCollection
+    {
+        if ($history->so_number === null || $history->so_number === '' || ! $history->item_id) {
+            return new EloquentCollection([$history]);
+        }
+
+        $query = StagingOutHistory::query()
+            ->where('so_number', $history->so_number)
+            ->where('item_id', $history->item_id)
+            ->whereRaw("COALESCE(line_item, '') = ?", [(string) $history->line_item])
+            ->whereRaw("COALESCE(customer, '') = ?", [(string) $history->customer])
+            ->where('is_active', $history->is_active)
+            ->orderBy('id');
+
+        $history->delivery_date
+            ? $query->whereNotNull('delivery_date')
+            : $query->whereNull('delivery_date');
+
+        $rows = $query->get();
+
+        return $rows->isEmpty() ? new EloquentCollection([$history]) : $rows;
+    }
+
+    private function groupFor(StagingOutHistory $history): EloquentCollection
+    {
+        return $this->groupCache[$history->id] ??= $this->groupOf($history);
+    }
+
+    /**
+     * Id yang dipilih di tabel + semua history saudaranya dalam record yang sama.
+     */
+    private function expandIds(array $ids): array
+    {
+        return StagingOutHistory::whereIn('id', $ids)->get()
+            ->flatMap(fn (StagingOutHistory $h) => $this->groupOf($h))
+            ->pluck('id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Batasi query ke history "utama" tiap record (id terkecil di grupnya).
+     */
+    private function onlyGroupRepresentatives($query)
+    {
+        return $query->whereNotExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('staging_out_histories as sib')
+                ->whereColumn('sib.so_number', 'staging_out_histories.so_number')
+                ->whereColumn('sib.item_id', 'staging_out_histories.item_id')
+                ->whereRaw("COALESCE(sib.line_item, '') = COALESCE(staging_out_histories.line_item, '')")
+                ->whereRaw("COALESCE(sib.customer, '') = COALESCE(staging_out_histories.customer, '')")
+                ->whereRaw('sib.is_active = staging_out_histories.is_active')
+                ->whereRaw('(sib.delivery_date IS NULL) = (staging_out_histories.delivery_date IS NULL)')
+                ->whereRaw('sib.id < staging_out_histories.id')
+                ->where('sib.so_number', '!=', '');
+        });
+    }
+
+    /**
+     * Qty saat ini satu history: dari staging_outs.qty bila masih aktif,
+     * atau dari qty_after event terakhir bila sudah tidak aktif.
+     */
+    private function memberQty(StagingOutHistory $history, ?StagingOut $staging = null): int
+    {
+        if ($history->is_active) {
+            $staging ??= StagingOut::find($history->staging_out_id);
+
+            return (int) optional($staging)->qty;
+        }
+
+        $lastAfter = $history->relationLoaded('details')
+            ? $history->details->whereNotNull('qty_after')->last()?->qty_after
+            : $history->details()->reorder()->whereNotNull('qty_after')->orderByDesc('id')->value('qty_after');
+
+        return (int) ($lastAfter ?? $history->initial_qty);
+    }
+
     public function index(Request $request)
     {
-        $totalHistory = StagingOutHistory::count();
+        // Satu record (walau dari beberapa sumber) dihitung satu.
+        $records = fn () => $this->onlyGroupRepresentatives(StagingOutHistory::query());
 
-        $createdToday = StagingOutHistory::whereDate('created_at', now()->toDateString())->count();
+        $totalHistory = $records()->count();
 
-        $activeCount = StagingOutHistory::where('is_active', true)
-            ->whereNull('delivery_date')
+        $createdToday = $records()->whereDate('staging_out_histories.created_at', now()->toDateString())->count();
+
+        $activeCount = $records()->where('staging_out_histories.is_active', true)
+            ->whereNull('staging_out_histories.delivery_date')
             ->count();
 
         // Selesai = delivery_date sudah terisi, TIDAK peduli is_active —
         // termasuk yang baris aslinya sudah dihapus otomatis (auto-archive).
-        $deliveredCount = StagingOutHistory::whereNotNull('delivery_date')->count();
+        $deliveredCount = $records()->whereNotNull('staging_out_histories.delivery_date')->count();
 
         // Dihapus = hilang SEBELUM sempat terkirim (bukan auto-archive
         // karena delivery_date sudah terisi).
-        $removedCount = StagingOutHistory::where('is_active', false)
-            ->whereNull('delivery_date')
+        $removedCount = $records()->where('staging_out_histories.is_active', false)
+            ->whereNull('staging_out_histories.delivery_date')
             ->count();
 
         $statusOptions = [
@@ -170,6 +271,9 @@ class StagingOutHistoryController extends Controller
     {
         $query = $this->baseQuery();
 
+        // Satu record tampil sekali saja (history dari beberapa sumber digabung).
+        $this->onlyGroupRepresentatives($query);
+
         // Urutan bawaan (terbaru di atas) hanya kalau user belum klik header kolom.
         if (! $request->has('order')) {
             $query->orderByDesc('staging_out_histories.id');
@@ -191,23 +295,6 @@ class StagingOutHistoryController extends Controller
                 // Semua baris bisa dicentang. data-active=1 menandai history
                 // yang barisnya masih ada di Staging Out (peringatan tambahan
                 // di konfirmasi Hapus).
-                //
-                // data-cancel-stock=1 menandai history yang barangnya diambil
-                // dari stok DAN transaksinya akan dibatalkan kalau dihapus:
-                //  - Aktif  : baris Staging Out masih ada & sumbernya stok.
-                //  - Selesai: baris sudah tidak ada, asal barang dibaca dari
-                //             snapshot di event "created".
-                // "Dihapus" tidak ikut (stoknya sudah dikembalikan dulu).
-                if ($row->is_active) {
-                    $cancelsStock = $row->running_source_type === 'stock';
-                } else {
-                    $createdMeta = is_string($row->created_meta)
-                        ? json_decode($row->created_meta, true)
-                        : $row->created_meta;
-
-                    $cancelsStock = (bool) $row->delivery_date
-                        && ($createdMeta['source_type'] ?? null) === 'stock';
-                }
 
                 // data-restorable=1 menandai history berstatus "Selesai"
                 // (sudah terkirim & barisnya sudah tidak ada di Staging Out):
@@ -216,7 +303,6 @@ class StagingOutHistoryController extends Controller
 
                 return '<input type="checkbox" class="form-check-input historyCheckbox"
                     data-active="'.($row->is_active ? '1' : '0').'"
-                    data-cancel-stock="'.($cancelsStock ? '1' : '0').'"
                     data-restorable="'.($restorable ? '1' : '0').'"
                     value="'.$row->id.'">';
             })
@@ -365,9 +451,14 @@ class StagingOutHistoryController extends Controller
         $restored = 0;
         $errors = [];
 
-        DB::transaction(function () use ($request, &$restored, &$errors) {
+        // Satu record bisa terdiri dari beberapa history (1 per sumber):
+        // pulihkan semuanya.
+        $requestedIds = array_map('intval', $request->ids);
+        $allIds = $this->expandIds($requestedIds);
 
-            $histories = StagingOutHistory::whereIn('id', $request->ids)
+        DB::transaction(function () use ($allIds, $requestedIds, &$restored, &$errors) {
+
+            $histories = StagingOutHistory::whereIn('id', $allIds)
                 ->lockForUpdate()
                 ->get();
 
@@ -432,6 +523,32 @@ class StagingOutHistoryController extends Controller
                         $history->delivery_date = null;
                         $history->save();
 
+                        // Sambungkan lagi ke Staging In asal (kalau barangnya
+                        // dulu dari Staging In), supaya kalau baris pulihan ini
+                        // diedit / dihapus, qty dikembalikan ke Staging In.
+                        // Qty Staging In sendiri TIDAK diubah sekarang: barang
+                        // memang kembali "terpakai" oleh baris Staging Out ini.
+                        $stagingInId = $snapshot['staging_in_id'];
+
+                        if ($stagingInId) {
+                            $in = StagingIn::find($stagingInId);
+
+                            if ($in) {
+                                // Baris Staging In masih ada (qty belum habis).
+                                app(StagingInReturnService::class)->link($newStaging, $in);
+                            } elseif (is_array($snapshot['staging_in_snapshot'])) {
+                                // Sudah terhapus karena qty-nya habis: cukup
+                                // simpan id + snapshot; baris dibuat ulang oleh
+                                // StagingInReturnService::giveBack() saat qty
+                                // memang dikembalikan.
+                                $newStaging->staging_in_id = $stagingInId;
+                                $newStaging->staging_in_snapshot = json_encode($snapshot['staging_in_snapshot']);
+                                $newStaging->save();
+                            } else {
+                                $note = 'asal Staging In sudah terhapus dan datanya tidak tercatat, dipulihkan sebagai barang Eksternal.';
+                            }
+                        }
+
                         StagingOutHistoryDetail::create([
                             'staging_out_history_id' => $history->id,
                             'event_type' => 'restored',
@@ -440,6 +557,7 @@ class StagingOutHistoryController extends Controller
                             'qty_after' => $snapshot['qty'],
                             'meta' => [
                                 'restored_staging_out_id' => $newStaging->id,
+                                'restored_staging_in_id' => $newStaging->staging_in_id,
                                 'cleared_delivery_receipt_date' => $previousReceiptDate,
                             ],
                             'notes' => 'Dipulihkan ke Staging Out, tgl resi pengiriman dikosongkan.',
@@ -447,7 +565,10 @@ class StagingOutHistoryController extends Controller
                         ]);
                     });
 
-                    $restored++;
+                    // Dihitung per record yang dipilih, bukan per sumber.
+                    if (in_array((int) $history->id, $requestedIds, true)) {
+                        $restored++;
+                    }
 
                     if ($note) {
                         $errors[] = "{$label}: berhasil dipulihkan, tapi {$note}";
@@ -520,6 +641,8 @@ class StagingOutHistoryController extends Controller
             'picking_date' => $history->picking_date,
             'do_number' => $history->do_number,
             'source_known' => $source !== null,
+            'staging_in_id' => $isStock ? null : ($source['staging_in']['id'] ?? null),
+            'staging_in_snapshot' => $isStock ? null : ($source['staging_in']['snapshot'] ?? null),
             'source_type' => $isStock ? 'stock' : 'external',
             'location_id' => $isStock ? $source['location_id'] : null,
             'lot' => $isStock ? $source['lot'] : null,
@@ -528,28 +651,12 @@ class StagingOutHistoryController extends Controller
     }
 
     /**
-     * Hapus PERMANEN sejumlah history sekaligus (beserta seluruh detail/
-     * timeline-nya). Semua status boleh dihapus.
+     * Hapus PERMANEN history yang dipilih (beserta detail/timeline-nya).
+     * Murni hapus record: TIDAK mengembalikan stok, TIDAK menyentuh stock
+     * mutations, Staging In, maupun baris Staging Out.
      *
-     * Kalau barangnya diambil dari STOK, transaksinya dibatalkan: qty
-     * dikembalikan ke location_stocks dan mutasi keluar di stock_mutations
-     * dihapus. Berlaku untuk:
-     *  - Aktif   : baris Staging Out masih ada -> dibatalkan lewat baris itu,
-     *              dan baris Staging Out-nya ikut dihapus (kalau dibiarkan,
-     *              ia terlihat mengambil stok padahal stoknya sudah kembali).
-     *  - Selesai : baris Staging Out sudah tidak ada (terkirim / auto-archive,
-     *              mis. salah input) -> lokasi, lot, dan qty akhir
-     *              direkonstruksi dari timeline history, lalu stok
-     *              dikembalikan.
-     * Yang TIDAK dibatalkan:
-     *  - Dihapus : stoknya sudah dikembalikan saat baris itu dihapus dari
-     *              halaman Staging Out.
-     *  - Eksternal : tidak pernah menyentuh stok.
-     *
-     * History lama (dibuat sebelum asal barang dicatat) yang berstatus
-     * Selesai tidak punya data lokasi, jadi stoknya tidak bisa dikembalikan
-     * otomatis. History-nya tetap dihapus dan hal ini dilaporkan di
-     * 'errors' supaya bisa dikoreksi manual.
+     * Satu record bisa terdiri dari beberapa history (1 per sumber barang):
+     * semuanya ikut dihapus supaya record-nya benar-benar hilang.
      */
     public function bulkDestroy(Request $request)
     {
@@ -558,111 +665,28 @@ class StagingOutHistoryController extends Controller
             'ids.*' => 'integer|exists:staging_out_histories,id',
         ]);
 
-        $deleted = 0;
-        $cancelled = 0;
-        $warnings = [];
+        $allIds = $this->expandIds($request->ids);
 
         try {
-            DB::transaction(function () use ($request, &$deleted, &$cancelled, &$warnings) {
-
-                $histories = StagingOutHistory::with('details')
-                    ->whereIn('id', $request->ids)
-                    ->lockForUpdate()
-                    ->get();
-
-                $stock = app(StagingOutStockService::class);
-                $stagingIdsToDelete = [];
-
-                foreach ($histories as $history) {
-
-                    // 1) AKTIF: baris Staging Out masih ada. Baris dicari
-                    //    HANYA kalau history masih aktif, supaya ID yang
-                    //    kebetulan dipakai ulang baris lain tidak ikut kena.
-                    if ($history->is_active && $history->staging_out_id) {
-                        $staging = StagingOut::lockForUpdate()->find($history->staging_out_id);
-
-                        if ($staging && $stock->isStockSourced($staging)) {
-                            $stock->reverse($staging);
-                            $stagingIdsToDelete[] = $staging->id;
-                            $cancelled++;
-                        }
-
-                        continue;
-                    }
-
-                    // 2) SELESAI: baris Staging Out sudah tidak ada, jadi
-                    //    direkonstruksi dari timeline history.
-                    if ($history->delivery_date) {
-                        $info = $this->reconstructSource($history);
-                        $label = 'SO '.($history->so_number ?: '-').' (history #'.$history->id.')';
-
-                        if (! $info['source']) {
-                            $warnings[] = $label.': asal barang tidak tercatat di history lama, jadi stok tidak bisa dikembalikan otomatis. Cek manual kalau barangnya dari stok.';
-
-                            continue;
-                        }
-
-                        if ($info['source']['type'] !== 'stock') {
-                            continue;
-                        }
-
-                        if (! $history->item_id || ! $info['source']['location_id']) {
-                            $warnings[] = $label.': data lokasi stok tidak lengkap, jadi stok tidak bisa dikembalikan otomatis.';
-
-                            continue;
-                        }
-
-                        $transient = new StagingOut;
-                        $transient->forceFill([
-                            'id' => $history->staging_out_id,
-                            'source_type' => 'stock',
-                            'item_id' => $history->item_id,
-                            'location_id' => $info['source']['location_id'],
-                            'lot' => $info['source']['lot'],
-                            'qty' => $info['qty'] ?? $history->initial_qty,
-                            'so_number' => $history->so_number,
-                            'customer' => $history->customer,
-                        ]);
-
-                        $stock->reverse($transient);
-                        $cancelled++;
-                    }
-
-                    // 3) DIHAPUS (belum terkirim): stok sudah kembali, tidak
-                    //    ada yang perlu dibatalkan.
-                }
-
-                $ids = $histories->pluck('id');
-
-                StagingOutHistoryDetail::whereIn('staging_out_history_id', $ids)->delete();
-
-                $deleted = StagingOutHistory::whereIn('id', $ids)->delete();
-
-                // Dihapus SETELAH history-nya hilang, supaya tidak
-                // bentrok dengan relasi staging_out_id di header history.
-                if (! empty($stagingIdsToDelete)) {
-                    StagingOut::whereIn('id', $stagingIdsToDelete)->delete();
-                }
+            DB::transaction(function () use ($allIds) {
+                StagingOutHistoryDetail::whereIn('staging_out_history_id', $allIds)->delete();
+                StagingOutHistory::whereIn('id', $allIds)->delete();
             });
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'Gagal menghapus history: '.$e->getMessage(),
             ], 500);
         }
 
-        $message = $deleted.' history berhasil dihapus.';
-
-        if ($cancelled > 0) {
-            $message .= ' '.$cancelled.' transaksi stok dibatalkan (qty dikembalikan ke stok dan mutasi keluar dihapus).';
-        }
+        $deleted = count($allIds);
 
         return response()->json([
             'success' => true,
             'deleted' => $deleted,
-            'cancelled' => $cancelled,
-            'errors' => $warnings,
-            'message' => $message,
+            'message' => $deleted.' history berhasil dihapus.',
         ]);
     }
 
@@ -682,6 +706,11 @@ class StagingOutHistoryController extends Controller
     {
         $source = null;
         $qty = null;
+        $stagingIn = null;
+
+        $stagingInFrom = fn (array $m) => ! empty($m['staging_in_id'])
+            ? ['id' => (int) $m['staging_in_id'], 'snapshot' => $m['staging_in_snapshot'] ?? null]
+            : null;
 
         foreach ($history->details->sortBy('id') as $detail) {
             $meta = $detail->meta;
@@ -697,6 +726,32 @@ class StagingOutHistoryController extends Controller
                         'location_id' => $meta['location_id'] ?? null,
                         'lot' => $meta['lot'] ?? null,
                     ];
+
+                    $stagingIn = $stagingInFrom($meta);
+                }
+
+                continue;
+            }
+
+            // Event "delivered" (auto-archive) menyimpan kondisi TERAKHIR baris
+            // sebelum diarsipkan -- ini yang paling akurat, jadi menimpa hasil
+            // replay. Kalau ada beberapa (selesai -> pulih -> selesai lagi),
+            // yang terakhir yang dipakai.
+            if ($detail->event_type === 'delivered') {
+                if (isset($meta['final_qty'])) {
+                    $qty = (int) $meta['final_qty'];
+                }
+
+                if (isset($meta['final_source']['source_type'])) {
+                    $final = $meta['final_source'];
+
+                    $source = [
+                        'type' => $final['source_type'],
+                        'location_id' => $final['location_id'] ?? null,
+                        'lot' => $final['lot'] ?? null,
+                    ];
+
+                    $stagingIn = $stagingInFrom($final);
                 }
 
                 continue;
@@ -708,6 +763,14 @@ class StagingOutHistoryController extends Controller
 
             if ($detail->qty_after !== null) {
                 $qty = $detail->qty_after;
+            }
+
+            if (array_key_exists('staging_in_id', $meta)) {
+                $newId = $meta['staging_in_id']['new'] ?? null;
+
+                $stagingIn = $newId
+                    ? ['id' => (int) $newId, 'snapshot' => $stagingIn['snapshot'] ?? null]
+                    : null;
             }
 
             if (! $source) {
@@ -729,7 +792,20 @@ class StagingOutHistoryController extends Controller
             if ($source['type'] !== 'stock') {
                 $source['location_id'] = null;
                 $source['lot'] = null;
+            } else {
+                // Sumber diganti ke stok: tidak lagi terhubung ke Staging In.
+                $stagingIn = null;
             }
+        }
+
+        if ($source) {
+            if ($source['type'] === 'stock') {
+                $stagingIn = null;
+            } elseif ($stagingIn) {
+                $source['type'] = 'staging_in';
+            }
+
+            $source['staging_in'] = $stagingIn;
         }
 
         return ['source' => $source, 'qty' => $qty !== null ? (int) $qty : null];
@@ -750,7 +826,11 @@ class StagingOutHistoryController extends Controller
 
         if ($history->is_active && $staging) {
             if ($staging->source_type !== 'stock') {
-                return ['type' => 'external', 'location' => null, 'lot' => null];
+                return [
+                    'type' => $staging->staging_in_id ? 'staging_in' : 'external',
+                    'location' => null,
+                    'lot' => null,
+                ];
             }
 
             return [
@@ -782,6 +862,10 @@ class StagingOutHistoryController extends Controller
             return '-';
         }
 
+        if ($source['type'] === 'staging_in') {
+            return 'Staging In';
+        }
+
         if ($source['type'] !== 'stock') {
             return 'Eksternal';
         }
@@ -800,19 +884,18 @@ class StagingOutHistoryController extends Controller
      */
     private function currentQtyMarkup($row): string
     {
-        $currentQty = $row->is_active
-            ? (int) $row->running_qty
-            : (int) ($row->last_qty_after ?? $row->initial_qty);
+        $group = $this->groupFor($row);
 
-        $initialQty = (int) $row->initial_qty;
-
-        $html = '<div class="fw-semibold small">'.number_format($currentQty, 0, ',', '.').' PCS</div>';
-
-        if ($currentQty !== $initialQty) {
-            $html .= '<div class="text-muted" style="font-size:.72rem;">dari '.number_format($initialQty, 0, ',', '.').' PCS awal</div>';
+        // Record dari beberapa sumber: tampilkan total semua sumbernya.
+        if ($group->count() > 1) {
+            $currentQty = $group->sum(fn (StagingOutHistory $h) => $this->memberQty($h));
+        } else {
+            $currentQty = $row->is_active
+                ? (int) $row->running_qty
+                : (int) ($row->last_qty_after ?? $row->initial_qty);
         }
 
-        return $html;
+        return '<div class="fw-semibold small">'.number_format($currentQty, 0, ',', '.').' PCS</div>';
     }
 
     /**
@@ -944,51 +1027,291 @@ class StagingOutHistoryController extends Controller
     }
 
     /**
+     * Ubah meta event "updated" (field => [old, new]) jadi daftar yang mudah
+     * dibaca: label Indonesia + nilai lama/baru. Lokasi sudah berupa nama.
+     *
+     * @return array<int, array{label: string, old: ?string, new: ?string}>
+     */
+    private function describeChanges($meta): array
+    {
+        if (! is_array($meta)) {
+            return [];
+        }
+
+        $labels = [
+            'qty' => 'Qty',
+            'source_type' => 'Sumber',
+            'location_id' => 'Lokasi stok',
+            'lot' => 'Lot',
+            'item_id' => 'Barang',
+            'so_number' => 'No. SO',
+            'customer' => 'Customer',
+            'line_item' => 'Line Item',
+            'delivery_instruction_date' => 'Tgl Instruksi Kirim',
+            'picking_date' => 'Tgl Picking',
+            'do_number' => 'No. DO',
+            'delivery_receipt_date' => 'Tgl Resi Pengiriman',
+            'staging_location' => 'Posisi',
+            'note' => 'Catatan',
+        ];
+
+        $value = function (string $field, $v): ?string {
+            if ($v === null || $v === '') {
+                return null;
+            }
+
+            if ($field === 'source_type') {
+                return $v === 'stock' ? 'Stok' : 'Bukan dari stok';
+            }
+
+            if ($field === 'staging_location') {
+                return ucfirst((string) $v);
+            }
+
+            return (string) $v;
+        };
+
+        $out = [];
+
+        foreach ($meta as $field => $change) {
+            if (! is_array($change) || ! (array_key_exists('old', $change) || array_key_exists('new', $change))) {
+                continue;
+            }
+
+            $out[] = [
+                'label' => $labels[$field] ?? ucfirst(str_replace('_', ' ', (string) $field)),
+                'old' => $value($field, $change['old'] ?? null),
+                'new' => $value($field, $change['new'] ?? null),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Susun data detail satu history (dipakai detail() dan exportDetail()).
      */
     private function buildDetailPayload(StagingOutHistory $history): array
     {
-        $history->load(['item', 'creator', 'details' => function ($query) {
-            // Relasi details() di model sudah pakai ->latest() (descending).
-            // reorder() dulu supaya timeline tampil dari yang paling lama
-            // ke terbaru.
+        // Satu record bisa terdiri dari beberapa history (1 per sumber).
+        $members = $this->groupOf($history);
+        $isGroup = $members->count() > 1;
+        $rep = $members->first();
+
+        // Relasi details() di model sudah pakai ->latest() (descending).
+        // reorder() dulu supaya timeline tampil dari yang paling lama
+        // ke terbaru.
+        $members->load(['details' => function ($query) {
             $query->reorder()->orderBy('created_at')->orderBy('id');
         }]);
+        $rep->load(['item', 'creator']);
 
-        $lastDetail = $history->details->last();
+        $status = $this->statusMeta($rep->is_active, $rep->delivery_date);
 
-        $status = $this->statusMeta($history->is_active, $history->delivery_date);
+        // Tiap sumber: jenis (Stok / Staging In / Eksternal), rincian lokasi,
+        // dan qty-nya -- dipakai panel detail & export.
+        $sources = $members->values()->map(function (StagingOutHistory $m, int $i) {
+            $staging = $m->is_active ? StagingOut::find($m->staging_out_id) : null;
+            $src = $this->resolveSource($m, $staging);
+            $type = $src['type'] ?? 'unknown';
+            $detail = '';
 
-        $staging = $history->is_active ? StagingOut::find($history->staging_out_id) : null;
+            if ($type === 'stock') {
+                $detail = ($src['location'] ?: 'Lokasi tidak diketahui')
+                    .' · '.($src['lot'] ? 'Lot '.$src['lot'] : 'Tanpa Lot');
+            } elseif ($type === 'staging_in' && $staging && $staging->staging_in_id) {
+                $in = StagingIn::find($staging->staging_in_id);
 
-        $currentQty = $history->is_active
-            ? (int) optional($staging)->qty
-            : (int) ($history->details->whereNotNull('qty_after')->last()?->qty_after ?? $history->initial_qty);
+                $detail = implode(' · ', array_filter([
+                    $in ? $in->location : null,
+                    $in && $in->po_number ? 'PO '.$in->po_number : null,
+                ]));
+            }
 
-        $source = $this->resolveSource($history, $staging);
+            return [
+                'no' => $i + 1,
+                'type' => $type,
+                'type_label' => match ($type) {
+                    'stock' => 'Stok',
+                    'staging_in' => 'Staging In',
+                    // Sumber Staging In yang barisnya sudah selesai tidak tercatat
+                    // di timeline, jadi hanya bisa dibaca sebagai "bukan stok".
+                    'external' => $m->is_active ? 'Eksternal / belum dipilih' : 'Eksternal / Staging In',
+                    default => 'Tidak diketahui',
+                },
+                'detail' => $detail,
+                'label' => $this->sourceLabel($src),
+                'qty' => $this->memberQty($m, $staging),
+            ];
+        })->values();
 
-        return [
-            'id' => $history->id,
-            'item_code' => optional($history->item)->item_code_internal,
-            'item_name' => optional($history->item)->name,
-            'so_number' => $history->so_number,
+        $currentQty = (int) $sources->sum('qty');
+
+        // "10 PCS dari Stok (Gudang A · Tanpa Lot) + 2 PCS dari Staging In"
+        $sumberRingkas = $sources->map(function ($src) {
+            return $src['qty'].' PCS dari '.$src['type_label']
+                .($src['type'] === 'stock' && $src['detail'] ? ' ('.$src['detail'].')' : '');
+        })->implode(' + ');
+
+        $sumberBarang = $isGroup ? $sumberRingkas : $sources->first()['label'];
+
+        // Timeline gabungan semua sumber, urut waktu. Event "Data Dibuat"
+        // milik sumber ke-2 dst tidak ditampilkan (itu hanya hasil
+        // pemecahan sumber, bukan data baru).
+        // Waktu event "created" milik sumber ke-2 dst: penanda barang dipecah.
+        $splitTimes = $members->filter(fn ($m) => $m->id !== $rep->id)
+            ->flatMap(fn ($m) => $m->details->where('event_type', 'created')
+                ->map(fn ($d) => $d->created_at->getTimestamp()))
+            ->values();
+
+        $events = $members->flatMap(function (StagingOutHistory $m, $idx) use ($rep) {
+            return $m->details
+                ->reject(fn ($d) => $m->id !== $rep->id && $d->event_type === 'created')
+                ->map(fn ($d) => ['detail' => $d, 'source_no' => $idx + 1]);
+        })->sort(function ($a, $b) {
+            return [$a['detail']->created_at->getTimestamp(), $a['detail']->id]
+                <=> [$b['detail']->created_at->getTimestamp(), $b['detail']->id];
+        })->values();
+
+        // Barang dari beberapa sumber: catatan teknis saat sumber ditetapkan
+        // (qty disesuaikan, sumber/lokasi per baris) TIDAK ditampilkan satu per
+        // satu karena membingungkan. Semuanya diganti SATU event "Sumber
+        // Barang Dipilih" yang menjelaskan barang diambil dari mana saja.
+        $sourceEvents = [];
+
+        if ($isGroup) {
+            $bookkeeping = ['qty', 'source_type', 'location_id', 'lot'];
+            $ts = fn ($e) => $e['detail']->created_at->getTimestamp();
+            $metaKeys = fn ($e) => is_array($e['detail']->meta) ? array_keys($e['detail']->meta) : [];
+
+            $assignTimes = $events
+                ->filter(fn ($e) => $e['detail']->event_type === 'updated'
+                    && array_intersect(['source_type', 'location_id', 'lot'], $metaKeys($e)))
+                ->map(fn ($e) => $ts($e))
+                ->merge($splitTimes)
+                ->values();
+
+            $isBookkeeping = fn ($e) => $e['detail']->event_type === 'updated'
+                && $metaKeys($e)
+                && ! array_diff($metaKeys($e), $bookkeeping)
+                && $assignTimes->contains(fn ($t) => abs($t - $ts($e)) <= 15);
+
+            $noisy = $events->filter($isBookkeeping)->values();
+            $events = $events->reject($isBookkeeping)->values();
+
+            // Tiap sumber punya history sendiri, jadi event yang berlaku untuk
+            // seluruh barang (picking, kirim, dipulihkan, dihapus, ubah tgl resi,
+            // dsb) tercatat dobel -- satu per sumber. Event kembar cukup tampil
+            // sekali: jenis sama + isi yang DITAMPILKAN sama + waktu berdekatan
+            // (<= 30 detik) dari sumber yang berbeda. Data meta lain yang khusus
+            // per sumber (id baris, qty sumber, dll) tidak ikut dibandingkan.
+            //
+            // Khusus event "updated" seluruh isi perubahannya dibandingkan, supaya
+            // perubahan qty yang memang berbeda antar sumber tidak ikut hilang.
+            $shownMeta = ['picking_date', 'do_number', 'delivery_date', 'cleared_delivery_receipt_date'];
+            $seen = [];
+
+            $events = $events->filter(function ($e) use (&$seen, $ts, $shownMeta) {
+                $d = $e['detail'];
+                $meta = is_array($d->meta) ? $d->meta : [];
+                $compare = $d->event_type === 'updated' ? $meta : array_intersect_key($meta, array_flip($shownMeta));
+
+                ksort($compare);
+
+                $sig = $d->event_type.'|'.json_encode($compare);
+                $time = $ts($e);
+
+                foreach ($seen[$sig] ?? [] as [$t, $no, $kept]) {
+                    if ($no !== $e['source_no'] && abs($t - $time) <= 30) {
+                        // Catatan yang beda ikut digabung supaya tidak hilang.
+                        if ($d->notes && ! str_contains((string) $kept->notes, (string) $d->notes)) {
+                            $kept->notes = trim((string) $kept->notes.' '.$d->notes);
+                        }
+
+                        return false;
+                    }
+                }
+
+                $seen[$sig][] = [$time, $e['source_no'], $d];
+
+                return true;
+            })->values();
+
+            // Catatan teknis yang berdekatan (<= 15 detik) = satu kali penetapan sumber.
+            $bursts = [];
+
+            foreach ($noisy as $e) {
+                $last = count($bursts) - 1;
+
+                if ($last >= 0 && $ts($e) - $bursts[$last]['end'] <= 15) {
+                    $bursts[$last]['end'] = $ts($e);
+                } else {
+                    $bursts[] = [
+                        'start' => $ts($e),
+                        'end' => $ts($e),
+                        'by' => $e['detail']->performed_by,
+                        'at' => $e['detail']->created_at,
+                    ];
+                }
+            }
+
+            foreach ($bursts as $b => $burst) {
+                $isLast = $b === count($bursts) - 1;
+
+                $sourceEvents[] = [
+                    'id' => null,
+                    'event_type' => 'sources_set',
+                    'label' => $isLast ? 'Sumber Barang Dipilih' : 'Sumber Barang Diubah',
+                    'qty_before' => null,
+                    'qty_change' => null,
+                    'qty_after' => $isLast ? $currentQty : null,
+                    'meta' => null,
+                    'notes' => null,
+                    'performed_by' => $burst['by'] ?: 'System',
+                    'created_at' => $burst['at']->format('d M Y, H:i'),
+                    'ts' => $burst['start'],
+                    'source_no' => null,
+                    'source' => null,
+                    'changes' => [],
+                    'split_note' => null,
+                    // Hanya penetapan terakhir yang memuat daftar sumber (kondisi sekarang).
+                    'source_summary' => $isLast ? [
+                        'total' => $currentQty,
+                        'count' => $sources->count(),
+                        'items' => $sources->map(fn ($src) => [
+                            'qty' => $src['qty'],
+                            'text' => $src['type_label'].($src['detail'] ? ' · '.$src['detail'] : ''),
+                        ])->all(),
+                    ] : null,
+                ];
+            }
+        }
+
+        $payload = [
+            'id' => $rep->id,
+            'item_code' => optional($rep->item)->item_code_internal,
+            'item_name' => optional($rep->item)->name,
+            'so_number' => $rep->so_number,
             'status' => $status,
             'informasi_awal' => [
-                'customer' => $history->customer ?: '-',
-                'line_item' => $history->line_item ?: '-',
-                'delivery_instruction_date' => optional($history->delivery_instruction_date)->format('d M Y') ?: '-',
-                'sumber_barang' => $this->sourceLabel($source),
-                'initial_qty' => number_format($history->initial_qty, 0, ',', '.').' PCS',
+                'customer' => $rep->customer ?: '-',
+                'line_item' => $rep->line_item ?: '-',
+                'delivery_instruction_date' => optional($rep->delivery_instruction_date)->format('d M Y') ?: '-',
+                'sumber_barang' => $sumberBarang,
+                'sumber_ringkas' => $isGroup ? $sumberRingkas : null,
+                'sumber_list' => $isGroup ? $sources->all() : [],
+                'initial_qty' => number_format($rep->initial_qty, 0, ',', '.').' PCS',
                 'current_qty' => number_format($currentQty, 0, ',', '.').' PCS',
-                'created_by' => optional($history->creator)->name ?: '-',
-                'created_at' => $history->created_at->format('d M Y, H:i'),
+                'created_by' => optional($rep->creator)->name ?: '-',
+                'created_at' => $rep->created_at->format('d M Y, H:i'),
             ],
             'status_pengiriman' => [
-                'picking_date' => optional($history->picking_date)->format('d M Y') ?: '-',
-                'do_number' => $history->do_number ?: '-',
-                'delivery_date' => optional($history->delivery_date)->format('d M Y') ?: '-',
+                'picking_date' => optional($rep->picking_date)->format('d M Y') ?: '-',
+                'do_number' => $rep->do_number ?: '-',
+                'delivery_date' => optional($rep->delivery_date)->format('d M Y') ?: '-',
             ],
-            'timeline' => $history->details->map(function ($detail) {
+            'timeline' => $events->map(function ($event) use ($isGroup, $sources, $splitTimes) {
+                $detail = $event['detail'];
                 $meta = $detail->meta;
 
                 // Perubahan lokasi stok pada event "updated" disimpan sebagai
@@ -1004,6 +1327,7 @@ class StagingOutHistoryController extends Controller
 
                 return [
                     'id' => $detail->id,
+                    'ts' => $detail->created_at->getTimestamp(),
                     'event_type' => $detail->event_type,
                     'label' => StagingOutHistoryDetail::EVENT_TYPES[$detail->event_type] ?? self::EXTRA_EVENT_TYPES[$detail->event_type] ?? $detail->event_type,
                     'qty_before' => $detail->qty_before,
@@ -1013,8 +1337,29 @@ class StagingOutHistoryController extends Controller
                     'notes' => $detail->notes,
                     'performed_by' => $detail->performed_by ?: 'System',
                     'created_at' => $detail->created_at->format('d M Y, H:i'),
+                    // Penanda sumber ke berapa (hanya kalau sumbernya lebih dari satu).
+                    'source_no' => $isGroup ? $event['source_no'] : null,
+                    'source' => $isGroup ? ($sources[$event['source_no'] - 1] ?? null) : null,
+                    // Perubahan dalam bahasa yang mudah dibaca (label + nilai lama/baru).
+                    'changes' => $detail->event_type === 'updated' ? $this->describeChanges($meta) : [],
+                    'split_note' => $isGroup
+                        && $detail->event_type === 'updated'
+                        && is_array($meta) && isset($meta['qty'])
+                        && $splitTimes->contains(fn ($t) => abs($t - $detail->created_at->getTimestamp()) <= 15)
+                            ? 'Barang dibagi ke beberapa sumber, jadi qty sumber ini disesuaikan.'
+                            : null,
                 ];
             })->all(),
         ];
+
+        if ($sourceEvents) {
+            $payload['timeline'] = collect($payload['timeline'])
+                ->concat($sourceEvents)
+                ->sort(fn ($a, $b) => [$a['ts'], $a['id'] ?? PHP_INT_MAX] <=> [$b['ts'], $b['id'] ?? PHP_INT_MAX])
+                ->values()
+                ->all();
+        }
+
+        return $payload;
     }
 }

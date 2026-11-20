@@ -55,27 +55,34 @@
                 {{-- ============ TAB: SEMUA LOKASI (ringkasan + preview per kategori) ============ --}}
                 <div class="tab-pane fade show active" id="pane-semua" role="tabpanel">
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap" style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="summarySearch" class="form-control border-start-0"
-                                placeholder="Cari lokasi...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="summarySearch" autocomplete="off" placeholder="Cari lokasi..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                        <div class="fx-actions">
+                            <button type="button" class="fx-reset" id="btnResetSummary" title="Kembalikan semua filter">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                                <span>Reset</span>
+                            </button>
+                        </div>
                         </div>
 
-                        <select id="summaryStatus" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="summaryStatus">Status</label>
+                                <select id="summaryStatus">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
 
-                        <button type="button" id="btnResetSummary" class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                        </button>
-
-
-                        
                     </div>
 
                     <h6 class="fw-bold mb-3">Ringkasan Lokasi</h6>
@@ -108,19 +115,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchRak" class="form-control border-start-0"
-                                placeholder="Cari lokasi rak...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchRak" autocomplete="off" placeholder="Cari lokasi rak..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusRak" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusRak">Status</label>
+                                <select id="statusRak">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarRak"
@@ -175,19 +191,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchFlat" class="form-control border-start-0"
-                                placeholder="Cari lokasi flat indoor...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchFlat" autocomplete="off" placeholder="Cari lokasi flat indoor..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusFlat" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusFlat">Status</label>
+                                <select id="statusFlat">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarFlat"
@@ -243,19 +268,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchHroom" class="form-control border-start-0"
-                                placeholder="Cari lokasi h-room storage...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchHroom" autocomplete="off" placeholder="Cari lokasi h-room storage..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusHroom" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusHroom">Status</label>
+                                <select id="statusHroom">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarHroom"
@@ -310,19 +344,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchOutdoor" class="form-control border-start-0"
-                                placeholder="Cari lokasi outdoor...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchOutdoor" autocomplete="off" placeholder="Cari lokasi outdoor..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusOutdoor" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusOutdoor">Status</label>
+                                <select id="statusOutdoor">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarOutdoor"
@@ -377,19 +420,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchBackside" class="form-control border-start-0"
-                                placeholder="Cari lokasi backside...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchBackside" autocomplete="off" placeholder="Cari lokasi backside..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusBackside" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusBackside">Status</label>
+                                <select id="statusBackside">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarBackside"
@@ -444,19 +496,28 @@
                         </div>
                     </div>
 
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-                        <div class="input-group input-group-sm shadow-sm flex-nowrap"  style="max-width:260px;">
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-                            <input type="text" id="searchLainlain" class="form-control border-start-0"
-                                placeholder="Cari lokasi lain-lain...">
+                    <div class="fx mb-4">
+
+                        <div class="fx-top">
+                            <div class="fx-search">
+                                <i class="bi bi-search fx-search-icon"></i>
+                                <input type="text" id="searchLainlain" autocomplete="off" placeholder="Cari lokasi lain-lain..." aria-label="Cari">
+                                <button type="button" class="fx-search-clear" aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
+                            </div>
                         </div>
-                        <select id="statusLainlain" class="form-select form-select-sm" style="width:180px;">
-                            <option value="">Semua Status</option>
-                            <option value="1">Aktif</option>
-                            <option value="0">Non Aktif</option>
-                        </select>
+
+                        <div class="fx-chips">
+                            <div class="fx-chip">
+                                <i class="bi bi-toggle-on"></i>
+                                <label for="statusLainlain">Status</label>
+                                <select id="statusLainlain">
+                                <option value="">Semua Status</option>
+                                <option value="1">Aktif</option>
+                                <option value="0">Non Aktif</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div id="bulkActionBarLainlain"
@@ -767,6 +828,391 @@
 
     @push('script')
         <style>
+            /* ===== Filter bar ===== */
+            .fx {
+                --fx-accent: var(--bs-primary, #0d6efd);
+                --fx-accent-rgb: var(--bs-primary-rgb, 13, 110, 253);
+                --fx-line: var(--bs-border-color, #dee2e6);
+                --fx-muted: var(--bs-secondary-color, #6c757d);
+                --fx-surface: var(--bs-body-bg, #fff);
+                margin-bottom: 1rem;
+            }
+
+            .fx-top {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: .6rem;
+            }
+
+            /* Pencarian */
+            .fx-search {
+                position: relative;
+                flex: 1 1 320px;
+                min-width: 0;
+            }
+
+            .fx-search-icon {
+                position: absolute;
+                left: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--fx-muted);
+                pointer-events: none;
+            }
+
+            .fx-search input {
+                width: 100%;
+                height: 2.6rem;
+                padding: 0 2.6rem 0 2.6rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                font-size: .9rem;
+                transition: border-color .15s ease, box-shadow .15s ease;
+            }
+
+            .fx-search input::placeholder {
+                color: var(--fx-muted);
+                opacity: .85;
+            }
+
+            .fx-search input:focus {
+                outline: 0;
+                border-color: rgba(var(--fx-accent-rgb), .55);
+                box-shadow: 0 0 0 .25rem rgba(var(--fx-accent-rgb), .12);
+            }
+
+            .fx-search.has-value input {
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-search-clear {
+                position: absolute;
+                right: .45rem;
+                top: 50%;
+                transform: translateY(-50%);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                width: 1.8rem;
+                height: 1.8rem;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--fx-muted);
+                font-size: .75rem;
+            }
+
+            .fx-search.has-value .fx-search-clear {
+                display: inline-flex;
+            }
+
+            .fx-search-clear:hover {
+                background: rgba(var(--fx-accent-rgb), .1);
+                color: var(--fx-accent);
+            }
+
+            /* Ringkasan + reset */
+            .fx-actions {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+            }
+
+            .fx-count {
+                display: none;
+                font-size: .8rem;
+                font-weight: 600;
+                color: var(--fx-accent);
+                white-space: nowrap;
+            }
+
+            .fx.has-active .fx-count {
+                display: inline;
+            }
+
+            .fx-reset {
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem;
+                height: 2.6rem;
+                padding: 0 1.05rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--fx-muted);
+                font-size: .85rem;
+                font-weight: 500;
+                transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+            }
+
+            .fx-reset:hover,
+            .fx.has-active .fx-reset {
+                color: var(--fx-accent);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-reset:hover {
+                background: rgba(var(--fx-accent-rgb), .06);
+            }
+
+            .fx-reset:focus-visible,
+            .fx-search-clear:focus-visible,
+            .fx-preset:focus-visible {
+                outline: 2px solid rgba(var(--fx-accent-rgb), .6);
+                outline-offset: 2px;
+            }
+
+            /* Chip filter */
+            .fx-chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .5rem;
+                margin-top: .7rem;
+            }
+
+            .fx-chip {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                gap: .5rem;
+                height: 2.3rem;
+                padding: 0 .4rem 0 .85rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+            }
+
+            .fx-chip:hover {
+                border-color: rgba(var(--fx-accent-rgb), .4);
+            }
+
+            .fx-chip:focus-within {
+                border-color: rgba(var(--fx-accent-rgb), .6);
+                box-shadow: 0 0 0 .22rem rgba(var(--fx-accent-rgb), .12);
+            }
+
+            .fx-chip>i {
+                color: var(--fx-muted);
+                font-size: .95rem;
+                line-height: 1;
+            }
+
+            .fx-chip label {
+                margin: 0;
+                font-size: .8rem;
+                color: var(--fx-muted);
+                white-space: nowrap;
+                cursor: pointer;
+            }
+
+            .fx-chip select,
+            .fx-chip input[type="text"] {
+                height: 100%;
+                max-width: 11.5rem;
+                padding: 0 1.4rem 0 .1rem;
+                border: 0;
+                outline: 0;
+                box-shadow: none;
+                background-color: transparent;
+                color: var(--bs-body-color);
+                font-size: .85rem;
+                font-weight: 600;
+                text-overflow: ellipsis;
+                cursor: pointer;
+            }
+
+            .fx-chip select {
+                -webkit-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%238a93a3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .3rem center;
+                background-size: .8rem;
+            }
+
+            .fx-chip select option {
+                color: var(--bs-body-color);
+                background: var(--fx-surface);
+                font-weight: 400;
+            }
+
+            .fx-chip input[type="text"]::placeholder {
+                color: var(--fx-muted);
+                font-weight: 400;
+            }
+
+            .fx-chip.is-active {
+                background: rgba(var(--fx-accent-rgb), .08);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-chip.is-active>i,
+            .fx-chip.is-active label {
+                color: var(--fx-accent);
+            }
+
+            .fx-sep {
+                align-self: center;
+                width: 1px;
+                height: 1.1rem;
+                background: var(--fx-line);
+            }
+
+            .fx-chip.is-active .fx-sep {
+                background: rgba(var(--fx-accent-rgb), .3);
+            }
+
+            /* Rentang tanggal */
+            .date-range-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+                height: 100%;
+            }
+
+            .fx-chip-date input[type="text"] {
+                width: 10.5rem;
+                padding-right: .6rem;
+            }
+
+            .date-range-panel {
+                display: none;
+                position: absolute;
+                top: calc(100% + 10px);
+                left: 0;
+                z-index: 1050;
+                width: 270px;
+                padding: 14px;
+                background: var(--fx-surface);
+                border: 1px solid var(--fx-line);
+                border-radius: 1rem;
+                box-shadow: 0 .75rem 2rem rgba(20, 20, 43, .14);
+            }
+
+            .date-range-panel.show {
+                display: block;
+                animation: fxPop .14s ease-out;
+            }
+
+            @keyframes fxPop {
+                from {
+                    opacity: 0;
+                    transform: translateY(-4px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .fx-presets {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .35rem;
+                margin-bottom: .75rem;
+            }
+
+            .fx-preset {
+                padding: .25rem .65rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: transparent;
+                color: var(--bs-body-color);
+                font-size: .76rem;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .fx-preset:hover {
+                border-color: rgba(var(--fx-accent-rgb), .5);
+                background: rgba(var(--fx-accent-rgb), .08);
+                color: var(--fx-accent);
+            }
+
+            /* Banner filter dari dashboard */
+            .fx-banner {
+                display: flex;
+                align-items: center;
+                gap: .6rem;
+                margin-bottom: .9rem;
+                padding: .6rem .6rem .6rem .9rem;
+                border: 1px solid rgba(var(--fx-accent-rgb), .3);
+                border-radius: .85rem;
+                background: rgba(var(--fx-accent-rgb), .07);
+                color: var(--bs-body-color);
+                font-size: .86rem;
+                white-space: normal;
+            }
+
+            .fx-banner>i {
+                color: var(--fx-accent);
+                font-size: 1.05rem;
+            }
+
+            .fx-banner>span {
+                flex: 1;
+            }
+
+            .fx-banner-close {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.7rem;
+                height: 1.7rem;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--fx-muted);
+                font-size: .72rem;
+            }
+
+            .fx-banner-close:hover {
+                background: rgba(var(--fx-accent-rgb), .14);
+                color: var(--fx-accent);
+            }
+
+            @media (max-width: 575.98px) {
+                .fx-actions {
+                    width: 100%;
+                    justify-content: space-between;
+                }
+
+                .fx-chip-date {
+                    flex: 1 1 100%;
+                }
+
+                .fx-chip-date .date-range-wrapper {
+                    flex: 1;
+                }
+
+                .fx-chip-date input[type="text"] {
+                    width: 100%;
+                }
+
+                .date-range-panel {
+                    left: -3rem;
+                    right: 0;
+                    width: auto;
+                    min-width: 260px;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+
+                .fx *,
+                .date-range-panel.show {
+                    transition: none !important;
+                    animation: none !important;
+                }
+            }
+
             #locationTabs {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -826,14 +1272,6 @@
 
             .dt-search .form-control:focus {
                 box-shadow: none;
-            }
-
-            #summarySearch,
-            #searchRak,
-            #searchFlat,
-            #searchHroom {
-                padding-left: 4px;
-                border-radius: 4px !important;
             }
 
             @media (max-width: 991.98px) {
@@ -2014,5 +2452,38 @@
                 });
             </script>
         @endif
+        <script>
+            // ============ TAMPILAN FILTER (penanda aktif & hapus pencarian) ============
+            (function() {
+                function refreshFilterState() {
+                    $('.fx').each(function() {
+                        const $bar = $(this);
+                        const searchFilled = String($bar.find('.fx-search input').val() || '').trim() !== '';
+                        $bar.find('.fx-search').toggleClass('has-value', searchFilled);
+
+                        let active = searchFilled;
+                        $bar.find('.fx-chip select').each(function() {
+                            const on = String($(this).val() || '') !== '';
+                            $(this).closest('.fx-chip').toggleClass('is-active', on);
+                            if (on) active = true;
+                        });
+                        $bar.toggleClass('has-active', active);
+                    });
+                }
+
+                $(document).on('input change', '.fx input, .fx select', refreshFilterState);
+
+                // Reset & ganti tab mengisi nilai lewat .val() (tanpa event), jadi cek ulang sesudahnya.
+                $(document).on('click', 'button', function() {
+                    setTimeout(refreshFilterState, 0);
+                });
+
+                $(document).on('click', '.fx-search-clear', function() {
+                    $(this).siblings('input').val('').trigger('input').trigger('focus');
+                });
+
+                refreshFilterState();
+            })();
+        </script>
     @endpush
 @endsection
