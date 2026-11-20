@@ -1354,18 +1354,9 @@
                         <th>Barang</th>
                         <th>Total Qty</th>
                         <th>Tgl Instruksi Kirim</th>
-<<<<<<< HEAD
                         <th>Status Picking</th>
                         <th>Bill Packing</th>
                         <th>Line Item</th>
-=======
-                        <th>Tgl Picking</th>
-                        <th>Lokasi</th>
-                        <th>No. DO</th>
-                        <th>Tgl Resi Pengiriman</th>
-                        <th>Catatan</th>
-                        <th>Aksi</th>
->>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -2994,33 +2985,8 @@
                             searchable: false
                         },
                         {
-<<<<<<< HEAD
                             data: 'status_html',
                             name: 'status_html',
-=======
-                            data: 'picking_date',
-                            name: 'staging_outs.picking_date'
-                        },
-                        {
-                            data: 'staging_location',
-                            name: 'staging_location'
-                        },
-                        {
-                            data: 'do_number',
-                            name: 'do_number'
-                        },
-                        {
-                            data: 'delivery_receipt_date',
-                            name: 'staging_outs.delivery_receipt_date'
-                        },
-                        {
-                            data: 'note',
-                            name: 'staging_outs.note'
-                        },
-                        {
-                            data: 'action',
-                            name: 'action',
->>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                             searchable: false,
                             orderable: false
                         },
@@ -3067,28 +3033,7 @@
                             width: "220px"
                         },
                         {
-<<<<<<< HEAD
                             targets: [6, 7, 8, 9],
-=======
-                            targets: 1,
-                            width: "80px"
-                        },
-                        {
-                            targets: 5,
-                            className: "text-center"
-                        },
-                        {
-                            targets: [8, 9],
-                            className: "text-center"
-                        },
-                        {
-                            targets: 12,
-                            className: "text-wrap",
-                            width: "200px"
-                        },
-                        {
-                            targets: [11, 13],
->>>>>>> 15895e96a3d5f25017618b83f41b24c25c6facf1
                             className: "text-center"
                         }
                     ],
