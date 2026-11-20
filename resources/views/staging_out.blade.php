@@ -1539,23 +1539,35 @@
 
             </div>
 
+            <div class="so-toolbar">
+                <div class="so-hint">
+                    <i class="bx bx-info-circle"></i>
+                    Satu baris = satu SO. Klik barisnya untuk melihat isi SO, lalu gunakan tombol aksi pada tiap barang.
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" id="btnOpenAllSo">
+                        <i class="bx bx-expand-vertical me-1"></i> Buka semua
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="btnCloseAllSo">
+                        <i class="bx bx-collapse-vertical me-1"></i> Tutup semua
+                    </button>
+                </div>
+            </div>
+
             <table class="table table-bordered" id="stagingOut">
                 <thead>
                     <tr>
+                        <th></th>
                         <th><input type="checkbox" id="checkAll"></th>
                         <th>No</th>
                         <th>No. SO</th>
                         <th>Customer</th>
-                        <th>Item Code</th>
-                        <th>Line Item</th>
-                        <th>Qty</th>
+                        <th>Barang</th>
+                        <th>Total Qty</th>
                         <th>Tgl Instruksi Kirim</th>
-                        <th>Tgl Picking</th>
-                        <th>Lokasi</th>
-                        <th>No. DO</th>
-                        <th>Tgl Resi Pengiriman</th>
-                        <th>Catatan</th>
-                        <th>Aksi</th>
+                        <th>Status Picking</th>
+                        <th>Bill Packing</th>
+                        <th>Line Item</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -3180,6 +3192,10 @@
             let table;
             let appliedStartDate = '';
             let appliedEndDate = '';
+            // Kunci SO yang sedang dibuka (child row). Disimpan supaya SO yang
+            // terbuka tidak menutup sendiri setelah tabel dimuat ulang
+            // (mis. habis konfirmasi picking / ubah lokasi barang).
+            let openSoKeys = new Set();
             // Filter/status yang datang dari URL (mis. link notifikasi
             // dashboard ?filter=today atau ?status=terlambat). Nilainya
             // dipakai sampai dropdown status diubah manual atau filter
@@ -3214,6 +3230,11 @@
                     },
 
                     columns: [{
+                            data: 'expander',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
                             data: 'checkbox',
                             searchable: false,
                             orderable: false
@@ -3233,45 +3254,40 @@
                             name: 'customer'
                         },
                         {
-                            data: 'item_code',
-                            name: 'item_code'
-                        },
-                        {
-                            data: 'line_item',
-                            name: 'line_item'
+                            // Ringkasan kode barang; juga dipakai untuk
+                            // pencarian kode/nama barang di kotak "Cari".
+                            data: 'items_summary',
+                            name: 'item_code',
+                            orderable: false
                         },
                         {
                             data: 'qty',
-                            name: 'qty'
+                            name: 'qty',
+                            searchable: false
                         },
                         {
                             data: 'delivery_instruction_date',
-                            name: 'staging_outs.delivery_instruction_date'
+                            name: 'delivery_instruction_date',
+                            searchable: false
                         },
                         {
-                            data: 'picking_date',
-                            name: 'staging_outs.picking_date'
-                        },
-                        {
-                            data: 'staging_location',
-                            name: 'staging_location'
-                        },
-                        {
-                            data: 'do_number',
-                            name: 'do_number'
-                        },
-                        {
-                            data: 'delivery_receipt_date',
-                            name: 'staging_outs.delivery_receipt_date'
-                        },
-                        {
-                            data: 'note',
-                            name: 'staging_outs.note'
-                        },
-                        {
-                            data: 'action',
-                            name: 'action',
+                            data: 'status_html',
+                            name: 'status_html',
                             searchable: false,
+                            orderable: false
+                        },
+                        {
+                            data: 'bill_html',
+                            name: 'bill_html',
+                            searchable: false,
+                            orderable: false
+                        },
+                        {
+                            // Disembunyikan; hanya supaya pencarian
+                            // "line item" tetap berfungsi.
+                            data: 'line_item',
+                            name: 'line_item',
+                            visible: false,
                             orderable: false
                         }
                     ],
@@ -3279,38 +3295,59 @@
                     autoWidth: false,
 
                     columnDefs: [{
-                            targets: [3, 4],
+                            targets: 0,
+                            className: "text-center so-toggle-cell",
+                            width: "52px"
+                        },
+                        {
+                            targets: 1,
+                            className: "text-center",
+                            width: "40px"
+                        },
+                        {
+                            targets: 2,
+                            className: "text-center",
+                            width: "50px"
+                        },
+                        {
+                            targets: 3,
+                            width: "210px"
+                        },
+                        {
+                            targets: [4, 5],
                             className: "text-wrap",
                             width: "220px"
                         },
                         {
-                            targets: 1,
-                            width: "80px"
-                        },
-                        {
-                            targets: 5,
-                            className: "text-center"
-                        },
-                        {
-                            targets: [8, 9],
-                            className: "text-center"
-                        },
-                        {
-                            targets: 12,
-                            className: "text-wrap",
-                            width: "200px"
-                        },
-                        {
-                            targets: [11, 13],
+                            targets: [6, 7, 8, 9],
                             className: "text-center"
                         }
                     ],
+
+                    // Tandai baris SO supaya bisa diklik untuk buka/tutup isinya.
+                    createdRow: function(row) {
+                        $(row).addClass('so-row');
+                    },
+
                     initComplete: function() {
                         moveDataTablesElements();
                     },
 
                     drawCallback: function() {
                         moveDataTablesElements();
+
+                        // Buka lagi SO yang tadinya terbuka (setelah reload tabel).
+                        if (typeof toggleSoRow === 'function' && openSoKeys.size) {
+                            const api = $('#stagingOut').DataTable();
+                            api.rows({
+                                page: 'current'
+                            }).every(function() {
+                                const d = this.data();
+                                if (d && openSoKeys.has(d.so_key)) {
+                                    toggleSoRow(this.node(), true);
+                                }
+                            });
+                        }
                     }
 
                 });
@@ -4792,6 +4829,285 @@
         </style>
 
         <style>
+            /* ================= Tampilan 1 baris = 1 SO ================= */
+            .so-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: .5rem;
+                margin: 0 1.5rem .75rem;
+            }
+
+            .so-hint {
+                font-size: .8rem;
+                color: #8a93a8;
+            }
+
+            .so-hint i {
+                color: #4f46e5;
+                margin-right: .25rem;
+            }
+
+            #stagingOut tbody tr.so-row {
+                cursor: pointer;
+            }
+
+            #stagingOut tbody tr.so-row>td {
+                vertical-align: middle;
+                transition: background-color .15s ease;
+            }
+
+            #stagingOut tbody tr.so-row:hover>td {
+                background-color: #f6f7ff;
+            }
+
+            #stagingOut tbody tr.so-row.so-open>td {
+                background-color: #eef0ff;
+            }
+
+            .so-toggle-btn {
+                width: 30px;
+                height: 30px;
+                border: 0;
+                border-radius: 50%;
+                display: inline-grid;
+                place-items: center;
+                background: #eef0ff;
+                color: #4f46e5;
+                font-size: 1.15rem;
+                transition: transform .2s ease, background-color .2s ease, color .2s ease;
+            }
+
+            tr.so-row:hover .so-toggle-btn {
+                background: #dfe3ff;
+            }
+
+            tr.so-open .so-toggle-btn {
+                transform: rotate(90deg);
+                background: #4f46e5;
+                color: #fff;
+            }
+
+            .so-cell {
+                display: flex;
+                align-items: center;
+                gap: .7rem;
+                text-align: left;
+            }
+
+            .so-icon {
+                flex: none;
+                width: 38px;
+                height: 38px;
+                border-radius: .8rem;
+                display: grid;
+                place-items: center;
+                font-size: 1.2rem;
+                color: #4f46e5;
+                background: #eef0ff;
+            }
+
+            .so-number {
+                font-weight: 700;
+                color: #2b3350;
+                letter-spacing: -.01em;
+            }
+
+            .so-sub {
+                font-size: .75rem;
+                color: #8a93a8;
+            }
+
+            .so-chip {
+                display: inline-block;
+                margin: 0 .25rem .25rem 0;
+                padding: .15rem .6rem;
+                border-radius: 999px;
+                font-size: .72rem;
+                font-weight: 600;
+                white-space: nowrap;
+                color: #495057;
+                background: #f1f3f5;
+            }
+
+            .so-chip.more {
+                color: #4f46e5;
+                background: #eef0ff;
+            }
+
+            .so-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: .3rem;
+                padding: .25rem .7rem;
+                border-radius: 999px;
+                font-size: .74rem;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .so-pill.none {
+                color: #6c757d;
+                background: #f1f3f5;
+            }
+
+            .so-pill.part {
+                color: #997404;
+                background: #fff3cd;
+            }
+
+            .so-pill.done {
+                color: #0f5132;
+                background: #d1e7dd;
+            }
+
+            .so-progress {
+                height: 5px;
+                min-width: 110px;
+                margin: .45rem auto 0;
+                max-width: 140px;
+                border-radius: 999px;
+                overflow: hidden;
+                background: #e4e7f2;
+            }
+
+            .so-progress>span {
+                display: block;
+                height: 100%;
+                border-radius: 999px;
+                background: linear-gradient(90deg, #4f46e5, #22c55e);
+            }
+
+            /* Tombol Bill di baris SO */
+            .so-bill-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: .35rem;
+                padding: .4rem .9rem;
+                border: 1px solid #4f46e5;
+                border-radius: 999px;
+                font-size: .76rem;
+                font-weight: 700;
+                white-space: nowrap;
+                text-decoration: none;
+                color: #4f46e5;
+                background: #fff;
+                transition: background-color .15s ease, color .15s ease;
+            }
+
+            .so-bill-btn:hover {
+                color: #fff;
+                background: #4f46e5;
+            }
+
+            .so-bill-btn.has-bill {
+                color: #0f5132;
+                background: #d1e7dd;
+                border-color: #a3cfbb;
+            }
+
+            .so-bill-btn.has-bill:hover {
+                color: #fff;
+                background: #198754;
+                border-color: #198754;
+            }
+
+            .loc-chip {
+                display: inline-block;
+                margin: 0 .2rem .2rem 0;
+                padding: .15rem .6rem;
+                border-radius: 999px;
+                font-size: .72rem;
+                font-weight: 600;
+                white-space: nowrap;
+                border: 1px solid transparent;
+            }
+
+            .loc-chip.loc-staging {
+                color: #997404;
+                background: #fff3cd;
+                border-color: #ffe69c;
+            }
+
+            .loc-chip.loc-packing {
+                color: #084298;
+                background: #cfe2ff;
+                border-color: #9ec5fe;
+            }
+
+            .loc-chip.loc-outbound {
+                color: #0f5132;
+                background: #d1e7dd;
+                border-color: #a3cfbb;
+            }
+
+            /* ----- isi SO (child row) ----- */
+            #stagingOut tbody td.so-child-cell {
+                padding: 0 !important;
+                background: #f5f6fb;
+                white-space: normal;
+            }
+
+            .so-items-wrap {
+                margin: .25rem 1.25rem 1rem 3.5rem;
+                overflow: hidden;
+                background: #fff;
+                border: 1px solid #e3e6f3;
+                border-left: 4px solid #4f46e5;
+                border-radius: .9rem;
+                box-shadow: 0 8px 20px -12px rgba(43, 51, 80, .4);
+                text-align: left;
+            }
+
+            .so-items-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: .5rem;
+                padding: .65rem 1rem;
+                font-size: .8rem;
+                font-weight: 700;
+                color: #2b3350;
+                background: #fafbff;
+                border-bottom: 1px solid #eceef5;
+            }
+
+            table.so-items-table {
+                width: 100%;
+                margin: 0;
+            }
+
+            table.so-items-table thead th {
+                padding: .55rem .75rem;
+                font-size: .68rem;
+                font-weight: 700;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: #8a93a8;
+                background: #fff;
+                border-bottom: 1px solid #eceef5;
+                white-space: nowrap;
+            }
+
+            table.so-items-table tbody td {
+                padding: .6rem .75rem;
+                font-size: .85rem;
+                border-color: #f0f1f7;
+                vertical-align: middle;
+            }
+
+            table.so-items-table tbody tr:last-child td {
+                border-bottom: 0;
+            }
+
+            table.so-items-table tbody tr:hover>td {
+                background: #fafbff;
+            }
+        </style>
+
+        <style>
             #stagingOut td.text-wrap,
             #stagingOut th.text-wrap {
                 white-space: normal !important;
@@ -4957,6 +5273,88 @@
         @endif
 
         <script>
+            // ================= 1 BARIS = 1 SO (buka/tutup isi SO) =================
+            function toggleSoRow(tr, forceOpen) {
+                const api = $('#stagingOut').DataTable();
+                const row = api.row(tr);
+                const data = row.data();
+                if (!data) return;
+
+                const isOpen = row.child.isShown();
+                const wantOpen = (typeof forceOpen === 'boolean') ? forceOpen : !isOpen;
+
+                if (wantOpen && !isOpen) {
+                    row.child(data.items_html, 'so-child-cell').show();
+                    $(tr).addClass('so-open');
+                    openSoKeys.add(data.so_key);
+
+                    // Samakan centang barang dengan pilihan yang sudah ada.
+                    $(tr).next('tr').find('.row-checkbox').each(function() {
+                        this.checked = selectedStagingOutIds.has(String($(this).val()));
+                    });
+                } else if (!wantOpen && isOpen) {
+                    row.child.hide();
+                    $(tr).removeClass('so-open');
+                    openSoKeys.delete(data.so_key);
+                }
+            }
+
+            // Klik di mana saja pada baris SO (selain checkbox/tombol) = buka/tutup.
+            $(document).on('click', '#stagingOut tbody tr.so-row', function(e) {
+                if ($(e.target).closest('input, button, a, select, label').not('.so-toggle-btn').length) return;
+                toggleSoRow(this);
+            });
+
+            $(document).on('click', '#stagingOut .so-toggle-btn', function(e) {
+                e.stopPropagation();
+                toggleSoRow($(this).closest('tr')[0]);
+            });
+
+            $('#btnOpenAllSo').on('click', function() {
+                $('#stagingOut').DataTable().rows({
+                    page: 'current'
+                }).every(function() {
+                    toggleSoRow(this.node(), true);
+                });
+            });
+
+            $('#btnCloseAllSo').on('click', function() {
+                $('#stagingOut').DataTable().rows({
+                    page: 'current'
+                }).every(function() {
+                    toggleSoRow(this.node(), false);
+                });
+            });
+
+            // Centang SO = centang semua barangnya.
+            $(document).on('change', '.so-checkbox', function() {
+                const checked = this.checked;
+
+                JSON.parse(this.getAttribute('data-ids') || '[]').forEach(function(id) {
+                    if (checked) {
+                        selectedStagingOutIds.add(String(id));
+                    } else {
+                        selectedStagingOutIds.delete(String(id));
+                    }
+                });
+
+                $(this).closest('tr').next('tr').find('.row-checkbox').prop('checked', checked);
+                $(this).prop('indeterminate', false);
+                toggleBulkActionBar();
+            });
+
+            // Centang barang -> status checkbox SO (penuh / sebagian / kosong) ikut berubah.
+            $(document).on('change', '.row-checkbox', function() {
+                const $boxes = $(this).closest('table.so-items-table').find('.row-checkbox');
+                const total = $boxes.length;
+                const on = $boxes.filter(':checked').length;
+                const $so = $(this).closest('table.so-items-table').closest('tr').prev('tr.so-row').find('.so-checkbox');
+
+                $so.prop('checked', total > 0 && on === total).prop('indeterminate', on > 0 && on < total);
+            });
+        </script>
+
+        <script>
             let selectedStagingOutIds = new Set();
 
             function toggleBulkActionBar() {
@@ -4995,6 +5393,18 @@
                     } else {
                         selectedStagingOutIds.delete(id);
                     }
+                });
+
+                // Checkbox per SO: ikut semua barang di dalamnya, termasuk
+                // SO yang isinya belum dibuka.
+                $('.so-checkbox').prop('checked', checked).prop('indeterminate', false).each(function() {
+                    JSON.parse(this.getAttribute('data-ids') || '[]').forEach(function(id) {
+                        if (checked) {
+                            selectedStagingOutIds.add(String(id));
+                        } else {
+                            selectedStagingOutIds.delete(String(id));
+                        }
+                    });
                 });
 
                 toggleBulkActionBar();

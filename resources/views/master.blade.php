@@ -137,7 +137,7 @@
                     </li>
 
                     {{-- Master Data --}}
-                    <li class="menu-item {{ request()->is('location', 'item', 'vendor*') ? 'active open' : '' }}">
+                    <li class="menu-item {{ request()->is('location', 'item', 'vendor*', 'packing-materials*') ? 'active open' : '' }}">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons bx bx-file"></i>
                             <div class="text-truncate" data-i18n="Master Data">Master Data</div>
@@ -159,6 +159,12 @@
                                 <a href="{{ url('/vendor') }}" class="menu-link">
                                     <i class="menu-icon tf-icons bx bx-buildings"></i>
                                     <div class="text-truncate" data-i18n="Vendor">Vendor</div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('packing-materials*') ? 'active' : '' }}">
+                                <a href="{{ url('/packing-materials') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-buildings"></i>
+                                    <div class="text-truncate" data-i18n="Packing Materials">Packing Materials</div>
                                 </a>
                             </li>
                         </ul>
@@ -205,7 +211,7 @@
 
                     {{-- History --}}
                     <li
-                        class="menu-item {{ request()->is('stagings-in-history*', 'stagings-out-history*', 'item-history') ? 'active open' : '' }}">
+                        class="menu-item {{ request()->is('stagings-in-history*', 'stagings-out-history*', 'item-history', 'packing-bills') ? 'active open' : '' }}">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons bx bx-history"></i>
                             <div class="text-truncate" data-i18n="History">History</div>
@@ -222,6 +228,12 @@
                                     <i class="menu-icon tf-icons bx bx-log-out"></i>
                                     <div class="text-truncate" data-i18n="Staging Out History">Staging Out History
                                     </div>
+                                </a>
+                            </li>
+                            <li class="menu-item {{ request()->is('packing-bills') ? 'active' : '' }}">
+                                <a href="{{ url('/packing-bills') }}" class="menu-link">
+                                    <i class="menu-icon tf-icons bx bx-receipt"></i>
+                                    <div class="text-truncate" data-i18n="Bill Packing History">Bill Packing History</div>
                                 </a>
                             </li>
                             <li class="menu-item {{ request()->is('item-history*') ? 'active' : '' }}">

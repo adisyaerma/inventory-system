@@ -1,0 +1,14 @@
+services:
+  laravel:
+    build: .
+    container_name: laravel-app
+    restart: unless-stopped
+    ports:
+      - "8000:8080"
+    env_file:
+      - .env.docker
+    volumes:
+      - laravel_storage:/var/www/html/storage
+
+volumes:
+  laravel_storage:

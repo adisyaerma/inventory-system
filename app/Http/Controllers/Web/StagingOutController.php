@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
 use App\Models\StagingIn;
+use App\Models\PackingBill;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StockMutation;
@@ -170,23 +171,23 @@ class StagingOutController extends Controller
      */
     public function data(Request $request)
     {
+        // Kunci pengelompokan: 1 SO = 1 baris di tabel. Baris yang No. SO-nya
+        // kosong TIDAK digabung satu sama lain; masing-masing tetap jadi
+        // 1 baris sendiri (kuncinya "__single_<id>").
+        $soKey = "COALESCE(NULLIF(staging_outs.so_number, ''), CONCAT('__single_', staging_outs.id))";
+
+        // Query ini hanya MENENTUKAN SO mana yang tampil (dan urutannya).
+        // Semua filter di bawah tetap bekerja per baris barang: sebuah SO
+        // tampil kalau minimal 1 barangnya cocok. Isi lengkap SO diambil
+        // terpisah di buildSoRows().
         $query = StagingOut::query()
-            ->select('staging_outs.*')
+            ->selectRaw($soKey.' as so_key, MAX(staging_outs.id) as latest_id')
             ->leftJoin('items', 'items.id', '=', 'staging_outs.item_id')
-            ->with('item');
+            ->groupByRaw($soKey);
 
-        // Tampilkan satu record sekali saja (baris-baris dari beberapa
-        // sumber digabung), dan hitung total qty-nya untuk kolom Qty.
+        // Satu record (baris-baris dari beberapa sumber) hanya dihitung
+        // sekali. Qty total tiap record dihitung di buildSoRow().
         $this->onlyGroupRepresentatives($query);
-
-        $query->addSelect(DB::raw("COALESCE((
-            select sum(g.qty) from staging_outs g
-            where g.so_number = staging_outs.so_number
-              and g.so_number != ''
-              and g.item_id = staging_outs.item_id
-              and COALESCE(g.line_item, '') = COALESCE(staging_outs.line_item, '')
-              and COALESCE(g.customer, '') = COALESCE(staging_outs.customer, '')
-        ), staging_outs.qty) as group_qty"));
 
         // 1. Status
         //    Menerima dua "kosakata": yang lama (belum_picking / sudah_picking
@@ -253,58 +254,25 @@ class StagingOutController extends Controller
                 ->whereNull('staging_outs.delivery_receipt_date');
         }
 
-        // Urutan default (data terbaru di atas) hanya dipakai kalau user
-        // belum mengklik sorting kolom. Kalau tetap dipasang, ORDER BY id
-        // ini bisa ikut menempel dan membuat sorting kolom (mis. tanggal)
-        // tidak berfungsi.
+        // Urutan default (SO dengan data terbaru di atas) hanya dipakai kalau
+        // user belum mengklik sorting kolom. Kalau tetap dipasang, ORDER BY
+        // ini bisa ikut menempel dan membuat sorting kolom tidak berfungsi.
         if ($request->filled('order')) {
             // User mengklik sorting kolom: buang urutan lain supaya
             // hanya urutan kolom yang dipakai.
             $query->reorder();
         } else {
-            $query->orderByDesc('staging_outs.id');
+            $query->orderByRaw('MAX(staging_outs.id) DESC');
         }
 
-        return DataTables::eloquent($query)
+        $response = DataTables::eloquent($query)
 
             ->addIndexColumn()
 
-            ->addColumn('checkbox', function ($row) {
-                return '<input type="checkbox" class="row-checkbox" value="'.$row->id.'">';
-            })
-
-            ->editColumn('item_code', function ($row) {
-                if (! $row->item) {
-                    return '-';
-                }
-
-                // Record dengan lebih dari satu sumber: tampilkan semua
-                // sumbernya (beserta qty masing-masing) di dalam satu baris.
-                $group = $this->groupFor($row);
-
-                if ($group->count() > 1) {
-                    return '
-                <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
-                <div class="text-muted">'.e($row->item->name).'</div>
-                <div class="mt-1 d-flex flex-column gap-1">'.$this->groupSourceLines($group).'</div>
-            ';
-                }
-
-                // Penanda sumber barang: Stok / Staging In / belum dipilih
-                // (baris hasil import biasanya masuk kategori terakhir).
-                if ($row->source_type === 'stock' && $row->location_id) {
-                    $sourceBadge = '<span class="badge bg-info-subtle text-info">Stok</span>';
-                } elseif ($row->staging_in_id) {
-                    $sourceBadge = '<span class="badge bg-primary-subtle text-primary">Staging In</span>';
-                } else {
-                    $sourceBadge = '<span class="badge bg-warning-subtle text-warning">Sumber belum dipilih</span>';
-                }
-
-                return '
-                <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
-                <div class="text-muted">'.e($row->item->name).'</div>
-                <div class="mt-1">'.$sourceBadge.'</div>
-            ';
+            // Pencarian: No. SO, customer, kode/nama barang, line item.
+            // Semuanya dicari di level baris barang (sebelum digabung per SO).
+            ->filterColumn('so_number', function ($query, $keyword) {
+                $query->whereRaw('LOWER(staging_outs.so_number) LIKE ?', ['%'.mb_strtolower($keyword).'%']);
             })
             ->filterColumn('item_code', function ($query, $keyword) {
                 $query->where(function ($q) use ($keyword) {
@@ -312,221 +280,452 @@ class StagingOutController extends Controller
                         ->orWhere('items.name', 'like', "%{$keyword}%");
                 });
             })
-            ->orderColumn('item_code', 'items.item_code_internal $1')
-            ->editColumn('line_item', function ($row) {
-                return $row->line_item ?: '-';
-            })
             ->filterColumn('line_item', function ($query, $keyword) {
                 $query->where('staging_outs.line_item', 'like', "%{$keyword}%");
-            })
-            ->orderColumn('line_item', 'staging_outs.line_item $1')
-
-            // Qty = total semua sumber dalam satu record. Kalau dipecah,
-            // rinciannya (mis. 1 + 1) tampil kecil di bawahnya.
-            ->editColumn('qty', function ($row) {
-                return e((string) (int) $this->groupFor($row)->sum('qty'));
-            })
-            ->orderColumn('qty', 'group_qty $1')
-
-            ->editColumn('customer', function ($row) {
-                return $row->customer ?: '-';
             })
             ->filterColumn('customer', function ($query, $keyword) {
                 $query->where('staging_outs.customer', 'like', "%{$keyword}%");
             })
 
-            ->orderColumn('customer', 'staging_outs.customer $1')
-            ->orderColumn('delivery_instruction_date', 'staging_outs.delivery_instruction_date $1')
-            ->orderColumn('picking_date', 'staging_outs.picking_date $1')
-            ->orderColumn('delivery_receipt_date', 'staging_outs.delivery_receipt_date $1')
+            // Sorting kolom: karena query sudah di-group per SO, kolom yang
+            // diurutkan harus berupa agregat (MIN/SUM).
+            ->orderColumn('so_number', 'MIN(staging_outs.so_number) $1')
+            ->orderColumn('customer', 'MIN(staging_outs.customer) $1')
+            ->orderColumn('qty', 'SUM(staging_outs.qty) $1')
+            ->orderColumn('delivery_instruction_date', 'MIN(staging_outs.delivery_instruction_date) $1')
 
-            // Badge kecil supaya kelihatan mana entry "stok" vs "eksternal"
-            // langsung dari kolom kode barang, tanpa nambah kolom baru.
-            ->editColumn('source_type', function ($row) {
-                return $row->source_type === 'stock'
-                    ? '<span class="badge bg-info-subtle text-info">Stok</span>'
-                    : '<span class="badge bg-secondary-subtle text-secondary">Eksternal</span>';
-            })
-
-            ->editColumn('delivery_instruction_date', function ($row) {
-                return optional($row->delivery_instruction_date)->format('d M Y');
-            })
-
-            ->editColumn('picking_date', function ($row) {
-
-                // Record dengan banyak sumber dianggap sudah picking kalau
-                // SEMUA barisnya sudah (konfirmasi picking berlaku ke semuanya).
-                if ($this->groupFor($row)->every(fn ($r) => $r->picking_date)) {
-                    return optional($row->picking_date)->format('d M Y');
-                }
-
-                return '
-                <button type="button"
-                    class="btn btn-sm btn-confirm-picking btnConfirmPicking"
-                    data-id="'.$row->id.'"
-                    data-source-type="'.e($row->source_type).'"
-                    data-item-id="'.e($row->item_id).'"
-                    data-location-id="'.e($row->location_id).'"
-                    data-qty="'.e($row->qty).'"
-                    data-lot="'.e($row->lot).'"
-                    data-bs-toggle="modal"
-                    data-bs-target="#confirmPickingModal">
-
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="me-1">
-                        <path d="M0 0h24v24H0z" fill="none"/>
-                        <path fill="currentColor" d="M20 3H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1M9 17l-4-4l1.41-1.41L9 14.17l7.59-7.59L18 8z"/>
-                    </svg>
-                    Konfirmasi Picking
-                </button>';
-            })
-
-            // Lokasi (staging/packing/outbound): hanya bisa diubah langsung
-            // dari select di baris tabel, dan hanya muncul setelah picking
-            // sudah dikonfirmasi (picking_date terisi). Warnanya mengikuti
-            // status yang dipilih (lihat class loc-* di CSS blade).
-            ->editColumn('staging_location', function ($row) {
-
-                if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
-                    return '-';
-                }
-
-                $options = [
-                    '' => ['label' => '- Pilih -', 'class' => 'loc-empty'],
-                    'staging' => ['label' => '🟡 Staging', 'class' => 'loc-staging'],
-                    'packing' => ['label' => '🔵 Packing', 'class' => 'loc-packing'],
-                    'outbound' => ['label' => '🟢 Outbound', 'class' => 'loc-outbound'],
-                ];
-
-                $current = $row->staging_location ?? '';
-                $currentClass = $options[$current]['class'] ?? 'loc-empty';
-
-                $html = '<select class="form-select form-select-sm select-staging-location '.$currentClass.'" data-id="'.$row->id.'">';
-
-                foreach ($options as $value => $opt) {
-                    $selected = $current === $value ? ' selected' : '';
-                    $html .= '<option value="'.$value.'" data-class="'.$opt['class'].'"'.$selected.'>'.$opt['label'].'</option>';
-                }
-
-                $html .= '</select>';
-
-                return $html;
-            })
-
-            ->editColumn('do_number', function ($row) {
-                return $row->do_number ?: '-';
-            })
-
-            ->editColumn('note', function ($row) {
-                return $row->note ?: '-';
-            })
-
-            // Tgl Resi Pengiriman: kalau sudah terisi tampil sebagai tanggal.
-            // Kalau masih kosong DAN picking sudah dikonfirmasi, tampil
-            // tombol "Konfirmasi Kirim" (mirip tombol Konfirmasi Picking).
-            // Sebelum picking dikonfirmasi barang belum siap kirim, jadi
-            // cukup tampil "-".
-            ->editColumn('delivery_receipt_date', function ($row) {
-
-                if ($row->delivery_receipt_date) {
-                    return optional($row->delivery_receipt_date)->format('d M Y');
-                }
-
-                if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
-                    return '-';
-                }
-
-                return '
-                <button type="button"
-                    class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
-                    data-id="'.$row->id.'"
-                    data-source-type="'.e($row->source_type).'"
-                    data-item-id="'.e($row->item_id).'"
-                    data-location-id="'.e($row->location_id).'"
-                    data-qty="'.e($row->qty).'"
-                    data-lot="'.e($row->lot).'"
-                    data-bs-toggle="modal"
-                    data-bs-target="#confirmDeliveryModal">
-
-                    <i class="bx bxs-truck me-1"></i>
-                    Konfirmasi Kirim
-                </button>';
-            })
-
-            ->addColumn('action', function ($row) {
-
-                // Tombol sumber barang: "Pilih Sumber" kalau belum ada sumbernya,
-                // "Ubah Sumber" kalau sudah (bisa diganti / dikembalikan).
-                $assignBtn = '';
-
-                if ($row->item_id) {
-                    $hasSource = $this->groupFor($row)->contains(fn ($r) => $this->hasSource($r));
-                    $btnClass = $hasSource ? 'bg-info text-info' : 'bg-success text-success';
-                    $btnTitle = $hasSource ? 'Ubah sumber barang' : 'Pilih sumber barang (Staging In / Stok)';
-
-                    $assignBtn = '
-                <button
-                    class="btn btn-sm '.$btnClass.' bg-opacity-10 rounded-3 border-0 btnAssignSource"
-                    type="button"
-                    title="'.$btnTitle.'"
-                    data-id="'.$row->id.'">
-                    <i class="bx '.($hasSource ? 'bx-git-compare' : 'bx-transfer').' fs-5"></i>
-                </button>';
-                }
-
-                return '
-            <div class="d-flex align-items-center gap-1">
-'.$assignBtn.'
-
-                <button
-                    class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
-                    type="button"
-                    data-id="'.$row->id.'"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editStagingOutModal">
-
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
-                        <path d="M0 0h24v24H0z" fill="none"/>
-                        <path fill="currentColor"
-                            d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
-                    </svg>
-
-                </button>
-
-                <form action="'.route('stagings-out.destroy', $row->id).'"
-                      method="POST"
-                      class="form-hapus m-0">
-
-                    '.csrf_field().'
-                    '.method_field('DELETE').'
-
-                    <button type="submit"
-                        class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
-
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
-                            <path d="M0 0h24v24H0z" fill="none"/>
-                            <path fill="currentColor"
-                                d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
-
-                    </button>
-
-                </form>
-
-            </div>';
-            })
-
-            ->rawColumns([
-                'checkbox',
-                'item_code',
-                'qty',
-                'source_type',
-                'picking_date',
-                'staging_location',
-                'delivery_receipt_date',
-                'action',
-            ])
+            ->rawColumns(['so_key'])
 
             ->make(true);
+
+        // Ubah hasil (daftar kunci SO) menjadi baris tampilan lengkap
+        // beserta daftar barang di dalamnya.
+        $payload = $response->getData(true);
+        $payload['data'] = $this->buildSoRows($payload['data'] ?? []);
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Susun baris tabel "1 baris = 1 SO" dari kunci SO hasil data().
+     * Semua barang milik SO yang tampil diambil sekaligus (1 query), lalu
+     * dirangkum jadi satu baris + daftar barang untuk child row.
+     */
+    protected function buildSoRows(array $rows): array
+    {
+        if (empty($rows)) {
+            return [];
+        }
+
+        $soNumbers = [];
+        $singleIds = [];
+
+        foreach ($rows as $r) {
+            $key = (string) ($r['so_key'] ?? '');
+
+            if (str_starts_with($key, '__single_')) {
+                $singleIds[] = (int) substr($key, 9);
+            } else {
+                $soNumbers[] = $key;
+            }
+        }
+
+        $items = StagingOut::with('item')
+            ->where(function ($q) use ($soNumbers, $singleIds) {
+                if ($soNumbers) {
+                    $q->whereIn('so_number', $soNumbers);
+                }
+                if ($singleIds) {
+                    $q->orWhereIn('id', $singleIds);
+                }
+            })
+            ->orderBy('id')
+            ->get();
+
+        // Bill packing yang sudah ada untuk SO-SO di halaman ini (1 SO = 1 bill).
+        $bills = empty($soNumbers)
+            ? collect()
+            : PackingBill::whereIn('so_number', $soNumbers)->get()
+                ->keyBy(fn ($b) => mb_strtolower((string) $b->so_number));
+
+        // Pengelompokan di PHP memakai huruf kecil, supaya cocok dengan
+        // database yang tidak membedakan huruf besar/kecil (mis. MySQL).
+        $grouped = $items->groupBy(function ($item) {
+            return mb_strtolower(
+                ($item->so_number !== null && $item->so_number !== '')
+                    ? (string) $item->so_number
+                    : '__single_'.$item->id
+            );
+        });
+
+        $out = [];
+
+        foreach ($rows as $r) {
+            $key = (string) ($r['so_key'] ?? '');
+            $list = $grouped->get(mb_strtolower($key));
+
+            if (! $list || $list->isEmpty()) {
+                continue;
+            }
+
+            $out[] = $this->buildSoRow($r, $key, $list, $bills);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Satu baris SO: ringkasan (kolom tabel utama) + items_html (child row).
+     */
+    protected function buildSoRow(array $base, string $key, $list, $bills): array
+    {
+        $ids = $list->pluck('id')->values()->all();
+        $soNumber = optional($list->first(fn ($i) => filled($i->so_number)))->so_number;
+        $isSingle = str_starts_with($key, '__single_');
+
+        // Satu record (walau dari beberapa sumber) dihitung SATU barang:
+        // yang dipakai hanya baris "utama" tiap record.
+        $records = $list
+            ->filter(fn ($i) => $this->groupFor($i)->first()->id === $i->id)
+            ->values();
+        $count = max($records->count(), 1);
+
+        // ---- Customer
+        $customers = $list->pluck('customer')->filter()->unique()->values();
+        if ($customers->isEmpty()) {
+            $customerHtml = '<span class="text-muted">-</span>';
+        } else {
+            $customerHtml = '<span class="fw-semibold">'.e($customers->first()).'</span>';
+            if ($customers->count() > 1) {
+                $customerHtml .= ' <span class="so-chip more" title="'.e($customers->implode(', ')).'">+'
+                    .($customers->count() - 1).'</span>';
+            }
+        }
+
+        // ---- Ringkasan barang (maks. 2 kode, sisanya "+n")
+        $codes = $list->map(fn ($i) => $i->item ? $i->item->item_code_internal : null)
+            ->filter()->unique()->values();
+        $itemsHtml = '';
+        foreach ($codes->take(2) as $code) {
+            $itemsHtml .= '<span class="so-chip">'.e($code).'</span>';
+        }
+        if ($codes->count() > 2) {
+            $itemsHtml .= '<span class="so-chip more">+'.($codes->count() - 2).' lagi</span>';
+        }
+        if ($itemsHtml === '') {
+            $itemsHtml = '<span class="text-muted">-</span>';
+        }
+
+        // ---- Tgl instruksi kirim (= tanggal email dikirim ke admin, bukan
+        //      tenggat pengiriman, jadi tidak ada status "terlambat")
+        $earliest = $list->pluck('delivery_instruction_date')->filter()->min();
+        $dateHtml = $earliest
+            ? '<div>'.e(\Carbon\Carbon::parse($earliest)->format('d M Y')).'</div>'
+            : '<span class="text-muted">-</span>';
+
+        // ---- Status picking (x dari n barang). Record dengan banyak sumber
+        //      dianggap sudah picking kalau SEMUA barisnya sudah.
+        $picked = $records
+            ->filter(fn ($i) => $this->groupFor($i)->every(fn ($r) => $r->picking_date))
+            ->count();
+        if ($picked === 0) {
+            $pill = '<span class="so-pill none"><i class="bx bx-time"></i> Belum picking</span>';
+        } elseif ($picked === $count) {
+            $pill = '<span class="so-pill done"><i class="bx bx-check-circle"></i> Sudah picking</span>';
+        } else {
+            $pill = '<span class="so-pill part"><i class="bx bx-loader-circle"></i> Picking '.$picked.'/'.$count.'</span>';
+        }
+        $percent = (int) round($picked / $count * 100);
+        $statusHtml = $pill
+            .'<div class="so-progress" title="'.$picked.' dari '.$count.' barang sudah picking"><span style="width:'.$percent.'%"></span></div>';
+
+        // ---- Tombol Bill Packing (1 SO = 1 bill)
+        $bill = $soNumber ? $bills->get(mb_strtolower((string) $soNumber)) : null;
+        if (! $soNumber) {
+            $billHtml = '<span class="text-muted small" title="Isi No. SO dulu agar bisa membuat bill">Tanpa No. SO</span>';
+        } elseif ($bill) {
+            $billHtml = '<a href="'.e(route('packing-bills.form', ['so_number' => $soNumber])).'" class="so-bill-btn has-bill" title="Lihat / edit bill">'
+                .'<i class="bx bx-receipt"></i><span>Rp '.number_format((float) $bill->total, 0, ',', '.').'</span></a>';
+        } else {
+            $billHtml = '<a href="'.e(route('packing-bills.form', ['so_number' => $soNumber])).'" class="so-bill-btn" title="Buat bill packing">'
+                .'<i class="bx bx-plus"></i><span>Buat Bill</span></a>';
+        }
+
+        // ---- Sel No. SO
+        $soHtml = '
+            <div class="so-cell">
+                <span class="so-icon"><i class="bx bx-receipt"></i></span>
+                <div>
+                    <div class="so-number">'.($soNumber ? e($soNumber) : '<span class="text-muted fw-normal">Tanpa No. SO</span>').'</div>
+                    <div class="so-sub">'.$count.' barang</div>
+                </div>
+            </div>';
+
+        return [
+            'DT_RowIndex' => $base['DT_RowIndex'] ?? null,
+            'so_key' => $key,
+            'expander' => '<button type="button" class="so-toggle-btn" title="Lihat isi SO"><i class="bx bx-chevron-right"></i></button>',
+            'checkbox' => '<input type="checkbox" class="so-checkbox" data-ids="'.e(json_encode($ids)).'">',
+            'so_number' => $soHtml,
+            'customer' => $customerHtml,
+            'items_summary' => $itemsHtml,
+            'qty' => '<span class="fw-bold">'.e($list->sum('qty')).'</span>',
+            'delivery_instruction_date' => $dateHtml,
+            'status_html' => $statusHtml,
+            'bill_html' => $billHtml,
+            'line_item' => '',
+            'items_html' => $this->renderSoItemsTable($soNumber, $records, $picked),
+        ];
+    }
+
+    /**
+     * Isi child row: tabel barang dalam 1 SO. Tombol aksi tetap per barang
+     * (sama persis dengan sebelumnya, class & data-id tidak berubah).
+     * $list berisi satu baris "utama" per record.
+     */
+    protected function renderSoItemsTable($soNumber, $list, int $picked): string
+    {
+        $rowsHtml = '';
+
+        foreach ($list->values() as $i => $item) {
+            // Qty = total semua sumber dalam satu record.
+            $qty = (int) $this->groupFor($item)->sum('qty');
+
+            $rowsHtml .= '
+                <tr>
+                    <td class="text-center" style="width:44px"><input type="checkbox" class="row-checkbox" value="'.$item->id.'"></td>
+                    <td class="text-center text-muted">'.($i + 1).'</td>
+                    <td class="text-center">'.e($item->line_item ?: '-').'</td>
+                    <td class="text-wrap">'.$this->renderItemCodeCell($item).'</td>
+                    <td class="text-center fw-semibold">'.e((string) $qty).'</td>
+                    <td class="text-center">'.$this->renderPickingCell($item).'</td>
+                    <td class="text-center">'.$this->renderLocationCell($item).'</td>
+                    <td class="text-center">'.e($item->do_number ?: '-').'</td>
+                    <td class="text-center">'.$this->renderDeliveryCell($item).'</td>
+                    <td>'.$this->renderActionCell($item).'</td>
+                </tr>';
+        }
+
+        return '
+        <div class="so-items-wrap">
+            <div class="so-items-head">
+                <span><i class="bx bx-package me-1"></i> Isi '.($soNumber ? 'SO '.e($soNumber) : 'baris ini').'
+                    <span class="text-muted fw-normal">&middot; '.$list->count().' barang</span></span>
+                <span class="text-muted fw-normal">'.$picked.' dari '.$list->count().' sudah picking</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table so-items-table align-middle">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th class="text-center">#</th>
+                            <th class="text-center">Line Item</th>
+                            <th>Kode Barang</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-center">Tgl Picking</th>
+                            <th class="text-center">Lokasi</th>
+                            <th class="text-center">No. DO</th>
+                            <th class="text-center">Tgl Resi Pengiriman</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>'.$rowsHtml.'</tbody>
+                </table>
+            </div>
+        </div>';
+    }
+
+    // ------------------------------------------------------------------
+    // Sel-sel per barang (dipindah dari closure DataTables yang lama).
+    // Semuanya sadar "record": kalau satu barang dipecah ke beberapa
+    // sumber, yang ditampilkan adalah gabungan semua baris sumbernya.
+    // ------------------------------------------------------------------
+
+    protected function renderItemCodeCell(StagingOut $row): string
+    {
+        if (! $row->item) {
+            return '-';
+        }
+
+        // Record dengan lebih dari satu sumber: tampilkan semua
+        // sumbernya (beserta qty masing-masing) di dalam satu baris.
+        $group = $this->groupFor($row);
+
+        if ($group->count() > 1) {
+            return '
+            <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
+            <div class="text-muted">'.e($row->item->name).'</div>
+            <div class="mt-1 d-flex flex-column gap-1">'.$this->groupSourceLines($group).'</div>
+        ';
+        }
+
+        // Penanda sumber barang: Stok / Staging In / belum dipilih
+        // (baris hasil import biasanya masuk kategori terakhir).
+        if ($row->source_type === 'stock' && $row->location_id) {
+            $sourceBadge = '<span class="badge bg-info-subtle text-info">Stok</span>';
+        } elseif ($row->staging_in_id) {
+            $sourceBadge = '<span class="badge bg-primary-subtle text-primary">Staging In</span>';
+        } else {
+            $sourceBadge = '<span class="badge bg-warning-subtle text-warning">Sumber belum dipilih</span>';
+        }
+
+        return '
+            <small class="fw-bold">'.e($row->item->item_code_internal).'</small>
+            <div class="text-muted">'.e($row->item->name).'</div>
+            <div class="mt-1">'.$sourceBadge.'</div>
+        ';
+    }
+
+    protected function renderPickingCell(StagingOut $row): string
+    {
+        // Record dengan banyak sumber dianggap sudah picking kalau
+        // SEMUA barisnya sudah (konfirmasi picking berlaku ke semuanya).
+        if ($this->groupFor($row)->every(fn ($r) => $r->picking_date)) {
+            return optional($row->picking_date)->format('d M Y');
+        }
+
+        return '
+        <button type="button"
+            class="btn btn-sm btn-confirm-picking btnConfirmPicking"
+            data-id="'.$row->id.'"
+            data-source-type="'.e($row->source_type).'"
+            data-item-id="'.e($row->item_id).'"
+            data-location-id="'.e($row->location_id).'"
+            data-qty="'.e($row->qty).'"
+            data-lot="'.e($row->lot).'"
+            data-bs-toggle="modal"
+            data-bs-target="#confirmPickingModal">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="me-1">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path fill="currentColor" d="M20 3H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1M9 17l-4-4l1.41-1.41L9 14.17l7.59-7.59L18 8z"/>
+            </svg>
+            Konfirmasi Picking
+        </button>';
+    }
+
+    // Lokasi (staging/packing/outbound): hanya bisa diubah langsung dari
+    // select di baris, dan hanya muncul setelah picking sudah dikonfirmasi
+    // (picking_date terisi). Warnanya mengikuti class loc-* di CSS blade.
+    protected function renderLocationCell(StagingOut $row): string
+    {
+        if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
+            return '-';
+        }
+
+        $options = [
+            '' => ['label' => '- Pilih -', 'class' => 'loc-empty'],
+            'staging' => ['label' => '🟡 Staging', 'class' => 'loc-staging'],
+            'packing' => ['label' => '🔵 Packing', 'class' => 'loc-packing'],
+            'outbound' => ['label' => '🟢 Outbound', 'class' => 'loc-outbound'],
+        ];
+
+        $current = $row->staging_location ?? '';
+        $currentClass = $options[$current]['class'] ?? 'loc-empty';
+
+        $html = '<select class="form-select form-select-sm select-staging-location '.$currentClass.'" data-id="'.$row->id.'">';
+
+        foreach ($options as $value => $opt) {
+            $selected = $current === $value ? ' selected' : '';
+            $html .= '<option value="'.$value.'" data-class="'.$opt['class'].'"'.$selected.'>'.$opt['label'].'</option>';
+        }
+
+        $html .= '</select>';
+
+        return $html;
+    }
+
+    // Tgl Resi Pengiriman: kalau sudah terisi tampil sebagai tanggal. Kalau
+    // masih kosong DAN picking sudah dikonfirmasi, tampil tombol "Konfirmasi
+    // Kirim". Sebelum picking dikonfirmasi cukup tampil "-".
+    protected function renderDeliveryCell(StagingOut $row): string
+    {
+        if ($row->delivery_receipt_date) {
+            return optional($row->delivery_receipt_date)->format('d M Y');
+        }
+
+        if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
+            return '-';
+        }
+
+        return '
+        <button type="button"
+            class="btn btn-sm btn-confirm-delivery btnConfirmDelivery"
+            data-id="'.$row->id.'"
+            data-source-type="'.e($row->source_type).'"
+            data-item-id="'.e($row->item_id).'"
+            data-location-id="'.e($row->location_id).'"
+            data-qty="'.e($row->qty).'"
+            data-lot="'.e($row->lot).'"
+            data-bs-toggle="modal"
+            data-bs-target="#confirmDeliveryModal">
+
+            <i class="bx bxs-truck me-1"></i>
+            Konfirmasi Kirim
+        </button>';
+    }
+
+    protected function renderActionCell(StagingOut $row): string
+    {
+        // Tombol sumber barang: "Pilih Sumber" kalau belum ada sumbernya,
+        // "Ubah Sumber" kalau sudah (bisa diganti / dikembalikan).
+        $assignBtn = '';
+
+        if ($row->item_id) {
+            $hasSource = $this->groupFor($row)->contains(fn ($r) => $this->hasSource($r));
+            $btnClass = $hasSource ? 'bg-info text-info' : 'bg-success text-success';
+            $btnTitle = $hasSource ? 'Ubah sumber barang' : 'Pilih sumber barang (Staging In / Stok)';
+
+            $assignBtn = '
+        <button
+            class="btn btn-sm '.$btnClass.' bg-opacity-10 rounded-3 border-0 btnAssignSource"
+            type="button"
+            title="'.$btnTitle.'"
+            data-id="'.$row->id.'">
+            <i class="bx '.($hasSource ? 'bx-git-compare' : 'bx-transfer').' fs-5"></i>
+        </button>';
+        }
+
+        return '
+    <div class="d-flex align-items-center gap-1">
+'.$assignBtn.'
+
+        <button
+            class="btn btn-sm bg-primary bg-opacity-10 text-primary rounded-3 border-0 btnEdit"
+            type="button"
+            data-id="'.$row->id.'"
+            data-bs-toggle="modal"
+            data-bs-target="#editStagingOutModal">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path fill="currentColor"
+                    d="m14.06 9l.94.94L5.92 19H5v-.92zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83l3.75 3.75l1.83-1.83c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6 3.19L3 17.25V21h3.75L17.81 9.94z"/>
+            </svg>
+
+        </button>
+
+        <form action="'.route('stagings-out.destroy', $row->id).'"
+              method="POST"
+              class="form-hapus m-0">
+
+            '.csrf_field().'
+            '.method_field('DELETE').'
+
+            <button type="submit"
+                class="btn btn-sm bg-danger bg-opacity-10 text-danger rounded-3 border-0">
+
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" class="fs-5" viewBox="0 0 24 24">
+                    <path d="M0 0h24v24H0z" fill="none"/>
+                    <path fill="currentColor"
+                        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM8 9h8v10H8zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+
+            </button>
+
+        </form>
+
+    </div>';
     }
 
     /**
@@ -1462,7 +1661,6 @@ class StagingOutController extends Controller
             'picking_date' => ['nullable', 'date'],
             'do_number' => ['nullable', 'max:255'],
             'delivery_receipt_date' => ['nullable', 'date'],
-            'note' => ['nullable', 'max:255'],
         ];
     }
 
@@ -1875,7 +2073,6 @@ class StagingOutController extends Controller
             'picking_date' => optional($stagingOut->picking_date)->format('Y-m-d'),
             'do_number' => $stagingOut->do_number,
             'delivery_receipt_date' => optional($stagingOut->delivery_receipt_date)->format('Y-m-d'),
-            'note' => $stagingOut->note,
         ]);
     }
 
@@ -1912,11 +2109,29 @@ class StagingOutController extends Controller
         $validated = $validator->validate();
 
         try {
-            $justDelivered = DB::transaction(function () use ($validated, $stagingOut) {
+            $syncedCount = 0;
+
+            $justDelivered = DB::transaction(function () use ($validated, $stagingOut, &$syncedCount) {
                 // Perubahan berlaku ke SEMUA baris dalam satu record
                 // (no. SO, customer, tanggal, picking, resi, dst).
                 $rows = $this->groupOf($stagingOut, true);
                 $delivered = false;
+
+                // Ambil dulu nilai-nilai awal SEBELUM update: kalau record ini
+                // hanya 1 baris, $rows berisi objek $stagingOut itu sendiri dan
+                // nilainya ikut berubah setelah applyUpdate().
+                $soNumber = $stagingOut->so_number;
+                $oldCustomer = (string) $stagingOut->customer;
+                $groupIds = $rows->pluck('id')->all();
+
+                // Customer berlaku untuk seluruh SO: kalau customer sebuah barang
+                // diubah, barang lain di SO yang sama ikut diubah. Hanya dijalankan
+                // kalau No. SO-nya tidak ikut diganti (kalau barang dipindah ke SO
+                // lain, customer SO tujuan tidak boleh tertimpa).
+                $syncCustomer = filled($soNumber)
+                    && array_key_exists('customer', $validated)
+                    && (($validated['so_number'] ?? null) === $soNumber)
+                    && $oldCustomer !== (string) ($validated['customer'] ?? '');
 
                 foreach ($rows as $row) {
                     $data = $validated;
@@ -1929,6 +2144,25 @@ class StagingOutController extends Controller
                     $delivered = $this->applyUpdate($row, $data) || $delivered;
                 }
 
+                if ($syncCustomer) {
+                    $newCustomer = $validated['customer'] ?? null;
+
+                    $siblings = StagingOut::where('so_number', $soNumber)
+                        ->whereNotIn('id', $groupIds)
+                        ->get();
+
+                    foreach ($siblings as $sibling) {
+                        if ((string) $sibling->customer === (string) $newCustomer) {
+                            continue;
+                        }
+
+                        $siblingChanges = $this->history->diff($sibling, ['customer' => $newCustomer]);
+                        $sibling->update(['customer' => $newCustomer]);
+                        $this->history->logUpdated($sibling, $siblingChanges);
+                        $syncedCount++;
+                    }
+                }
+
                 return $delivered;
             });
 
@@ -1936,7 +2170,9 @@ class StagingOutController extends Controller
                 'success' => true,
                 'message' => $justDelivered
                     ? 'Tanggal kirim berhasil dikonfirmasi. Data dipindahkan ke history.'
-                    : 'Data berhasil diperbarui.',
+                    : ($syncedCount > 0
+                        ? 'Data berhasil diperbarui. Customer ikut diperbarui di '.$syncedCount.' barang lain dalam SO ini.'
+                        : 'Data berhasil diperbarui.'),
             ]);
         } catch (\Exception $e) {
             return response()->json([

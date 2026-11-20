@@ -12,6 +12,10 @@ use App\Http\Controllers\Web\StagingOutController;
 use App\Http\Controllers\Web\StagingOutHistoryController;
 use App\Http\Controllers\Web\StockMutationController;
 use App\Http\Controllers\Web\VendorController;
+use App\Http\Controllers\Web\PackingMaterialController;
+use App\Http\Controllers\Web\PackingBillController;
+use App\Http\Controllers\Web\PackingBillHistoryController;
+
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -319,3 +323,22 @@ Route::prefix('item-history')->name('item-history.')->group(function () {
     Route::get('/{item}/timeline', [ItemHistoryController::class, 'timeline'])->name('timeline');
     Route::get('/{item}/export', [ItemHistoryController::class, 'export'])->name('export');
 });
+
+Route::get('/cek-header', fn () => request()->header('Cf-Access-Authenticated-User-Email') ?? 'KOSONG');
+
+
+// Bill packing (1 SO = 1 bill)
+Route::get('packing-bills/form', [PackingBillController::class, 'form'])->name('packing-bills.form');
+Route::post('packing-bills', [PackingBillController::class, 'save'])->name('packing-bills.save');
+Route::get('packing-bills/{packingBill}/print', [PackingBillController::class, 'print'])->name('packing-bills.print');
+
+// Master material packing
+Route::get('packing-materials', [PackingMaterialController::class, 'index'])->name('packing-materials.index');
+Route::post('packing-materials', [PackingMaterialController::class, 'store'])->name('packing-materials.store');
+Route::put('packing-materials/{packingMaterial}', [PackingMaterialController::class, 'update'])->name('packing-materials.update');
+Route::delete('packing-materials/{packingMaterial}', [PackingMaterialController::class, 'destroy'])->name('packing-materials.destroy');
+
+Route::get('packing-bills', [PackingBillHistoryController::class, 'index'])->name('packing-bills.index');
+Route::get('packing-bills/data', [PackingBillHistoryController::class, 'data'])->name('packing-bills.data');
+Route::get('packing-bills/{packingBill}/detail', [PackingBillHistoryController::class, 'detail'])->name('packing-bills.detail');
+Route::get('packing-bills/export', [PackingBillHistoryController::class, 'export'])->name('packing-bills.export');
