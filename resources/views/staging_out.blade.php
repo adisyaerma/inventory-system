@@ -2946,7 +2946,7 @@
                 color: #2b3350;
             }
 
-            .sm-ts-opt .sm-chip {
+            .sm-chip {
                 display: inline-block;
                 margin: .2rem .25rem 0 0;
                 padding: .05rem .5rem;
@@ -5526,7 +5526,7 @@
                         </div>
                         <div class="sm-sel-wrap" data-pane="staging_in"><select class="sm-select" data-group="staging_in"></select></div>
                         <div class="sm-sel-wrap d-none" data-pane="stock"><select class="sm-select" data-group="stock"></select></div>
-                        <input type="number" class="sm-alloc-qty" min="1" step="1" placeholder="Qty" title="Qty yang diambil dari sumber ini" disabled>
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" class="sm-alloc-qty" min="1" step="1" placeholder="Qty" title="Qty yang diambil dari sumber ini" disabled>
                         <button type="button" class="sm-alloc-del d-none" title="Hapus sumber ini"><i class="bx bx-x"></i></button>
                     </div>`;
                 }
@@ -5635,6 +5635,26 @@
                     refreshCard($card);
                 }
 
+                const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+                // Tap pada Qty: tutup dropdown yang terbuka lalu fokus langsung ke input.
+                $(document).on('pointerdown touchend', '#assignSourceModal .sm-alloc-qty', function() {
+                    const qtyEl = this;
+
+                    if (qtyEl.disabled) return;
+
+                    $('#assignSourceModal .sm-select').each(function() {
+                        if (this.tomselect) this.tomselect.blur();
+                    });
+
+                    if (document.activeElement !== qtyEl) {
+                        qtyEl.focus();
+                        try {
+                            qtyEl.select();
+                        } catch (e) {}
+                    }
+                });
+
                 function initSelect(el, r, group) {
                     const config = {
                         valueField: 'value',
@@ -5647,7 +5667,8 @@
                             value: o.value,
                             title: o.title || o.label,
                             chips: o.chips || [],
-                            chipsText: (o.chips || []).join(' '),
+                            chipsText: (o.chips || []).join(' ') + ' ' + (o.note || ''),
+                            note: o.note || '',
                             available: o.available,
                             enough: o.enough,
                             disabled: !o.enough
@@ -5659,13 +5680,20 @@
                         render: {
                             option: function(d, escFn) {
                                 return `<div class="sm-ts-opt">
-                                    <div><div class="t">${escFn(d.title)}</div><div>${chipsHtml(d.chips, escFn)}</div></div>
+                                    <div><div class="t">${escFn(d.title)}</div><div>${chipsHtml(d.chips, escFn)}${d.note ? `<span class="sm-chip">${escFn(d.note)}</span>` : ''}</div></div>
                                     <div class="q"><b>${num(d.available)}</b><small>tersedia</small></div>
                                 </div>`;
                             },
                             item: function(d, escFn) {
-                                return `<div class="sm-sel-item"><b>${escFn(d.title)}</b>${chipsHtml(d.chips, escFn)}
+                                return `<div class="sm-sel-item"><b>${escFn(d.title)}</b>${chipsHtml(d.chips, escFn)}${d.note ? `<span class="sm-chip">${escFn(d.note)}</span>` : ''}
                                     <span class="sm-sel-left">tersedia ${num(d.available)}</span></div>`;
+                            }
+                        },
+                        onInitialize: function() {
+                            // iPad/tablet: pilih lokasi cukup dengan tap, jangan munculkan keyboard.
+                            if (IS_TOUCH) {
+                                this.control_input.setAttribute('inputmode', 'none');
+                                this.control_input.readOnly = true;
                             }
                         },
                         onChange: function(value) {
@@ -5696,6 +5724,15 @@
                             }
 
                             refreshCard($card);
+
+                            // Di perangkat sentuh lepas fokus dari select setelah memilih,
+                            // supaya tap berikutnya ke Qty langsung memunculkan keyboard angka.
+                            if (IS_TOUCH && value) {
+                                const ts = this;
+                                setTimeout(function() {
+                                    ts.blur();
+                                }, 0);
+                            }
                         }
                     };
 
@@ -6139,4 +6176,4 @@
             });
         </script>
     @endpush
-@endsection
+@endsection 

@@ -31,6 +31,7 @@ class StagingIn extends Model
      */
     public const LOCATIONS = [
         'Inbound shipment',
+        'Outbound shipment',
         'Temporary hold / repair 1',
         'Temporary hold / repair 2',
         'Temporary hold / repair 3',

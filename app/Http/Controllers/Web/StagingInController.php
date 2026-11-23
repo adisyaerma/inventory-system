@@ -21,7 +21,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
-use Psy\TabCompletion\Matcher\FunctionDefaultParametersMatcher;
 use Yajra\DataTables\Facades\DataTables;
 
 class StagingInController extends Controller
@@ -33,9 +32,7 @@ class StagingInController extends Controller
      */
     private const FOLLOW_UP_DAYS = 7;
 
-    public function __construct(private StagingInHistoryService $history)
-    {
-    }
+    public function __construct(private StagingInHistoryService $history) {}
 
     public function index(Request $request)
     {
@@ -345,6 +342,10 @@ class StagingInController extends Controller
 
         if (str_contains($normalized, 'inbound')) {
             return 'info';
+        }
+
+        if (str_contains($normalized, 'outbound')) {
+            return 'success'; // hijau
         }
 
         if (str_contains($normalized, 'hold') || str_contains($normalized, 'repair')) {

@@ -17,82 +17,40 @@
 
         <div class="card-body">
 
-            <div class="filter-toolbar-card">
+            <div class="fx" id="filterBar">
 
-                <div class="filter-toolbar-eyebrow">
+                <div class="fx-top">
 
-                    <div class="filter-toolbar-eyebrow-label">
-                        <i class="bi bi-sliders"></i>
-                        <span>Filter Data</span>
+                    <div class="fx-search">
+                        <i class="bi bi-search fx-search-icon"></i>
+                        <input type="text" id="itemHistorySearch" autocomplete="off"
+                            placeholder="Cari kode / nama barang..." aria-label="Cari">
+                        <button type="button" class="fx-search-clear" id="itemHistorySearchClear"
+                            aria-label="Hapus pencarian"><i class="bi bi-x-lg"></i></button>
                     </div>
 
-                    <button type="button" class="btn-sm btn border-secondary bg-white border" id="resetItemHistoryFilter"
-                        title="Reset Filter">
-
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 21 21">
-
-                            <path d="M0 0h21v21H0z" fill="none" />
-
-                            <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round"
-                                stroke-linejoin="round">
-
-                                <path d="M3.578 6.487A8 8 0 1 1 2.5 10.5" />
-                                <path d="M7.5 6.5h-4v-4" />
-
-                            </g>
-                        </svg>
-
-                    </button>
+                    <div class="fx-actions">
+                        <span class="fx-count" id="filterCount" aria-live="polite"></span>
+                        <button type="button" class="fx-reset" id="resetItemHistoryFilter"
+                            title="Kembalikan semua filter">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
 
                 </div>
 
-                <div class="filter-toolbar" style="grid-template-columns: max-content max-content; gap: 12px;">
+                <div class="fx-chips">
 
-                    <div class="filter-group filter-group-search">
-
-                        <label class="filter-label" for="itemHistorySearch">
-                            Cari
-                        </label>
-
-                        <div class="input-group input-group-sm shadow-sm" style="width: 350px;">
-
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-search text-muted"></i>
-                            </span>
-
-                            <input type="text" id="itemHistorySearch" class="form-control border-start-0"
-                                placeholder="Cari kode / nama barang...">
-
-                        </div>
-
-                    </div>
-
-                    <div class="filter-group">
-
-                        <label class="filter-label" for="itemHistoryVendor">
-                            Vendor
-                        </label>
-
-                        <div class="input-group input-group-sm shadow-sm" style="width: 350px;">
-
-                            <span class="input-group-text bg-white border-end-0">
-                                <i class="bi bi-building text-muted"></i>
-                            </span>
-
-                            <select class="form-select border-start-0" id="itemHistoryVendor">
-
-                                <option value="">Semua Vendor</option>
-
-                                @foreach ($vendors as $vendor)
-                                    <option value="{{ $vendor->id }}">
-                                        {{ $vendor->name }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-                        </div>
-
+                    <div class="fx-chip">
+                        <i class="bi bi-building"></i>
+                        <label for="itemHistoryVendor">Vendor</label>
+                        <select id="itemHistoryVendor">
+                            <option value="">Semua</option>
+                            @foreach ($vendors as $vendor)
+                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                 </div>
@@ -136,69 +94,311 @@
 
     @push('script')
         <style>
-            .filter-toolbar-card {
-                background: #f8f9fb;
-                border: 1px solid #eceef2;
-                border-radius: 1rem;
-                padding: 1rem 1.1rem;
+            /* ===== Filter bar ===== */
+            .fx {
+                --fx-accent: var(--bs-primary, #0d6efd);
+                --fx-accent-rgb: var(--bs-primary-rgb, 13, 110, 253);
+                --fx-line: var(--bs-border-color, #dee2e6);
+                --fx-muted: var(--bs-secondary-color, #6c757d);
+                --fx-surface: var(--bs-body-bg, #fff);
                 margin-bottom: 1rem;
             }
 
-            .filter-toolbar-eyebrow {
+            .fx-top {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: .6rem;
+            }
+
+            /* Pencarian */
+            .fx-search {
+                position: relative;
+                flex: 1 1 320px;
+                min-width: 0;
+            }
+
+            .fx-search-icon {
+                position: absolute;
+                left: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--fx-muted);
+                pointer-events: none;
+            }
+
+            .fx-search input {
+                width: 100%;
+                height: 2.6rem;
+                padding: 0 2.6rem 0 2.6rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                font-size: .9rem;
+                transition: border-color .15s ease, box-shadow .15s ease;
+            }
+
+            .fx-search input::placeholder {
+                color: var(--fx-muted);
+                opacity: .85;
+            }
+
+            .fx-search input:focus {
+                outline: 0;
+                border-color: rgba(var(--fx-accent-rgb), .55);
+                box-shadow: 0 0 0 .25rem rgba(var(--fx-accent-rgb), .12);
+            }
+
+            .fx-search.has-value input {
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-search-clear {
+                position: absolute;
+                right: .45rem;
+                top: 50%;
+                transform: translateY(-50%);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                width: 1.8rem;
+                height: 1.8rem;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--fx-muted);
+                font-size: .75rem;
+            }
+
+            .fx-search.has-value .fx-search-clear {
+                display: inline-flex;
+            }
+
+            .fx-search-clear:hover {
+                background: rgba(var(--fx-accent-rgb), .1);
+                color: var(--fx-accent);
+            }
+
+            /* Ringkasan + reset */
+            .fx-actions {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                gap: .5rem;
-                margin-bottom: .75rem;
-                color: #6c757d;
+                gap: .6rem;
+            }
+
+            .fx-count {
+                display: none;
                 font-size: .8rem;
                 font-weight: 600;
-                letter-spacing: .02em;
-                text-transform: uppercase;
+                color: var(--fx-accent);
+                white-space: nowrap;
             }
 
-            .filter-toolbar-eyebrow .filter-toolbar-eyebrow-label {
+            .fx.has-active .fx-count {
+                display: inline;
+            }
+
+            .fx-reset {
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem;
+                height: 2.6rem;
+                padding: 0 1.05rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--fx-muted);
+                font-size: .85rem;
+                font-weight: 500;
+                transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+            }
+
+            .fx-reset:hover,
+            .fx.has-active .fx-reset {
+                color: var(--fx-accent);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-reset:hover {
+                background: rgba(var(--fx-accent-rgb), .06);
+            }
+
+            .fx-reset:focus-visible,
+            .fx-search-clear:focus-visible,
+            .fx-preset:focus-visible {
+                outline: 2px solid rgba(var(--fx-accent-rgb), .6);
+                outline-offset: 2px;
+            }
+
+            /* Chip filter */
+            .fx-chips {
                 display: flex;
+                flex-wrap: wrap;
+                gap: .5rem;
+                margin-top: .7rem;
+            }
+
+            .fx-chip {
+                position: relative;
+                display: inline-flex;
                 align-items: center;
                 gap: .5rem;
+                height: 2.3rem;
+                padding: 0 .4rem 0 .85rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: var(--fx-surface);
+                color: var(--bs-body-color);
+                transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
             }
 
-            .filter-toolbar-eyebrow i {
-                color: var(--bs-primary);
+            .fx-chip:hover {
+                border-color: rgba(var(--fx-accent-rgb), .4);
             }
 
-            .filter-toolbar {
-                display: grid;
-                gap: .75rem 1rem;
-                align-items: end;
+            .fx-chip:focus-within {
+                border-color: rgba(var(--fx-accent-rgb), .6);
+                box-shadow: 0 0 0 .22rem rgba(var(--fx-accent-rgb), .12);
             }
 
-            .filter-label {
-                display: block;
-                font-size: .72rem;
-                font-weight: 600;
-                color: #8a93a3;
-                text-transform: uppercase;
-                letter-spacing: .02em;
-                margin-bottom: .3rem;
+            .fx-chip>i {
+                color: var(--fx-muted);
+                font-size: .95rem;
+                line-height: 1;
             }
 
-            .filter-toolbar .input-group {
-                border-radius: .5rem;
-                overflow: hidden;
+            .fx-chip label {
+                margin: 0;
+                font-size: .8rem;
+                color: var(--fx-muted);
+                white-space: nowrap;
+                cursor: pointer;
             }
 
-            .filter-toolbar .input-group-text,
-            .filter-toolbar .form-control,
-            .filter-toolbar .form-select {
-                border-color: #dfe3e9;
+            .fx-chip select,
+            .fx-chip input[type="text"] {
+                height: 100%;
+                max-width: 11.5rem;
+                padding: 0 1.4rem 0 .1rem;
+                border: 0;
+                outline: 0;
+                box-shadow: none;
+                background-color: transparent;
+                color: var(--bs-body-color);
                 font-size: .85rem;
+                font-weight: 600;
+                text-overflow: ellipsis;
+                cursor: pointer;
             }
 
-            @media (max-width: 575.98px) {
-                .filter-toolbar {
-                    grid-template-columns: 1fr !important;
+            .fx-chip select {
+                -webkit-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%238a93a3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .3rem center;
+                background-size: .8rem;
+            }
+
+            .fx-chip select option {
+                color: var(--bs-body-color);
+                background: var(--fx-surface);
+                font-weight: 400;
+            }
+
+            .fx-chip input[type="text"]::placeholder {
+                color: var(--fx-muted);
+                font-weight: 400;
+            }
+
+            .fx-chip.is-active {
+                background: rgba(var(--fx-accent-rgb), .08);
+                border-color: rgba(var(--fx-accent-rgb), .45);
+            }
+
+            .fx-chip.is-active>i,
+            .fx-chip.is-active label {
+                color: var(--fx-accent);
+            }
+
+            .fx-sep {
+                align-self: center;
+                width: 1px;
+                height: 1.1rem;
+                background: var(--fx-line);
+            }
+
+            .fx-chip.is-active .fx-sep {
+                background: rgba(var(--fx-accent-rgb), .3);
+            }
+
+            /* Rentang tanggal */
+            .date-range-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+                height: 100%;
+            }
+
+            .fx-chip-date input[type="text"] {
+                width: 10.5rem;
+                padding-right: .6rem;
+            }
+
+            .date-range-panel {
+                display: none;
+                position: absolute;
+                top: calc(100% + 10px);
+                left: 0;
+                z-index: 1050;
+                width: 270px;
+                padding: 14px;
+                background: var(--fx-surface);
+                border: 1px solid var(--fx-line);
+                border-radius: 1rem;
+                box-shadow: 0 .75rem 2rem rgba(20, 20, 43, .14);
+            }
+
+            .date-range-panel.show {
+                display: block;
+                animation: fxPop .14s ease-out;
+            }
+
+            @keyframes fxPop {
+                from {
+                    opacity: 0;
+                    transform: translateY(-4px);
                 }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .fx-presets {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .35rem;
+                margin-bottom: .75rem;
+            }
+
+            .fx-preset {
+                padding: .25rem .65rem;
+                border: 1px solid var(--fx-line);
+                border-radius: 999px;
+                background: transparent;
+                color: var(--bs-body-color);
+                font-size: .76rem;
+                transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            }
+
+            .fx-preset:hover {
+                border-color: rgba(var(--fx-accent-rgb), .5);
+                background: rgba(var(--fx-accent-rgb), .08);
+                color: var(--fx-accent);
             }
 
             #itemHistoryTable th:nth-child(3),
@@ -317,6 +517,39 @@
                     $('#itemHistoryVendor').val('');
                     itemHistoryTable.search('').ajax.reload();
                 });
+
+
+                // ============ TAMPILAN FILTER (penanda aktif, hapus pencarian) ============
+                function filled($el) {
+                    return String($el.val() || '').trim() !== '';
+                }
+
+                function refreshFilterState() {
+                    let count = 0;
+
+                    const searchFilled = filled($('#itemHistorySearch'));
+                    $('.fx-search').toggleClass('has-value', searchFilled);
+                    if (searchFilled) count++;
+
+                    const vendorOn = filled($('#itemHistoryVendor'));
+                    $('#itemHistoryVendor').closest('.fx-chip').toggleClass('is-active', vendorOn);
+                    if (vendorOn) count++;
+
+                    $('#filterBar').toggleClass('has-active', count > 0);
+                    $('#filterCount').text(count > 0 ? count + ' filter aktif' : '');
+                }
+
+                $('#itemHistorySearch, #itemHistoryVendor').on('input change', refreshFilterState);
+
+                $('#resetItemHistoryFilter').on('click', function() {
+                    setTimeout(refreshFilterState, 0);
+                });
+
+                $('#itemHistorySearchClear').on('click', function() {
+                    $('#itemHistorySearch').val('').trigger('input').trigger('focus');
+                });
+
+                refreshFilterState();
 
             });
         </script>
