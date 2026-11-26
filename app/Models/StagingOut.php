@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class StagingOut extends Model
 {
@@ -23,7 +24,7 @@ class StagingOut extends Model
         'lot',
         'delivery_receipt_date',
         'staging_location',
-        'note'
+        'note',
     ];
 
     protected $casts = [
@@ -36,5 +37,17 @@ class StagingOut extends Model
     public function item()
     {
         return $this->belongsTo(Item::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $row) {
+            $row->group_key ??= (string) Str::uuid();
+        });
+
+        static::created(function (self $row) {
+            StagingOutHistory::where('staging_out_id', $row->id)
+                ->update(['staging_out_id' => null, 'is_active' => false]);
+        });
     }
 }

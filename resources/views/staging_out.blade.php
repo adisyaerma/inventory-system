@@ -839,7 +839,7 @@
                                 {{-- ================= No. SO & Tgl Instruksi Kirim (diisi 1x) ================= --}}
                                 <div class="as-po-card flex-shrink-0">
                                     <div class="row g-3">
-                                        <div class="col-md-7">
+                                        <div class="col-md-4">
                                             <label class="as-label">No. SO</label>
                                             <div class="as-field">
                                                 <i class="bx bx-receipt"></i>
@@ -847,7 +847,15 @@
                                                     placeholder="Contoh: SO-2026-0001">
                                             </div>
                                         </div>
-                                        <div class="col-md-5">
+                                        <div class="col-md-4">
+                                            <label class="as-label">Customer</label>
+                                            <div class="as-field">
+                                                <i class="bx bx-buildings"></i>
+                                                <input type="text" class="as-input as-input-lg" name="customer"
+                                                    id="addCustomer" placeholder="Contoh: PT. ABC">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
                                             <label class="as-label">Tgl Instruksi Kirim</label>
                                             <div class="as-field">
                                                 <i class="bx bx-calendar"></i>
@@ -963,22 +971,13 @@
                                             </div>
                                         </div>
 
-                                        <div class="col-md-6 col-lg-4">
-                                            <label class="as-label">Customer</label>
-                                            <div class="as-field">
-                                                <i class="bx bx-buildings"></i>
-                                                <input type="text" class="as-input" name="items[__INDEX__][customer]"
-                                                    placeholder="Contoh: PT. ABC">
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6 col-lg-4">
+                                        <div class="col-md-6">
                                             <label class="as-label">Tgl Instruksi Kirim</label>
                                             <input type="date" class="as-input row-instruction-date"
                                                 name="items[__INDEX__][delivery_instruction_date]">
                                         </div>
 
-                                        <div class="col-md-6 col-lg-4">
+                                        <div class="col-md-6">
                                             <label class="as-label">Tgl Picking</label>
                                             <input type="date" class="as-input"
                                                 name="items[__INDEX__][picking_date]">
@@ -6176,4 +6175,4 @@
             });
         </script>
     @endpush
-@endsection 
+@endsection

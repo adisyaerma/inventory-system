@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -77,15 +78,11 @@ class StagingOutHistoryController extends Controller
      */
     private function groupOf(StagingOutHistory $history): EloquentCollection
     {
-        if ($history->so_number === null || $history->so_number === '' || ! $history->item_id) {
+        if (! $history->group_key) {
             return new EloquentCollection([$history]);
         }
 
-        $query = StagingOutHistory::query()
-            ->where('so_number', $history->so_number)
-            ->where('item_id', $history->item_id)
-            ->whereRaw("COALESCE(line_item, '') = ?", [(string) $history->line_item])
-            ->whereRaw("COALESCE(customer, '') = ?", [(string) $history->customer])
+        $query = StagingOutHistory::where('group_key', $history->group_key)
             ->where('is_active', $history->is_active)
             ->orderBy('id');
 
@@ -124,14 +121,10 @@ class StagingOutHistoryController extends Controller
         return $query->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('staging_out_histories as sib')
-                ->whereColumn('sib.so_number', 'staging_out_histories.so_number')
-                ->whereColumn('sib.item_id', 'staging_out_histories.item_id')
-                ->whereRaw("COALESCE(sib.line_item, '') = COALESCE(staging_out_histories.line_item, '')")
-                ->whereRaw("COALESCE(sib.customer, '') = COALESCE(staging_out_histories.customer, '')")
+                ->whereColumn('sib.group_key', 'staging_out_histories.group_key')
                 ->whereRaw('sib.is_active = staging_out_histories.is_active')
                 ->whereRaw('(sib.delivery_date IS NULL) = (staging_out_histories.delivery_date IS NULL)')
-                ->whereRaw('sib.id < staging_out_histories.id')
-                ->where('sib.so_number', '!=', '');
+                ->whereRaw('sib.id < staging_out_histories.id');
         });
     }
 
@@ -513,6 +506,8 @@ class StagingOutHistoryController extends Controller
                             // Inti pemulihan: tgl resi pengiriman dikosongkan.
                             'delivery_receipt_date' => null,
                         ]);
+
+                        $newStaging->forceFill(['group_key' => $history->group_key])->save();
 
                         $previousReceiptDate = $history->delivery_date instanceof \DateTimeInterface
                             ? $history->delivery_date->format('Y-m-d')
@@ -985,6 +980,10 @@ class StagingOutHistoryController extends Controller
         $meta = is_string($meta) ? json_decode($meta, true) : $meta;
         $meta = $meta ?: [];
 
+        if (isset($meta['sources'])) {
+            return 'Sumber barang diatur';
+        }
+
         return match ($eventType) {
             'updated' => collect($meta)->keys()
                 ->map(fn ($field) => ucfirst(str_replace('_', ' ', $field)).' diubah')
@@ -1020,7 +1019,7 @@ class StagingOutHistoryController extends Controller
         $payload = $this->buildDetailPayload($history);
 
         $filename = 'staging_out_history_detail_'
-            .\Illuminate\Support\Str::slug($payload['item_code'] ?: 'item').'_'
+            .Str::slug($payload['item_code'] ?: 'item').'_'
             .now()->format('Y-m-d').'.xlsx';
 
         return Excel::download(new StagingOutHistoryDetailExport($payload), $filename);
@@ -1173,10 +1172,8 @@ class StagingOutHistoryController extends Controller
                 <=> [$b['detail']->created_at->getTimestamp(), $b['detail']->id];
         })->values();
 
-        // Barang dari beberapa sumber: catatan teknis saat sumber ditetapkan
-        // (qty disesuaikan, sumber/lokasi per baris) TIDAK ditampilkan satu per
-        // satu karena membingungkan. Semuanya diganti SATU event "Sumber
-        // Barang Dipilih" yang menjelaskan barang diambil dari mana saja.
+        $events = $events->reject(fn ($e) => $e['detail']->notes === '__hidden__')->values();
+        $sourceCount = 0;
         $sourceEvents = [];
 
         if ($isGroup) {
@@ -1310,9 +1307,26 @@ class StagingOutHistoryController extends Controller
                 'do_number' => $rep->do_number ?: '-',
                 'delivery_date' => optional($rep->delivery_date)->format('d M Y') ?: '-',
             ],
-            'timeline' => $events->map(function ($event) use ($isGroup, $sources, $splitTimes) {
+            'timeline' => $events->map(function ($event) use ($isGroup, $sources, $splitTimes, &$sourceCount) {
                 $detail = $event['detail'];
                 $meta = $detail->meta;
+
+                if (is_array($meta) && isset($meta['sources'])) {
+                    return [
+                        'id' => $detail->id,
+                        'ts' => $detail->created_at->getTimestamp(),
+                        'event_type' => 'sources_set',
+                        'label' => $sourceCount++ ? 'Sumber Barang Diubah' : 'Sumber Barang Dipilih',
+                        'notes' => null,
+                        'performed_by' => $detail->performed_by ?: 'System',
+                        'created_at' => $detail->created_at->format('d M Y, H:i'),
+                        'source_summary' => [
+                            'total' => array_sum(array_column($meta['sources'], 'qty')),
+                            'count' => count($meta['sources']),
+                            'items' => $meta['sources'],
+                        ],
+                    ];
+                }
 
                 // Perubahan lokasi stok pada event "updated" disimpan sebagai
                 // id; tampilkan sebagai nama lokasi supaya terbaca.

@@ -10,15 +10,17 @@ use App\Imports\StagingOutStockImport;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationStock;
-use App\Models\StagingIn;
 use App\Models\PackingBill;
+use App\Models\StagingIn;
 use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
+use App\Models\StagingOutHistoryDetail;
 use App\Models\StockMutation;
 use App\Services\StagingInHistoryService;
-use App\Services\StagingOutHistoryService;
 use App\Services\StagingInReturnService;
+use App\Services\StagingOutHistoryService;
 use App\Services\StagingOutStockService;
+use Carbon\Carbon;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -35,22 +37,15 @@ class StagingOutController extends Controller
 
     protected ?array $locationNameCache = null;
 
-    public function __construct(protected StagingOutHistoryService $history)
-    {
-    }
+    public function __construct(protected StagingOutHistoryService $history) {}
 
     protected function groupOf(StagingOut $row, bool $lock = false): Collection
     {
-        if ($row->so_number === null || $row->so_number === '' || ! $row->item_id) {
+        if (! $row->group_key) {
             return collect([$row]);
         }
 
-        $query = StagingOut::query()
-            ->where('so_number', $row->so_number)
-            ->where('item_id', $row->item_id)
-            ->whereRaw("COALESCE(line_item, '') = ?", [(string) $row->line_item])
-            ->whereRaw("COALESCE(customer, '') = ?", [(string) $row->customer])
-            ->orderBy('id');
+        $query = StagingOut::where('group_key', $row->group_key)->orderBy('id');
 
         if ($lock) {
             $query->lockForUpdate();
@@ -79,12 +74,8 @@ class StagingOutController extends Controller
         return $query->whereNotExists(function ($sub) {
             $sub->select(DB::raw(1))
                 ->from('staging_outs as sib')
-                ->whereColumn('sib.so_number', 'staging_outs.so_number')
-                ->whereColumn('sib.item_id', 'staging_outs.item_id')
-                ->whereRaw("COALESCE(sib.line_item, '') = COALESCE(staging_outs.line_item, '')")
-                ->whereRaw("COALESCE(sib.customer, '') = COALESCE(staging_outs.customer, '')")
-                ->whereRaw('sib.id < staging_outs.id')
-                ->where('sib.so_number', '!=', '');
+                ->whereColumn('sib.group_key', 'staging_outs.group_key')
+                ->whereRaw('sib.id < staging_outs.id');
         });
     }
 
@@ -338,7 +329,7 @@ class StagingOutController extends Controller
 
         $earliest = $list->pluck('delivery_instruction_date')->filter()->min();
         $dateHtml = $earliest
-            ? '<div>'.e(\Carbon\Carbon::parse($earliest)->format('d M Y')).'</div>'
+            ? '<div>'.e(Carbon::parse($earliest)->format('d M Y')).'</div>'
             : '<span class="text-muted">-</span>';
 
         $picked = $records
@@ -499,6 +490,7 @@ class StagingOutController extends Controller
             Konfirmasi Picking
         </button>';
     }
+
     protected function renderLocationCell(StagingOut $row): string
     {
         if ($this->groupFor($row)->contains(fn ($r) => ! $r->picking_date)) {
@@ -704,6 +696,7 @@ class StagingOutController extends Controller
 
         return $current;
     }
+
     public function searchLocationForItem(Request $request)
     {
         $request->validate([
@@ -1009,6 +1002,8 @@ class StagingOutController extends Controller
                     $group = $this->groupOf($staging, true);
                     $staging = $group->first();
 
+                    $lastId = (int) StagingOutHistoryDetail::max('id');
+
                     $label = 'No. SO '.($staging->so_number ?: '-')
                         .' / '.(optional($staging->item)->item_code_internal ?: '-');
 
@@ -1023,7 +1018,7 @@ class StagingOutController extends Controller
                                     $this->releaseSource($r);
                                 }
                             }
-
+                            $this->history->logSourcesSet($this->groupOf($staging, true), $lastId);
                             $reverted++;
 
                             continue;
@@ -1065,7 +1060,7 @@ class StagingOutController extends Controller
                                 $this->history->logUpdated($r, $changes);
                             }
                         }
-
+                        $this->history->logSourcesSet($this->groupOf($staging, true), $lastId);
                         $assigned++;
                     } catch (\RuntimeException $e) {
                         throw new \RuntimeException("{$label}: ".$e->getMessage());
@@ -1101,6 +1096,7 @@ class StagingOutController extends Controller
             ], 500);
         }
     }
+
     protected function assignAllocations(Collection $rows, array $allocations): void
     {
         $rows = $rows->values();
@@ -1159,7 +1155,14 @@ class StagingOutController extends Controller
         }
 
         foreach ($rows->slice(count($merged)) as $unused) {
-            $this->history->logDeleted($unused);
+            // Hanya penggabungan sumber, bukan penghapusan barang
+            $old = StagingOutHistory::where('staging_out_id', $unused->id)->first();
+
+            if ($old) {
+                $old->details()->reorder()->delete();
+                $old->delete();
+            }
+
             $unused->delete();
         }
     }
@@ -1390,6 +1393,7 @@ class StagingOutController extends Controller
             'delivery_receipt_date' => ['nullable', 'date'],
         ];
     }
+
     protected function validateStockAvailability(ValidatorContract $validator, Request $request, ?StagingOut $current = null): void
     {
         $validator->after(function ($validator) use ($request, $current) {
@@ -1526,14 +1530,17 @@ class StagingOutController extends Controller
     {
         return app(StagingOutStockService::class)->description($stagingOut);
     }
+
     protected function batchValidationRules(): array
     {
         $rules = [
             'so_number' => ['nullable', 'max:255'],
+            'customer' => ['nullable', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
         ];
 
-        foreach (Arr::except($this->baseValidationRules(), ['so_number']) as $field => $rule) {
+        // No. SO & Customer diisi 1x di header, berlaku untuk semua barang.
+        foreach (Arr::except($this->baseValidationRules(), ['so_number', 'customer']) as $field => $rule) {
             $rules["items.*.{$field}"] = $rule;
         }
 
@@ -1604,6 +1611,7 @@ class StagingOutController extends Controller
     {
         $validator = Validator::make($request->all(), $this->batchValidationRules(), [
             'so_number.max' => 'No. SO terlalu panjang (maksimal 255 karakter).',
+            'customer.max' => 'Nama customer terlalu panjang (maksimal 255 karakter).',
 
             'items.required' => 'Belum ada barang. Tambahkan minimal satu barang.',
             'items.min' => 'Belum ada barang. Tambahkan minimal satu barang.',
@@ -1615,7 +1623,6 @@ class StagingOutController extends Controller
             'items.*.qty.required' => 'Qty belum diisi.',
             'items.*.qty.integer' => 'Qty harus berupa angka bulat (tanpa koma).',
             'items.*.qty.min' => 'Qty minimal 1.',
-            'items.*.customer.max' => 'Nama customer terlalu panjang (maksimal 255 karakter).',
             'items.*.line_item.max' => 'Line item terlalu panjang (maksimal 255 karakter).',
             'items.*.lot.max' => 'Lot terlalu panjang (maksimal 255 karakter).',
             'items.*.do_number.max' => 'No. DO terlalu panjang (maksimal 255 karakter).',
@@ -1634,6 +1641,7 @@ class StagingOutController extends Controller
 
                 foreach ($validated['items'] as $line) {
                     $line['so_number'] = $validated['so_number'] ?? null;
+                    $line['customer'] = $validated['customer'] ?? null;
 
                     if ($line['source_type'] === 'external') {
                         $line['location_id'] = null;
@@ -1861,6 +1869,7 @@ class StagingOutController extends Controller
 
         return $justDelivered;
     }
+
     public function destroy(StagingOut $stagingOut)
     {
         try {

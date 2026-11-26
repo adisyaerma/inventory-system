@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 /**
  * 1 baris per "siklus hidup" staging_out. Header ini menyimpan snapshot
@@ -87,5 +88,13 @@ class StagingOutHistory extends Model
                 'created_by' => auth()->id(),
             ]
         );
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $history) {
+            $history->group_key ??= StagingOut::whereKey($history->staging_out_id)->value('group_key')
+                ?? (string) Str::uuid();
+        });
     }
 }

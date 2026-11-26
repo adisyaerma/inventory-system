@@ -6,6 +6,7 @@ use App\Models\StagingOut;
 use App\Models\StagingOutHistory;
 use App\Models\StagingOutHistoryDetail;
 use App\Support\CurrentUser;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -200,8 +201,8 @@ class StagingOutHistoryService
         return $history->details()->create([
             'event_type' => 'deleted',
             'qty_before' => $staging->qty,
-            'qty_change' => $staging->qty,
-            'qty_after' => 0,
+            'qty_change' => 0,
+            'qty_after' => $staging->qty,
             'performed_by' => CurrentUser::email(),
         ]);
     }
@@ -261,7 +262,7 @@ class StagingOutHistoryService
      * Catat kejadian "bulk_deleted" untuk banyak baris sekaligus.
      * $stagings harus koleksi yang SUDAH di-load sebelum di-destroy.
      *
-     * @param  \Illuminate\Support\Collection<int, StagingOut>  $stagings
+     * @param  Collection<int, StagingOut>  $stagings
      */
     public function logBulkDeleted($stagings): void
     {
@@ -272,8 +273,8 @@ class StagingOutHistoryService
             $history->details()->create([
                 'event_type' => 'bulk_deleted',
                 'qty_before' => $staging->qty,
-                'qty_change' => $staging->qty,
-                'qty_after' => 0,
+                'qty_change' => 0,
+                'qty_after' => $staging->qty,
                 'performed_by' => CurrentUser::email(),
             ]);
         }
@@ -283,7 +284,7 @@ class StagingOutHistoryService
      * Catat kejadian "reset_by_import" untuk semua baris staging_out yang
      * ada SEBELUM tabel di-truncate oleh proses import.
      *
-     * @param  \Illuminate\Support\Collection<int, StagingOut>  $stagings
+     * @param  Collection<int, StagingOut>  $stagings
      */
     public function logResetByImport($stagings): void
     {
@@ -294,8 +295,8 @@ class StagingOutHistoryService
             $history->details()->create([
                 'event_type' => 'reset_by_import',
                 'qty_before' => $staging->qty,
-                'qty_change' => $staging->qty,
-                'qty_after' => 0,
+                'qty_change' => 0,
+                'qty_after' => $staging->qty,
                 'notes' => 'Data dihapus otomatis karena import ulang seluruh data staging out.',
                 'performed_by' => CurrentUser::email(),
             ]);
@@ -367,5 +368,43 @@ class StagingOutHistoryService
         }
 
         return $string;
+    }
+
+    public function logSourcesSet($rows, int $afterId): void
+    {
+        $rows = $rows->values();
+        $histories = $rows->map(fn ($r) => StagingOutHistory::firstOrCreateForStaging($r));
+
+        // Sembunyikan catatan teknis yang baru saja dibuat
+        $technical = ['qty', 'source_type', 'location_id', 'lot', 'staging_in_id', 'staging_in_snapshot'];
+
+        StagingOutHistoryDetail::where('id', '>', $afterId)
+            ->whereIn('staging_out_history_id', $histories->pluck('id'))
+            ->where('event_type', 'updated')
+            ->get()
+            ->each(function ($d) use ($technical) {
+                $meta = is_string($d->meta) ? json_decode($d->meta, true) : $d->meta;
+
+                if (! array_diff(array_keys($meta ?: []), $technical)) {
+                    StagingOutHistoryDetail::whereKey($d->id)->update(['notes' => '__hidden__']);
+                }
+            });
+
+        // Satu catatan ringkas
+        $sources = $rows->map(function ($r) {
+            if ($r->source_type === 'stock' && $r->location_id) {
+                $text = 'Stok · '.($this->locationName($r->location_id) ?? '-').' · '.($r->lot ? 'Lot '.$r->lot : 'Tanpa Lot');
+            } else {
+                $text = $r->staging_in_id ? 'Staging In' : 'Sumber belum dipilih';
+            }
+
+            return ['qty' => (int) $r->qty, 'text' => $text];
+        })->all();
+
+        $histories->first()->details()->create([
+            'event_type' => 'updated',
+            'meta' => ['sources' => $sources],
+            'performed_by' => CurrentUser::email(),
+        ]);
     }
 }
