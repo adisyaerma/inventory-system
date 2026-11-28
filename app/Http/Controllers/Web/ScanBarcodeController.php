@@ -10,6 +10,8 @@ use App\Models\StagingIn;
 use App\Models\StockMutation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use App\Services\StagingInHistoryService;
 
 class ScanBarcodeController extends Controller
 {
@@ -159,12 +161,27 @@ class ScanBarcodeController extends Controller
             'item_id' => 'required|integer|exists:items,id',
             'from_location_id' => 'required|integer|exists:locations,id',
             'lot' => 'nullable|string',
+            'to_lot' => 'nullable|string|max:255',
             'qty' => 'required|numeric|gt:0',
-            'to_location_id' => 'required|integer|exists:locations,id',
+            'to_location_id' => 'required_without:to_staging_in|nullable|integer|exists:locations,id',
+            'to_staging_in' => 'nullable|boolean',
+            'staging_location' => ['nullable', Rule::in(StagingIn::LOCATIONS)],
         ]);
 
         $lot = ($data['lot'] ?? '') !== '' ? $data['lot'] : null;
+
+        // Lot tujuan: kalau field to_lot tidak dikirim, ikut lot asal (perilaku lama).
+        // Kalau dikirim tapi kosong, berarti "Tanpa lot".
+        $toLot = $request->has('to_lot')
+            ? (trim((string) ($data['to_lot'] ?? '')) !== '' ? trim($data['to_lot']) : null)
+            : $lot;
         $qty = round((float) $data['qty'], 2);
+
+        // Tujuan Staging In: stok gudang berkurang, lalu dibuat baris baru di Staging In.
+        if ($request->boolean('to_staging_in')) {
+            return $this->moveToStagingIn($data, $lot, $qty, $data['staging_location'] ?? null);
+        }
+
         $target = Location::findOrFail($data['to_location_id']);
 
         if ((int) $target->id === (int) $data['from_location_id']) {
@@ -175,7 +192,7 @@ class ScanBarcodeController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($data, $lot, $qty, $target) {
+            DB::transaction(function () use ($data, $lot, $toLot, $qty, $target) {
                 $from = LocationStock::where('item_id', $data['item_id'])
                     ->where('location_id', $data['from_location_id'])
                     ->where('lot', $lot)
@@ -188,7 +205,7 @@ class ScanBarcodeController extends Controller
 
                 $to = LocationStock::where('item_id', $data['item_id'])
                     ->where('location_id', $target->id)
-                    ->where('lot', $lot)
+                    ->where('lot', $toLot)
                     ->lockForUpdate()
                     ->first();
     
@@ -196,7 +213,7 @@ class ScanBarcodeController extends Controller
                     $to = LocationStock::create([
                         'item_id' => $data['item_id'],
                         'location_id' => $target->id,
-                        'lot' => $lot,
+                        'lot' => $toLot,
                         'opening_balance' => 0,
                         'quantity' => 0,
                     ]);
@@ -212,13 +229,17 @@ class ScanBarcodeController extends Controller
 
                 $today = now()->toDateString();
 
+                $lotNote = $lot !== $toLot
+                    ? ' (lot '.($lot ?? 'tanpa lot').' → '.($toLot ?? 'tanpa lot').')'
+                    : '';
+
                 StockMutation::create([
                     'item_id' => $data['item_id'],
                     'location_id' => $from->location_id,
                     'lot' => $lot,
                     'transaction_date' => $today,
                     'transaction_number' => null,
-                    'description' => 'Pindah lokasi ke '.$target->location_name,
+                    'description' => 'Pindah lokasi ke '.$target->location_name.$lotNote,
                     'qty_in' => 0,
                     'qty_out' => $qty,
                     'qty_balance' => $from->quantity,
@@ -227,10 +248,10 @@ class ScanBarcodeController extends Controller
                 StockMutation::create([
                     'item_id' => $data['item_id'],  
                     'location_id' => $target->id,
-                    'lot' => $lot,
+                    'lot' => $toLot,
                     'transaction_date' => $today,
                     'transaction_number' => null,
-                    'description' => 'Pindah lokasi dari '.($fromLocation->location_name ?? '-'),
+                    'description' => 'Pindah lokasi dari '.($fromLocation->location_name ?? '-').$lotNote,
                     'qty_in' => $qty,
                     'qty_out' => 0,
                     'qty_balance' => $to->quantity,
@@ -246,6 +267,75 @@ class ScanBarcodeController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Barang berhasil dipindahkan ke '.$target->location_name.'.',
+        ]);
+    }
+
+    /**
+     * Pindahkan stok gudang (item + lot) ke Staging In.
+     * location_stock sumber berkurang, dicatat satu mutasi keluar, lalu dibuat
+     * satu baris baru di staging_ins (lengkap dengan history Staging In).
+     * Staging In tidak punya kolom lot, jadi lot asal dicatat di notes.
+     */
+    private function moveToStagingIn(array $data, ?string $lot, float $qty, ?string $stagingLocation)
+    {
+        if (floor($qty) != $qty) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Qty ke Staging In harus bilangan bulat.',
+            ], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($data, $lot, $qty, $stagingLocation) {
+                $from = LocationStock::where('item_id', $data['item_id'])
+                    ->where('location_id', $data['from_location_id'])
+                    ->where('lot', $lot)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $from || (float) $from->quantity < $qty) {
+                    throw new \RuntimeException('Stok di lokasi asal tidak mencukupi.');
+                }
+
+                $fromLocation = Location::find($data['from_location_id']);
+                $fromName = $fromLocation->location_name ?? '-';
+                $lotNote = $lot !== null ? ' (lot '.$lot.')' : '';
+
+                $from->quantity = (float) $from->quantity - $qty;
+                $from->save();
+
+                StockMutation::create([
+                    'item_id' => $data['item_id'],
+                    'location_id' => $from->location_id,
+                    'lot' => $lot,
+                    'transaction_date' => now()->toDateString(),
+                    'transaction_number' => null,
+                    'description' => 'Pindah ke Staging In'.$lotNote,
+                    'qty_in' => 0,
+                    'qty_out' => $qty,
+                    'qty_balance' => $from->quantity,
+                ]);
+
+                $staging = StagingIn::create([
+                    'item_id' => $data['item_id'],
+                    'qty' => (int) $qty,
+                    'arrival_date' => now()->toDateString(),
+                    'location' => $stagingLocation ?: null,
+                    'notes' => 'Dipindah dari '.$fromName.$lotNote,
+                ]);
+
+                app(StagingInHistoryService::class)->logCreated($staging);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Barang berhasil dipindahkan ke Staging In.',
         ]);
     }
 

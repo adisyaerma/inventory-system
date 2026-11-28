@@ -3386,9 +3386,20 @@
                 valueField: "id",
                 labelField: "text",
                 searchField: ["text"],
-                placeholder: "Pilih lot...",
-                create: false,
-                allowEmptyOption: true
+                placeholder: "Pilih atau ketik lot baru...",
+                allowEmptyOption: true,
+                create: function(input) {
+                    input = $.trim(input);
+                    return {
+                        id: input,
+                        text: input + " (baru)"
+                    };
+                },
+                createFilter: function(input) {
+                    return $.trim(input) !== "";
+                },
+                persist: false,
+                createOnBlur: true
             });
 
             function loadCurrentStock() {
@@ -3467,25 +3478,22 @@
                             lotSelect.addOption(opt);
                         });
 
-                        // Tanpa lot sama sekali (tidak ada baris, atau satu-satunya
-                        // baris memang tanpa lot): field lot tidak ditampilkan.
+                        // Field lot selalu tampil: user bisa pilih lot yang ada
+                        // atau mengetik lot baru (otomatis dibuat saat disimpan).
+                        $("#lotWrapper").show();
+
                         if (res.length === 0 || (res.length === 1 && res[0].id === "")) {
 
-                            $("#lotWrapper").hide();
+                            // Belum ada lot: kosongkan, user boleh ketik lot baru.
                             lotSelect.setValue("", true);
 
                         } else if (res.length === 1) {
 
-                            $("#lotWrapper").show();
                             lotSelect.setValue(res[0].id, true);
 
-                        } else {
-
-                            $("#lotWrapper").show();
-                            // Lebih dari satu lot: jangan auto-pilih,
-                            // biarkan user yang menentukan.
-
                         }
+                        // Lebih dari satu lot: jangan auto-pilih,
+                        // biarkan user yang menentukan.
 
                         loadCurrentStock();
 
@@ -3791,9 +3799,20 @@
                 valueField: "id",
                 labelField: "text",
                 searchField: ["text"],
-                placeholder: "Pilih lot...",
-                create: false,
-                allowEmptyOption: true
+                placeholder: "Pilih atau ketik lot baru...",
+                allowEmptyOption: true,
+                create: function(input) {
+                    input = $.trim(input);
+                    return {
+                        id: input,
+                        text: input + " (baru)"
+                    };
+                },
+                createFilter: function(input) {
+                    return $.trim(input) !== "";
+                },
+                persist: false,
+                createOnBlur: true
             });
 
             // Ambil daftar lot untuk kombinasi barang + lokasi yang sedang
@@ -3830,23 +3849,28 @@
                             editLotSelect.addOption(opt);
                         });
 
-                        if (res.length === 0 || (res.length === 1 && res[0].id === "")) {
+                        // Field lot selalu tampil: bisa pilih lot yang ada
+                        // atau ketik lot baru.
+                        $("#editLotWrapper").show();
 
-                            $("#editLotWrapper").hide();
-                            editLotSelect.setValue("", true);
+                        if (presetLot !== undefined && presetLot !== null && presetLot !== "") {
+
+                            if (!editLotSelect.options[presetLot]) {
+                                editLotSelect.addOption({
+                                    id: presetLot,
+                                    text: presetLot
+                                });
+                            }
+
+                            editLotSelect.setValue(presetLot, true);
 
                         } else if (res.length === 1) {
 
-                            $("#editLotWrapper").show();
                             editLotSelect.setValue(res[0].id, true);
 
                         } else {
 
-                            $("#editLotWrapper").show();
-
-                            if (presetLot !== undefined && presetLot !== null && presetLot !== "") {
-                                editLotSelect.setValue(presetLot, true);
-                            }
+                            editLotSelect.setValue("", true);
 
                         }
 

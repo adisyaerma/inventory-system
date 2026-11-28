@@ -2018,6 +2018,16 @@
                                 </div>
 
                                 <div class="col-12">
+                                    <label class="as-label">Pindahkan ke</label>
+                                    <div class="btn-group w-100" role="group" id="moveModeGroup">
+                                        <input type="radio" class="btn-check" name="moveMode" id="moveModeStock" value="stock" checked>
+                                        <label class="btn btn-outline-primary btn-sm" for="moveModeStock"><i class="bx bx-map-pin me-1"></i>Lokasi gudang</label>
+                                        <input type="radio" class="btn-check" name="moveMode" id="moveModeStaging" value="staging">
+                                        <label class="btn btn-outline-primary btn-sm" for="moveModeStaging"><i class="bx bx-package me-1"></i>Staging In</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12" id="moveTargetStockWrap">
                                     <label class="as-label">Lokasi Tujuan</label>
                                     <div class="d-flex gap-2 align-items-start">
                                         <div class="flex-grow-1" style="min-width:0;">
@@ -2029,6 +2039,17 @@
                                     </div>
                                     <small class="as-help">Ketik untuk mencari, atau scan barcode lokasi dengan kamera.</small>
                                     <div id="moveStockScanStatus" class="as-scan-status d-none"></div>
+                                </div>
+
+                                <div class="col-12 d-none" id="moveTargetStagingWrap">
+                                    <label class="as-label">Lokasi di Staging In <span class="fw-normal text-muted">(opsional)</span></label>
+                                    <select id="moveStagingLocation" class="as-input">
+                                        <option value="">- Kosongkan -</option>
+                                        @foreach (\App\Models\StagingIn::LOCATIONS as $stLoc)
+                                            <option value="{{ $stLoc }}">{{ $stLoc }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="as-help">Stok keluar dari gudang dan masuk sebagai baris baru di Staging In. Qty harus bilangan bulat; lot asal dicatat di catatan.</small>
                                 </div>
                             </div>
 
@@ -3401,6 +3422,7 @@
             #moveStockModal .as-card-title small { color: #8a93a8; }
             #moveStockModal .as-card-icon { width: 2.4rem; height: 2.4rem; flex-shrink: 0; display: grid; place-items: center; border-radius: .8rem; font-size: 1.2rem; color: #4f46e5; background: #eef0ff; }
             #moveStockModal .as-card-icon.is-pink { color: #db2777; background: #fdf0f7; }
+            #moveStockModal.is-staging .ms-lot-wrap { display: none; }
             #moveStockModal .as-footer { display: flex; justify-content: flex-end; gap: .6rem; padding: 1rem 2rem 1.4rem; background: #f5f6fb; }
             #moveStockModal .as-btn-save { border: 0; border-radius: .8rem; padding: .6rem 1.6rem; font-weight: 600; color: #fff; background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: 0 10px 22px -8px rgba(79, 70, 229, .65); }
             #moveStockModal .as-btn-save:hover { color: #fff; filter: brightness(1.08); }
@@ -3420,6 +3442,8 @@
                 let moveItemId = null;
                 let moveSources = [];
                 let moveQtyByIdx = {};
+                let moveLotByIdx = {};
+                let moveMode = 'stock';
                 let moveLastScan = '';
 
                 function esc(t) { return $('<div>').text(t).html(); }
@@ -3493,6 +3517,9 @@
                     $('#moveStockQtyList .ms-qty').each(function() {
                         moveQtyByIdx[$(this).data('idx')] = $(this).val();
                     });
+                    $('#moveStockQtyList .ms-lot').each(function() {
+                        moveLotByIdx[$(this).data('idx')] = $(this).val();
+                    });
 
                     const selected = tsSrc.items;
                     let total = 0;
@@ -3503,19 +3530,56 @@
                         const val = moveQtyByIdx[i] !== undefined ? moveQtyByIdx[i] : s.qty;
                         total += parseFloat(val) || 0;
 
-                        html += '<div class="d-flex align-items-center gap-2 mb-2">'
-                            + '<div class="flex-grow-1 small fw-semibold" style="min-width:0;">' + esc(srcLabel(s)) + '</div>'
+                        const lotVal = moveLotByIdx[i] !== undefined ? moveLotByIdx[i] : s.lot;
+
+                        html += '<div class="mb-3">'
+                            + '<div class="small fw-semibold mb-1" style="min-width:0;">' + esc(srcLabel(s)) + '</div>'
+                            + '<div class="d-flex align-items-center gap-2">'
                             + '<div class="as-field" style="width:150px;flex-shrink:0;">'
                             + '<i class="bx bx-cube-alt"></i>'
-                            + '<input type="number" class="as-input ms-qty" data-idx="' + i + '" min="0.01" step="0.01" max="' + s.qty + '" value="' + val + '">'
-                            + '</div></div>';
+                            + '<input type="number" class="as-input ms-qty" data-idx="' + i + '" min="0.01" step="0.01" max="' + s.qty + '" value="' + val + '" title="Qty dipindah">'
+                            + '</div>'
+                            + '<div class="as-field flex-grow-1 ms-lot-wrap" style="min-width:0;">'
+                            + '<i class="bx bx-purchase-tag-alt"></i>'
+                            + '<input type="text" class="as-input ms-lot" data-idx="' + i + '" list="moveLotList" maxlength="255" autocomplete="off" placeholder="Lot tujuan (kosong = tanpa lot)" value="' + esc(lotVal).replace(/"/g, '&quot;') + '">'
+                            + '</div></div></div>';
                     });
 
+                    html += '<datalist id="moveLotList"></datalist>';
                     $('#moveStockQtyList').html(html);
+                    fillLotList();
                     $('#moveStockQtyWrap').toggleClass('d-none', !selected.length);
                     $('#moveStockFromName').text(selected.length + ' asal dipilih');
                     $('#moveStockAvail').text(fmt(total));
                 }
+
+                // Daftar lot yang sudah ada di lokasi tujuan (saran saja; boleh ketik lot baru)
+                let moveTargetLots = [];
+
+                function fillLotList() {
+                    const $dl = $('#moveLotList').empty();
+                    moveTargetLots.forEach(function(l) {
+                        $dl.append($('<option>').attr('value', l));
+                    });
+                }
+
+                ts.on('change', function(val) {
+                    moveTargetLots = [];
+                    fillLotList();
+
+                    const opt = val ? ts.options[val] : null;
+                    if (!opt || !moveItemId) return;
+
+                    $.get("{{ route('stock-mutation.lots') }}", {
+                        item_id: moveItemId,
+                        location: opt.location_name
+                    }).done(function(res) {
+                        moveTargetLots = (res || [])
+                            .map(function(r) { return r.id; })
+                            .filter(function(v) { return v !== ''; });
+                        fillLotList();
+                    });
+                });
 
                 tsSrc.on('change', function() {
                     renderQtyList();
@@ -3528,6 +3592,25 @@
                         clearScanStatus();
                         moveLastScan = '';
                     }
+                });
+
+                function setMoveMode(mode) {
+                    moveMode = mode;
+                    const staging = mode === 'staging';
+                    $('#moveModeStaging').prop('checked', staging);
+                    $('#moveModeStock').prop('checked', !staging);
+                    $('#moveTargetStockWrap').toggleClass('d-none', staging);
+                    $('#moveTargetStagingWrap').toggleClass('d-none', !staging);
+                    $(modalEl).toggleClass('is-staging', staging);
+                    if (staging) stopCamera();
+                }
+
+                $('input[name="moveMode"]').on('change', function() {
+                    setMoveMode(this.value);
+                });
+
+                $(document).on('input', '#moveStockQtyList .ms-lot', function() {
+                    moveLotByIdx[$(this).data('idx')] = $(this).val();
                 });
 
                 $(document).on('input', '#moveStockQtyList .ms-qty', function() {
@@ -3628,6 +3711,10 @@
 
                             moveItemId = id;
                             moveQtyByIdx = {};
+                            moveLotByIdx = {};
+                            moveTargetLots = [];
+                            $('#moveStagingLocation').val('');
+                            setMoveMode('stock');
 
                             hideAlert();
                             clearScanStatus();
@@ -3680,7 +3767,9 @@
                         return;
                     }
 
-                    if (!target) {
+                    const toStaging = moveMode === 'staging';
+
+                    if (!toStaging && !target) {
                         showAlert('Pilih atau scan lokasi tujuan terlebih dahulu.');
                         return;
                     }
@@ -3692,7 +3781,12 @@
                         const s = moveSources[i];
                         const qty = parseFloat($('#moveStockQtyList .ms-qty[data-idx="' + i + '"]').val());
 
-                        if (String(s.location_id) === String(target)) {
+                        if (toStaging && !Number.isInteger(qty)) {
+                            showAlert('Qty ke Staging In harus bilangan bulat (tanpa koma).');
+                            return;
+                        }
+
+                        if (!toStaging && String(s.location_id) === String(target)) {
                             showAlert('Lokasi tujuan sama dengan asal: ' + (s.location_name || '-') + '.');
                             return;
                         }
@@ -3702,10 +3796,14 @@
                             return;
                         }
 
-                        jobs.push({ idx: i, src: s, qty: qty });
+                        const toLot = $.trim($('#moveStockQtyList .ms-lot[data-idx="' + i + '"]').val() || '');
+
+                        jobs.push({ idx: i, src: s, qty: qty, toLot: toLot });
                     }
 
-                    const targetName = (ts.options[target] && ts.options[target].location_name) || 'lokasi tujuan';
+                    const targetName = toStaging
+                        ? 'Staging In'
+                        : ((ts.options[target] && ts.options[target].location_name) || 'lokasi tujuan');
                     const btn = $(this).prop('disabled', true);
                     let doneCount = 0;
 
@@ -3737,14 +3835,19 @@
                         $.ajax({
                             url: "{{ route('scan.location.move') }}",
                             method: 'POST',
-                            data: {
+                            data: Object.assign({
                                 _token: "{{ csrf_token() }}",
                                 item_id: moveItemId,
                                 from_location_id: j.src.location_id,
                                 lot: j.src.lot,
-                                qty: j.qty,
-                                to_location_id: target
-                            }
+                                qty: j.qty
+                            }, toStaging ? {
+                                to_staging_in: 1,
+                                staging_location: $('#moveStagingLocation').val() || ''
+                            } : {
+                                to_location_id: target,
+                                to_lot: j.toLot
+                            })
                         }).done(function() {
                             doneCount++;
                             // yang sudah berhasil dikeluarkan dari pilihan supaya tidak terkirim dua kali

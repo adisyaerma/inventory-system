@@ -51,6 +51,36 @@
     <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
 
     <script src="{{ asset('sneat-template/assets/js/config.js') }}"></script>
+    <style>
+        /* Sidebar scrollable */
+        #layout-menu {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #layout-menu .app-brand,
+        #layout-menu .menu-divider {
+            flex-shrink: 0;
+        }
+
+        #layout-menu #sidebar-menu {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            scrollbar-width: thin;
+        }
+
+        #layout-menu #sidebar-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #layout-menu #sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, .4);
+            border-radius: 3px;
+        }
+    </style>
 </head>
 
 <body>
